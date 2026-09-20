@@ -1215,20 +1215,10 @@
     setTimeout(() => buildSearchIndex(), 800);
   }
 
-  function startBoot() {
-    boot().catch((err) => {
-      console.error(err);
-      $app.innerHTML = `<div class="view"><h1>Gagal memuat situs</h1><p>${escapeHtml(err.message || String(err))}</p></div>`;
-    });
-  }
-  // Don't fetch/render any content until the site-wide login gate (lock.js)
-  // is passed — avoids leaking module content into the DOM/network tab
-  // behind the lock screen.
-  if (window.YSLock && !window.YSLock.isUnlocked()) {
-    document.addEventListener("ys:unlocked", startBoot, { once: true });
-  } else {
-    startBoot();
-  }
+  boot().catch((err) => {
+    console.error(err);
+    $app.innerHTML = `<div class="view"><h1>Gagal memuat situs</h1><p>${escapeHtml(err.message || String(err))}</p></div>`;
+  });
 
   // Exposed so editor.js can reuse the exact same markdown rendering (live preview)
   // and reload a module's content right after a save, without a full page reload.
