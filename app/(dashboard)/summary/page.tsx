@@ -31,20 +31,20 @@ export default async function SummaryPage({
   const [{ data: resolvedIssues }, { data: doneTodos }, { data: upcomingTodos }] = await Promise.all([
     supabase
       .from("issue_log")
-      .select("*")
+      .select("id, title, category, client_name, date_resolved")
       .gte("date_resolved", range.start)
       .lte("date_resolved", range.end)
       .order("date_resolved", { ascending: false }),
     supabase
       .from("todos")
-      .select("*")
+      .select("id, title, updated_at")
       .eq("status", "done")
       .gte("updated_at", `${range.start}T00:00:00`)
       .lte("updated_at", `${range.end}T23:59:59`)
       .order("updated_at", { ascending: false }),
     supabase
       .from("todos")
-      .select("*")
+      .select("id, title, due_date")
       .in("status", ["todo", "in_progress"])
       .gte("due_date", nextWeek.start)
       .lte("due_date", nextWeek.end)

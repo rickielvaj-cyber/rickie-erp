@@ -36,7 +36,16 @@ export default async function IssuesPage({
 
   const supabase = await createClient();
 
-  const { data: allForFilters } = await supabase.from("issue_log").select("client_name, category");
+  let query = supabase.from("issue_log").select("*");
+  if (clientFilter !== "all") query = query.eq("client_name", clientFilter);
+  if (categoryFilter !== "all") query = query.eq("category", categoryFilter);
+  if (monthFrom) query = query.gte("date_resolved", `${monthFrom}-01`);
+  if (monthTo) query = query.lte("date_resolved", endOfMonthISO(monthTo));
+
+  const [{ data: allForFilters }, { data: issues, error: fetchError }] = await Promise.all([
+    supabase.from("issue_log").select("client_name, category"),
+    query.order("date_resolved", { ascending: false, nullsFirst: false }),
+  ]);
 
   const clientOptions = Array.from(
     new Set((allForFilters ?? []).map((r) => r.client_name).filter((v): v is string => Boolean(v))),
@@ -44,17 +53,6 @@ export default async function IssuesPage({
   const categoryOptions = Array.from(
     new Set((allForFilters ?? []).map((r) => r.category).filter((v): v is string => Boolean(v))),
   ).sort();
-
-  let query = supabase.from("issue_log").select("*");
-  if (clientFilter !== "all") query = query.eq("client_name", clientFilter);
-  if (categoryFilter !== "all") query = query.eq("category", categoryFilter);
-  if (monthFrom) query = query.gte("date_resolved", `${monthFrom}-01`);
-  if (monthTo) query = query.lte("date_resolved", endOfMonthISO(monthTo));
-
-  const { data: issues, error: fetchError } = await query.order("date_resolved", {
-    ascending: false,
-    nullsFirst: false,
-  });
 
   const editingIssue = editId ? (issues ?? []).find((i) => i.id === editId) ?? null : null;
 
