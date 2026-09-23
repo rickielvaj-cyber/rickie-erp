@@ -1,5 +1,7 @@
 # Personal Workspace — ERP Implementation Consultant (Fase 1: MVP)
 
+<!-- Trigger Vercel preview deployment untuk branch ini. -->
+
 Workspace pribadi (single-user) buat ERP Implementation Consultant (YonSuite/Yonyou).
 Fase 1 mencakup 3 modul: **To-Do List**, **Issue Log**, dan **Ringkasan Mingguan**.
 
