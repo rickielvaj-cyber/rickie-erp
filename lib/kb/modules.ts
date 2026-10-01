@@ -1,39 +1,47 @@
 export type KbModuleSlug =
+  | "pengantar"
+  | "fondasi-erp"
   | "digital-modeling"
   | "master-data"
-  | "aact-coa"
   | "purchasing"
+  | "sales"
   | "inventory"
   | "inventory-accounting"
-  | "sales"
+  | "accounting-common"
   | "ap"
   | "ar"
-  | "fa"
   | "gl"
+  | "fixed-assets"
   | "expense-service"
   | "enterprise-report"
-  | "issue-log"
+  | "troubleshooting"
   | "studi-kasus"
-  | "referensi";
+  | "lampiran";
 
-export const KB_MODULES: { slug: KbModuleSlug; label: string }[] = [
-  { slug: "digital-modeling", label: "Digital Modeling" },
-  { slug: "master-data", label: "Master Data" },
-  { slug: "aact-coa", label: "Account & COA" },
-  { slug: "purchasing", label: "Purchasing" },
-  { slug: "inventory", label: "Inventory" },
-  { slug: "inventory-accounting", label: "Inventory Accounting" },
-  { slug: "sales", label: "Sales" },
-  { slug: "ap", label: "Account Payable" },
-  { slug: "ar", label: "Account Receivable" },
-  { slug: "fa", label: "Fixed Assets" },
-  { slug: "gl", label: "General Ledger" },
-  { slug: "expense-service", label: "Expense & Service" },
-  { slug: "enterprise-report", label: "Enterprise Report" },
-  { slug: "issue-log", label: "Issue Log KB" },
-  { slug: "studi-kasus", label: "Studi Kasus" },
-  { slug: "referensi", label: "Referensi" },
-];
+export const MODULE_LABELS: Record<KbModuleSlug, string> = {
+  "pengantar": "Pengantar",
+  "fondasi-erp": "Bab 1 — Fondasi ERP & Akuntansi",
+  "digital-modeling": "Bab 2 — Digital Modeling",
+  "master-data": "Bab 3 — Master Data",
+  "purchasing": "Bab 4 — Purchasing",
+  "sales": "Bab 5 — Sales",
+  "inventory": "Bab 6 — Inventory Management",
+  "inventory-accounting": "Bab 7 — Inventory Accounting",
+  "accounting-common": "Bab 8 — Accounting Common",
+  "ap": "Bab 9 — Accounts Payable",
+  "ar": "Bab 10 — Accounts Receivable",
+  "gl": "Bab 11 — General Ledger",
+  "fixed-assets": "Bab 12 — Fixed Assets",
+  "expense-service": "Bab 13 — Expense Service",
+  "enterprise-report": "Bab 14 — Enterprise Report",
+  "troubleshooting": "Bab 15 — Troubleshooting",
+  "studi-kasus": "Bab 16 — Studi Kasus",
+  "lampiran": "Lampiran",
+};
+
+export const KB_MODULES: { slug: KbModuleSlug; label: string }[] = (
+  Object.entries(MODULE_LABELS) as [KbModuleSlug, string][]
+).map(([slug, label]) => ({ slug, label }));
 
 const MODULE_SLUGS = new Set<string>(KB_MODULES.map((m) => m.slug));
 
@@ -42,43 +50,5 @@ export function isKbModuleSlug(value: string): value is KbModuleSlug {
 }
 
 export function kbModuleLabel(slug: string): string {
-  return KB_MODULES.find((m) => m.slug === slug)?.label ?? slug;
-}
-
-// Aliases for common headings in the source docx that don't literally match
-// a module label (abbreviations, English/Indonesian variants, etc).
-const HEADING_ALIASES: { pattern: RegExp; slug: KbModuleSlug }[] = [
-  { pattern: /\bcoa\b|chart of account/i, slug: "aact-coa" },
-  { pattern: /account\s*payable|\bap\b/i, slug: "ap" },
-  { pattern: /account\s*receivable|\bar\b/i, slug: "ar" },
-  { pattern: /fixed\s*asset/i, slug: "fa" },
-  { pattern: /general\s*ledger|\bgl\b/i, slug: "gl" },
-  { pattern: /issue\s*log/i, slug: "issue-log" },
-  { pattern: /studi\s*kasus|case\s*stud/i, slug: "studi-kasus" },
-  { pattern: /expense.*service|service.*expense/i, slug: "expense-service" },
-  { pattern: /enterprise\s*report/i, slug: "enterprise-report" },
-  { pattern: /master\s*data/i, slug: "master-data" },
-  { pattern: /digital\s*modeling/i, slug: "digital-modeling" },
-  { pattern: /inventory\s*accounting/i, slug: "inventory-accounting" },
-];
-
-/** Best-effort match from a docx heading's text to a known module slug. */
-export function matchModuleSlug(headingText: string): KbModuleSlug | null {
-  const normalized = headingText.toLowerCase().trim();
-  if (!normalized) return null;
-
-  const exact = KB_MODULES.find((m) => m.label.toLowerCase() === normalized);
-  if (exact) return exact.slug;
-
-  // Longest label first, so "Inventory Accounting" wins over the shorter
-  // "Inventory" when a heading contains both.
-  const byLabelLengthDesc = [...KB_MODULES].sort((a, b) => b.label.length - a.label.length);
-  const contains = byLabelLengthDesc.find((m) => normalized.includes(m.label.toLowerCase()));
-  if (contains) return contains.slug;
-
-  for (const { pattern, slug } of HEADING_ALIASES) {
-    if (pattern.test(normalized)) return slug;
-  }
-
-  return null;
+  return MODULE_LABELS[slug as KbModuleSlug] ?? slug;
 }
