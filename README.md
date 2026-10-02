@@ -89,8 +89,8 @@ app/(dashboard)/          shell dengan sidebar, halaman-halaman di belakang logi
 app/(dashboard)/todos/    modul To-Do List
 app/(dashboard)/issues/   modul Issue Log
 app/(dashboard)/summary/  modul Ringkasan Mingguan
-app/(dashboard)/kb/       modul Knowledge Base (grid modul, list entri, detail+edit, cari)
-app/api/kb/               API routes KB (list/get/update entri, search)
+app/(dashboard)/knowledge-base/  modul Knowledge Base (grid modul, list entri, detail+edit, cari)
+app/api/knowledge-base/          API routes KB (list/get/update entri, search)
 lib/supabase/             Supabase client (browser, server, middleware)
 lib/kb/modules.ts         daftar 18 modul KB (slug + label)
 supabase/migrations/      SQL migration

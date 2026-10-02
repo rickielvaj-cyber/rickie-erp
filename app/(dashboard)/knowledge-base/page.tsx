@@ -23,7 +23,7 @@ export default async function KnowledgeBasePage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-brand-red">Knowledge Base</h1>
         <Link
-          href="/kb/search"
+          href="/knowledge-base/search"
           className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-brand-red hover:text-brand-red"
         >
           Cari
@@ -36,7 +36,7 @@ export default async function KnowledgeBasePage() {
           return (
             <Link
               key={slug}
-              href={`/kb/${slug}`}
+              href={`/knowledge-base/${slug}`}
               className="rounded-md border border-border p-4 transition-colors hover:border-brand-red"
             >
               <h3 className="font-medium">{label}</h3>

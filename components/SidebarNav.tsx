@@ -7,7 +7,7 @@ const LINKS = [
   { href: "/todos", label: "To-Do" },
   { href: "/issues", label: "Issue Log" },
   { href: "/summary", label: "Ringkasan Mingguan" },
-  { href: "/kb", label: "Knowledge Base" },
+  { href: "/knowledge-base", label: "Knowledge Base" },
 ];
 
 export function SidebarNav() {

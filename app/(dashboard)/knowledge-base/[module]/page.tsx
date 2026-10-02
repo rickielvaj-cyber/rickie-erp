@@ -27,7 +27,7 @@ export default async function KbModuleEntriesPage({
 
   return (
     <div className="max-w-3xl">
-      <Link href="/kb" className="text-sm text-muted hover:underline">
+      <Link href="/knowledge-base" className="text-sm text-muted hover:underline">
         &larr; Knowledge Base
       </Link>
       <h1 className="mb-6 mt-1 text-2xl font-semibold text-brand-red">{kbModuleLabel(module)}</h1>
@@ -48,7 +48,7 @@ export default async function KbModuleEntriesPage({
         {(entries ?? []).map((entry) => (
           <li key={entry.id}>
             <Link
-              href={`/kb/${module}/${entry.id}`}
+              href={`/knowledge-base/${module}/${entry.id}`}
               className="block rounded-md border border-border p-4 transition-colors hover:border-brand-red"
             >
               <h2 className="font-medium">{entry.title}</h2>

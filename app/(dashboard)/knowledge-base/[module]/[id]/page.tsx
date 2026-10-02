@@ -29,7 +29,7 @@ export default async function KbEntryPage({
 
   return (
     <div className="max-w-3xl">
-      <Link href={`/kb/${module}`} className="text-sm text-muted hover:underline">
+      <Link href={`/knowledge-base/${module}`} className="text-sm text-muted hover:underline">
         &larr; {kbModuleLabel(module)}
       </Link>
       <p className="mt-1 text-xs text-muted">Diperbarui {formatDateID(entry.updated_at.slice(0, 10))}</p>

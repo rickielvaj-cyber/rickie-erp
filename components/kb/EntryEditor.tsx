@@ -31,7 +31,7 @@ export function EntryEditor({
     setError(null);
 
     try {
-      const res = await fetch(`/api/kb/${entryId}`, {
+      const res = await fetch(`/api/knowledge-base/${entryId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, content }),

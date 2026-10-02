@@ -19,7 +19,7 @@ export default async function KbSearchPage({
 
   return (
     <div className="max-w-3xl">
-      <Link href="/kb" className="text-sm text-muted hover:underline">
+      <Link href="/knowledge-base" className="text-sm text-muted hover:underline">
         &larr; Knowledge Base
       </Link>
       <h1 className="mb-6 mt-1 text-2xl font-semibold text-brand-red">Cari Knowledge Base</h1>
@@ -62,7 +62,7 @@ export default async function KbSearchPage({
               <li key={result.id} className="rounded-md border border-border p-4">
                 <p className="text-xs text-muted">{kbModuleLabel(result.module)}</p>
                 <Link
-                  href={`/kb/${result.module}/${result.id}`}
+                  href={`/knowledge-base/${result.module}/${result.id}`}
                   className="font-medium text-brand-red hover:underline"
                 >
                   {result.title}
