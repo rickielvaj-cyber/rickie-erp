@@ -23,6 +23,25 @@ export type IssueLog = {
   created_at: string;
 };
 
+export type KbEntry = {
+  id: string;
+  user_id: string;
+  module: string;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type KbSearchResult = {
+  id: string;
+  module: string;
+  title: string;
+  snippet: string;
+  rank: number;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -40,9 +59,21 @@ export type Database = {
         Update: Partial<Omit<IssueLog, "id">>;
         Relationships: [];
       };
+      kb_entries: {
+        Row: KbEntry;
+        Insert: Omit<KbEntry, "id" | "created_at" | "updated_at"> &
+          Partial<Pick<KbEntry, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<KbEntry, "id">>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      kb_search: {
+        Args: { search_query: string };
+        Returns: KbSearchResult[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
