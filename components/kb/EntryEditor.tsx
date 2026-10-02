@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KbContent } from "@/components/KbContent";
+import { markEntryRead, setLastVisited } from "@/lib/kb/progress";
 
 function autoResize(el: HTMLTextAreaElement) {
   el.style.height = "auto";
@@ -11,10 +12,12 @@ function autoResize(el: HTMLTextAreaElement) {
 
 export function EntryEditor({
   entryId,
+  module,
   initialTitle,
   initialContent,
 }: {
   entryId: string;
+  module: string;
   initialTitle: string;
   initialContent: string;
 }) {
@@ -25,6 +28,15 @@ export function EntryEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Viewing an entry counts as "read" — no separate mark-as-read control.
+  useEffect(() => {
+    markEntryRead(entryId);
+    setLastVisited({ module, id: entryId, title: initialTitle });
+    // Only the identity of the entry being viewed should re-trigger this,
+    // not every keystroke while editing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryId, module]);
 
   async function handleSave() {
     setSaving(true);

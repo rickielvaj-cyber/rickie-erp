@@ -35,7 +35,12 @@ export default async function KbEntryPage({
       <p className="mt-1 text-xs text-muted">Diperbarui {formatDateID(entry.updated_at.slice(0, 10))}</p>
 
       <div className="mt-4">
-        <EntryEditor entryId={entry.id} initialTitle={entry.title} initialContent={entry.content} />
+        <EntryEditor
+          entryId={entry.id}
+          module={module}
+          initialTitle={entry.title}
+          initialContent={entry.content}
+        />
       </div>
     </div>
   );
