@@ -1,6 +1,7 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import { defaultUrlTransform } from "react-markdown";
 import type { Element, ElementContent, Root, RootContent } from "hast";
@@ -40,9 +41,9 @@ export type KbChapter = {
 
 // remark-breaks: konten sumber pakai single newline antar baris (mis. baris
 // "• bullet"), bukan blank-line paragraph markdown — tanpa ini semua baris
-// nyatu jadi satu paragraf. Sama persis dengan setup react-markdown sebelumnya
-// (tanpa raw HTML).
-const processor = unified().use(remarkParse).use(remarkBreaks).use(remarkRehype);
+// nyatu jadi satu paragraf. remark-gfm: tabel "| a | b |" hasil import Word.
+// Tanpa raw HTML.
+const processor = unified().use(remarkParse).use(remarkGfm).use(remarkBreaks).use(remarkRehype);
 
 const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 const BLOCK_TAGS = new Set([
