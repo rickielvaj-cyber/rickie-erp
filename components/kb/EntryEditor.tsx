@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { invalidateKbSearchIndex } from "@/lib/kb/search-index";
+import { markEntryRead, setLastVisited } from "@/lib/kb/progress";
 
 function autoResize(el: HTMLTextAreaElement) {
   el.style.height = "auto";
@@ -13,11 +14,13 @@ function autoResize(el: HTMLTextAreaElement) {
 // (judul h2 + isi) lewat buildKbChapter, jadi id heading tetap konsisten.
 export function EntryEditor({
   entryId,
+  module,
   initialTitle,
   initialContent,
   children,
 }: {
   entryId: string;
+  module: string;
   initialTitle: string;
   initialContent: string;
   children: React.ReactNode;
@@ -29,6 +32,25 @@ export function EntryEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const viewRef = useRef<HTMLDivElement | null>(null);
+
+  // Semua entri bab tampil di satu halaman, jadi "dibaca" = entri ini sudah
+  // masuk setengah atas layar (bukan sekadar ke-mount — itu bakal nandai satu
+  // bab penuh begitu dibuka). Entri terakhir yang terlihat = "terakhir dikunjungi".
+  useEffect(() => {
+    const el = viewRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        markEntryRead(entryId);
+        setLastVisited({ module, id: entryId, title: initialTitle });
+      },
+      { rootMargin: "0px 0px -50% 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [entryId, module, initialTitle, editing]);
 
   async function handleSave() {
     setSaving(true);
@@ -66,7 +88,7 @@ export function EntryEditor({
 
   if (!editing) {
     return (
-      <div className="relative">
+      <div ref={viewRef} className="relative">
         <button
           type="button"
           data-kb-skip

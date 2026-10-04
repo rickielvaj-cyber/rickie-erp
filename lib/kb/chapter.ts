@@ -85,6 +85,23 @@ function sanitizeUrls(node: Root | Element) {
   }
 }
 
+// ```mermaid -> <div data-kb-mermaid="<source>"> tanpa children. KbContent
+// me-render jadi <MermaidDiagram>. Source diagram sengaja nggak jadi text
+// node, jadi nggak ikut ke indeks search (snippet nggak berisi kode mermaid).
+function extractMermaid(node: Root | Element) {
+  node.children = node.children.map((child) => {
+    if (child.type !== "element") return child;
+    const code = child.tagName === "pre" ? child.children.find((c) => c.type === "element") : undefined;
+    const classes = code?.type === "element" ? code.properties.className : undefined;
+    if (code && Array.isArray(classes) && classes.includes("language-mermaid")) {
+      const chart = hastText(code).replace(/\n$/, "");
+      return { type: "element", tagName: "div", properties: { dataKbMermaid: chart }, children: [] };
+    }
+    extractMermaid(child);
+    return child;
+  }) as typeof node.children;
+}
+
 export function hastText(node: Root | RootContent | ElementContent): string {
   if (node.type === "text") return node.value;
   if (node.type === "element" && node.tagName === "br") return "\n";
@@ -105,6 +122,7 @@ export function buildKbChapter(module: KbModuleSlug, entries: KbChapterEntryInpu
     const content = markdownToHast(entry.content);
     demoteHeadings(content);
     sanitizeUrls(content);
+    extractMermaid(content);
 
     const title: Element = {
       type: "element",

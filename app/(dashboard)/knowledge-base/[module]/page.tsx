@@ -106,7 +106,12 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
         <div data-kb-chapter className="mt-8 space-y-10">
           {chapter.sections.map(({ entry, tree }) => (
             <article key={entry.id} className="border-t border-border pt-6 first:border-t-0 first:pt-0">
-              <EntryEditor entryId={entry.id} initialTitle={entry.title} initialContent={entry.content}>
+              <EntryEditor
+                entryId={entry.id}
+                module={module}
+                initialTitle={entry.title}
+                initialContent={entry.content}
+              >
                 <KbContent tree={tree} />
               </EntryEditor>
             </article>

@@ -1,6 +1,7 @@
 import { toJsxRuntime, type Components } from "hast-util-to-jsx-runtime";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import type { Root } from "hast";
+import { MermaidDiagram } from "@/components/kb/MermaidDiagram";
 
 // Render hast dari buildKbChapter() (lib/kb/chapter.ts) — jangan parse
 // markdown sendiri di sini, biar id heading selalu sama dengan indeks search.
@@ -25,6 +26,19 @@ const components: Partial<Components> = {
     // eslint-disable-next-line @next/next/no-img-element
     <img alt={alt ?? ""} className="mb-3 max-w-full rounded-md border border-border" loading="lazy" {...props} />
   ),
+  // Placeholder ```mermaid dari buildKbChapter. data-kb-skip: SVG-nya nggak
+  // ada di indeks, jadi highlighter search juga melewatinya.
+  div: (props) => {
+    const chart = (props as { "data-kb-mermaid"?: string })["data-kb-mermaid"];
+    if (typeof chart === "string") {
+      return (
+        <div data-kb-skip>
+          <MermaidDiagram chart={chart} />
+        </div>
+      );
+    }
+    return <div {...props} />;
+  },
   blockquote: (props) => (
     <blockquote className="mb-3 border-l-2 border-border pl-3 text-sm text-muted" {...props} />
   ),
