@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Jangan generate AGENTS.md / CLAUDE.md otomatis tiap `next dev`.
+  agentRules: false,
 };
 
 export default nextConfig;

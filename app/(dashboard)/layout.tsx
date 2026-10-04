@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SidebarNav } from "@/components/SidebarNav";
@@ -20,7 +21,9 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface px-4 py-6">
-        <h1 className="px-3 text-lg font-semibold text-brand-red">Personal Workspace</h1>
+        <Link href="/" className="px-3 text-lg font-semibold text-brand-red">
+          Personal Workspace
+        </Link>
         <p className="mb-6 px-3 text-xs text-muted">{user.email}</p>
 
         <SidebarNav />

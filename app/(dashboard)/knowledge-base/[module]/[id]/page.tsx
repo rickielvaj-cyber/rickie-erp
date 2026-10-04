@@ -1,11 +1,11 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateID } from "@/lib/date";
-import { isKbModuleSlug, kbModuleLabel } from "@/lib/kb/modules";
-import { EntryEditor } from "@/components/kb/EntryEditor";
+import { isKbModuleSlug } from "@/lib/kb/modules";
+import { loadKbChapter } from "@/lib/kb/data";
 
-export default async function KbEntryPage({
+// URL entri lama (/knowledge-base/[module]/[id]) — sekarang semua entri tampil
+// di halaman bab, jadi redirect ke anchor judul entrinya.
+export default async function KbEntryRedirect({
   params,
 }: {
   params: Promise<{ module: string; id: string }>;
@@ -16,27 +16,11 @@ export default async function KbEntryPage({
   }
 
   const supabase = await createClient();
-  const { data: entry } = await supabase
-    .from("kb_entries")
-    .select("*")
-    .eq("module", module)
-    .eq("id", id)
-    .maybeSingle();
-
-  if (!entry) {
+  const { chapter } = await loadKbChapter(supabase, module);
+  const section = chapter.sections.find(({ entry }) => entry.id === id);
+  if (!section) {
     notFound();
   }
 
-  return (
-    <div className="max-w-3xl">
-      <Link href={`/knowledge-base/${module}`} className="text-sm text-muted hover:underline">
-        &larr; {kbModuleLabel(module)}
-      </Link>
-      <p className="mt-1 text-xs text-muted">Diperbarui {formatDateID(entry.updated_at.slice(0, 10))}</p>
-
-      <div className="mt-4">
-        <EntryEditor entryId={entry.id} initialTitle={entry.title} initialContent={entry.content} />
-      </div>
-    </div>
-  );
+  redirect(`/knowledge-base/${module}#${encodeURIComponent(section.anchor)}`);
 }

@@ -43,7 +43,7 @@ export async function updateSession(request: NextRequest) {
 
   if (user && request.nextUrl.pathname === "/login") {
     const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = "/todos";
+    homeUrl.pathname = "/";
     return NextResponse.redirect(homeUrl);
   }
 

@@ -42,3 +42,4 @@ next-env.d.ts
 
 # KB seed data (proprietary content, this repo is public — never commit)
 /data/*.json
+/data/import/
