@@ -27,3 +27,37 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
+
+/* KB search: overlay highlight sementara di atas frasa yang ditemukan (lib/kb/highlight.ts). */
+.kb-flash-layer {
+  position: absolute;
+  inset: 0 auto auto 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.kb-flash {
+  position: absolute;
+  border-radius: 3px;
+  background: rgb(250 204 21 / 0.55);
+  mix-blend-mode: multiply;
+  animation: kb-flash 2.4s ease-out forwards;
+}
+
+@keyframes kb-flash {
+  0%,
+  45% {
+    opacity: 1;
+    box-shadow: 0 0 0 2px rgb(250 204 21 / 0.9);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 2px rgb(250 204 21 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kb-flash {
+    animation-timing-function: steps(1, end);
+  }
+}

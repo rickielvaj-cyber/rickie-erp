@@ -2,21 +2,25 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KbContent } from "@/components/KbContent";
+import { invalidateKbSearchIndex } from "@/lib/kb/search-index";
 
 function autoResize(el: HTMLTextAreaElement) {
   el.style.height = "auto";
   el.style.height = `${el.scrollHeight}px`;
 }
 
+// Satu entri di halaman bab. `children` = konten yang sudah di-render server
+// (judul h2 + isi) lewat buildKbChapter, jadi id heading tetap konsisten.
 export function EntryEditor({
   entryId,
   initialTitle,
   initialContent,
+  children,
 }: {
   entryId: string;
   initialTitle: string;
   initialContent: string;
+  children: React.ReactNode;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -43,6 +47,7 @@ export function EntryEditor({
         return;
       }
 
+      invalidateKbSearchIndex();
       setEditing(false);
       router.refresh();
     } catch {
@@ -61,32 +66,30 @@ export function EntryEditor({
 
   if (!editing) {
     return (
-      <div>
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-brand-red">{title}</h1>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="shrink-0 rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-brand-red hover:text-brand-red"
-          >
-            Edit
-          </button>
-        </div>
-        <KbContent content={content} />
+      <div className="relative">
+        <button
+          type="button"
+          data-kb-skip
+          onClick={() => setEditing(true)}
+          className="absolute right-0 top-0 rounded-md border border-border px-3 py-1 text-xs font-medium hover:border-brand-red hover:text-brand-red"
+        >
+          Edit
+        </button>
+        {children}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-kb-skip>
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">{error}</p>}
 
       <div>
-        <label htmlFor="entry-title" className="block text-sm font-medium">
+        <label htmlFor={`entry-title-${entryId}`} className="block text-sm font-medium">
           Judul
         </label>
         <input
-          id="entry-title"
+          id={`entry-title-${entryId}`}
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -95,11 +98,11 @@ export function EntryEditor({
       </div>
 
       <div>
-        <label htmlFor="entry-content" className="block text-sm font-medium">
+        <label htmlFor={`entry-content-${entryId}`} className="block text-sm font-medium">
           Konten
         </label>
         <textarea
-          id="entry-content"
+          id={`entry-content-${entryId}`}
           ref={(el) => {
             textareaRef.current = el;
             if (el) autoResize(el);

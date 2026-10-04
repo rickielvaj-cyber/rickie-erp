@@ -89,10 +89,14 @@ app/(dashboard)/          shell dengan sidebar, halaman-halaman di belakang logi
 app/(dashboard)/todos/    modul To-Do List
 app/(dashboard)/issues/   modul Issue Log
 app/(dashboard)/summary/  modul Ringkasan Mingguan
-app/(dashboard)/knowledge-base/  modul Knowledge Base (grid modul, list entri, detail+edit, cari)
-app/api/knowledge-base/          API routes KB (list/get/update entri, search)
+app/(dashboard)/knowledge-base/  modul Knowledge Base (flow diagram + grid bab, satu halaman per bab + edit)
+app/api/knowledge-base/          API routes KB (list/get/update entri, search-index)
 lib/supabase/             Supabase client (browser, server, middleware)
 lib/kb/modules.ts         daftar 18 modul KB (slug + label)
+lib/kb/sequence.ts        urutan baca (Mulai di sini, langkah + bab paralel, referensi)
+lib/kb/chapter.ts         satu-satunya jalur render konten KB (dipakai halaman bab & indeks search)
+lib/kb/search-index.ts    indeks search di browser (MiniSearch), lazy, di-reset tiap simpan
+lib/kb/highlight.ts       highlight frasa hasil search di halaman bab
 supabase/migrations/      SQL migration
 scripts/seed-kb.ts        seed data awal KB, jalan lokal aja (lihat Setup #4)
 data/                     taruh kb_seed_phase2.json di sini (gitignored)
