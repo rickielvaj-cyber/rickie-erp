@@ -1,0 +1,94 @@
+{
+  "site": {
+    "title": "Catatan Belajar ERP YonSuite",
+    "subtitle": "Catatan pribadi belajar YonSuite ERP — PT Yonyou Network Indonesia",
+    "owner": "Rickie"
+  },
+  "learningPath": [
+    "digital-modeling",
+    "aact-coa",
+    "inventory",
+    "purchasing",
+    "sales",
+    "ap",
+    "ar",
+    "fa",
+    "inventory-accounting",
+    "gl"
+  ],
+  "modules": [
+    {
+      "slug": "digital-modeling",
+      "title": "Digital Modeling",
+      "short": "Fondasi setup: parameter sistem, organisasi, authorization, master data.",
+      "icon": "layers"
+    },
+    {
+      "slug": "aact-coa",
+      "title": "AACT / Chart of Accounts",
+      "short": "Struktur akun, hierarki setup keuangan, Account Book.",
+      "icon": "book"
+    },
+    {
+      "slug": "purchasing",
+      "title": "Purchasing",
+      "short": "Parameter pembelian, opening, proses purchase order.",
+      "icon": "cart"
+    },
+    {
+      "slug": "sales",
+      "title": "Sales",
+      "short": "Sales basic dan laporan penjualan.",
+      "icon": "trending"
+    },
+    {
+      "slug": "inventory",
+      "title": "Inventory",
+      "short": "Parameter stok, aturan issue/receipt, stock opname.",
+      "icon": "box"
+    },
+    {
+      "slug": "ap",
+      "title": "Accounts Payable (AP)",
+      "short": "Hutang dagang: invoice, payment, event entry.",
+      "icon": "arrow-down-circle"
+    },
+    {
+      "slug": "ar",
+      "title": "Accounts Receivable (AR)",
+      "short": "Piutang dagang: invoice, receipt, aging.",
+      "icon": "arrow-up-circle"
+    },
+    {
+      "slug": "fa",
+      "title": "Fixed Asset (FA)",
+      "short": "Aset tetap: depresiasi, disposal, allocation.",
+      "icon": "building"
+    },
+    {
+      "slug": "inventory-accounting",
+      "title": "Inventory Accounting",
+      "short": "Costing, opening, period-lock, posting ke GL.",
+      "icon": "calculator"
+    },
+    {
+      "slug": "gl",
+      "title": "General Ledger (GL)",
+      "short": "Jurnal umum, closing, carry-forward.",
+      "icon": "ledger"
+    }
+  ],
+  "issueLog": {
+    "slug": "issue-log",
+    "title": "Issue Log & Troubleshooting",
+    "short": "Kumpulan error nyata + solusi, dikelompokkan per kategori.",
+    "icon": "alert"
+  },
+  "categories": {
+    "sequencing": { "label": "Sequencing", "color": "#DC2626" },
+    "setup": { "label": "Setup Belum Lengkap", "color": "#EA580C" },
+    "cancel-undo": { "label": "Cancel/Undo Blocked", "color": "#BE123C" },
+    "konfigurasi": { "label": "Konfigurasi", "color": "#C2410C" },
+    "authorization": { "label": "Authorization", "color": "#9F1239" }
+  }
+}
