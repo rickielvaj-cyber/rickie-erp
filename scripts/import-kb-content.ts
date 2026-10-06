@@ -48,7 +48,49 @@ function loadEnvLocal() {
 }
 
 // ---------------------------------------------------------------------------
-// H1 -> module slug
+// Penomoran bab: dokumen Word masih pakai nomor LAMA. Di KB, Accounting Common
+// dipindah tepat setelah Master Data (lihat supabase/migrations/0005_*.sql):
+// Bab 8 -> 4, dan Bab 4-7 -> 5-8. Judul entri dan rujukan "Bab N" di teks
+// di-renumber saat import.
+
+const CHAPTER_RENUMBER: Record<number, number> = { 4: 5, 5: 6, 6: 7, 7: 8, 8: 4 };
+const newChapter = (n: number) => CHAPTER_RENUMBER[n] ?? n;
+
+function renumberTitle(title: string): string {
+  return title.replace(/^(\d+)\./, (_, n: string) => `${newChapter(Number(n))}.`);
+}
+
+// "4", "4–6", "7–12, 14" -> daftar nomor baru, dirapikan lagi jadi rentang.
+function renumberChapterList(list: string): string {
+  const nums: number[] = [];
+  for (const part of list.split(/\s*,\s*/)) {
+    const [a, b] = part.split(/\s*[–-]\s*/).map(Number);
+    for (let n = a; n <= (b ?? a); n++) nums.push(n);
+  }
+  const mapped = [...new Set(nums.map(newChapter))].sort((x, y) => x - y);
+  if (mapped.join() === nums.join()) return list; // nggak ada yang berubah: format asli dipertahankan
+
+  const parts: string[] = [];
+  for (let i = 0; i < mapped.length; ) {
+    let j = i;
+    while (j + 1 < mapped.length && mapped[j + 1] === mapped[j] + 1) j++;
+    parts.push(j - i >= 2 ? `${mapped[i]}–${mapped[j]}` : j === i ? `${mapped[i]}` : `${mapped[i]}, ${mapped[j]}`);
+    i = j + 1;
+  }
+  return parts.join(", ");
+}
+
+function renumberChapterRefs(markdown: string): string {
+  return (
+    markdown
+      .replace(/\bBab (\d+(?:\s*[–-]\s*\d+)?(?:,\s*\d+(?:\s*[–-]\s*\d+)?)*)/g, (_, list: string) => `Bab ${renumberChapterList(list)}`)
+      // "bagian 4.3" = subbab bab lain; kecuali "Bab 15 bagian 4.1" (nomor internal bab itu).
+      .replace(/(?<!Bab \d+ )\bbagian (\d+)\.(\d+)/g, (_, n: string, m: string) => `bagian ${newChapter(Number(n))}.${m}`)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// H1 -> module slug (nomor bab di sini = nomor di dokumen Word, bukan nomor baru)
 
 const BAB_MODULES: Record<number, string> = {
   1: "fondasi-erp",
@@ -510,14 +552,27 @@ async function main() {
   const byKey = new Map(entries.map((e) => [`${e.module}\u0000${titleKey(e.title)}`, e]));
   const matched = new Set<DbEntry>();
   const issues: string[] = [];
-  const plans: { entry: DbEntry; section: Section; markdown: string; images: ImageJob[]; flags: string[] }[] = [];
+  const plans: {
+    entry: DbEntry;
+    title: string;
+    section: Section;
+    markdown: string;
+    images: ImageJob[];
+    flags: string[];
+  }[] = [];
   const slugsSeen = new Map<string, string>();
 
   for (const section of sections) {
-    let entry = byExact.get(`${section.module}\u0000${section.title}`);
+    // Judul di DB bisa sudah nomor baru (migration 0005 sudah jalan) atau masih
+    // nomor lama — dua-duanya dicoba.
+    const title = renumberTitle(section.title);
+    let entry =
+      byExact.get(`${section.module}\u0000${title}`) ?? byExact.get(`${section.module}\u0000${section.title}`);
     const flags: string[] = [];
     if (!entry) {
-      entry = byKey.get(`${section.module}\u0000${titleKey(section.title)}`);
+      entry =
+        byKey.get(`${section.module}\u0000${titleKey(title)}`) ??
+        byKey.get(`${section.module}\u0000${titleKey(section.title)}`);
       if (entry) flags.push(`judul beda tipis: DB "${entry.title}"`);
     }
     if (!entry) {
@@ -530,17 +585,23 @@ async function main() {
     }
     matched.add(entry);
 
-    const slug = entrySlug(entry.title);
+    const slug = entrySlug(title);
     const slugKey = `${entry.module}/${slug}`;
-    if (slugsSeen.has(slugKey)) issues.push(`Slug gambar bentrok: ${slugKey} ("${slugsSeen.get(slugKey)}" vs "${entry.title}")`);
-    slugsSeen.set(slugKey, entry.title);
+    if (slugsSeen.has(slugKey)) issues.push(`Slug gambar bentrok: ${slugKey} ("${slugsSeen.get(slugKey)}" vs "${title}")`);
+    slugsSeen.set(slugKey, title);
 
     const ctx: Ctx = { module: entry.module, slug, counter: 0, images: [], sourceImages, publicBase: url };
-    let markdown = blocksMd(section.nodes, ctx);
+    let markdown = renumberChapterRefs(blocksMd(section.nodes, ctx));
 
     if (entry.mermaid) {
-      const kept = mermaidBlocks(entry.content);
-      flags.push(APPLY ? `mermaid dipertahankan (${kept.length} blok, ditaruh di akhir)` : "punya mermaid — dipertahankan di akhir");
+      // Diagram yang sudah ikut dari dokumen Word nggak ditambahkan dua kali.
+      const squash = (s: string) => s.replace(/\s+/g, "");
+      const kept = mermaidBlocks(entry.content).filter((b) => !squash(markdown).includes(squash(b)));
+      flags.push(
+        APPLY
+          ? `mermaid: ${kept.length} blok dari DB ditambahkan di akhir`
+          : "punya mermaid di DB — blok yang belum ada di Word ditambahkan di akhir",
+      );
       if (kept.length) markdown = `${markdown}\n\n${kept.join("\n\n")}`;
     }
     if (section.preamble) flags.push(`+${section.preamble} blok intro bab (sebelum H2 pertama)`);
@@ -552,7 +613,8 @@ async function main() {
       continue;
     }
 
-    plans.push({ entry, section, markdown, images: ctx.images, flags });
+    if (title !== entry.title) flags.push(`judul -> "${title}"`);
+    plans.push({ entry, title, section, markdown, images: ctx.images, flags });
   }
 
   const mappedModules = new Set(sections.map((s) => s.module));
@@ -564,9 +626,9 @@ async function main() {
 
   // Preview markdown per entri
   for (const p of plans) {
-    const file = resolve(PREVIEW_DIR, p.entry.module, `${entrySlug(p.entry.title) || "entri"}.md`);
+    const file = resolve(PREVIEW_DIR, p.entry.module, `${entrySlug(p.title) || "entri"}.md`);
     mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, `# ${p.entry.title}\n\n${p.markdown}\n`);
+    writeFileSync(file, `# ${p.title}\n\n${p.markdown}\n`);
   }
 
   console.log("\n=== Entri yang akan di-update ===");
@@ -577,7 +639,7 @@ async function main() {
       console.log(`\n[${currentModule}]`);
     }
     const flags = p.flags.length ? `  ⚑ ${p.flags.join("; ")}` : "";
-    console.log(`  ${p.entry.title} — ${p.images.length} gambar, ${p.markdown.length} char${flags}`);
+    console.log(`  ${p.title} — ${p.images.length} gambar, ${p.markdown.length} char${flags}`);
   }
 
   console.log("\n=== Warning ===");
@@ -618,7 +680,7 @@ async function main() {
     }
     const { error } = await supabase
       .from("kb_entries")
-      .update({ content: p.markdown, updated_at: new Date().toISOString() })
+      .update({ title: p.title, content: p.markdown, updated_at: new Date().toISOString() })
       .eq("id", p.entry.id!);
     if (error) failures.push(`UPDATE gagal [${p.entry.module}] "${p.entry.title}": ${error.message}`);
     else updated++;

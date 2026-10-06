@@ -4,6 +4,11 @@ import { lowerSameLength } from "@/lib/kb/search-index";
 // (bisa nyebar ke beberapa elemen inline), scroll ke situ, lalu tempel overlay
 // sementara di atas rect-nya. Overlay di luar tree React — DOM konten nggak
 // diubah sama sekali, jadi aman dari re-render/hydration.
+//
+// Halaman bab bisa berisi ratusan gambar lazy-load tanpa dimensi, jadi tinggi
+// halaman terus bertambah setelah scroll dihitung. Karena itu semua lompatan
+// (hasil search, "Di halaman ini", link anchor) lewat pinTo(): posisi tujuan
+// dijaga sampai tata letak stabil, baru highlight digambar.
 
 const HEADING = /^H[1-6]$/;
 const BLOCK = /^(P|DIV|SECTION|UL|OL|LI|TABLE|THEAD|TBODY|TR|TD|TH|BLOCKQUOTE|PRE|HR|H[1-6]|BR)$/;
@@ -81,7 +86,88 @@ function findRange(heading: HTMLElement, root: HTMLElement, phrase: string): Ran
   return range;
 }
 
+// Gambar lazy di atas tujuan dipaksa load sekarang, biar tinggi halaman di atas
+// tujuan cepat final (kalau nggak, tujuan terus bergeser ke bawah saat gambar
+// di sekitar layar baru ketemu dimuat).
+function loadImagesAbove(root: HTMLElement, target: Element): HTMLImageElement[] {
+  const pending: HTMLImageElement[] = [];
+  for (const img of root.querySelectorAll("img")) {
+    if (!(img.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING)) break;
+    if (!img.complete) {
+      img.loading = "eager";
+      pending.push(img);
+    }
+  }
+  return pending;
+}
+
+let cancelPin: (() => void) | null = null;
+
+// Scroll supaya tujuan ada `desired` px dari atas layar, lalu jaga di situ sampai
+// semua gambar di atasnya (`pending`) selesai dimuat dan tata letak diam 500ms
+// (maks 12 detik). Mengandalkan "diam sesaat" saja nggak cukup: di kunjungan
+// pertama gambar butuh waktu unduh lebih lama dari itu. Hasil true = stabil;
+// false = pengguna keburu scroll/ketik sendiri.
+function pinTo(getTop: () => number | null, desired: number, pending: HTMLImageElement[] = []): Promise<boolean> {
+  cancelPin?.();
+  return new Promise((resolve) => {
+    const root = document.querySelector<HTMLElement>("[data-kb-chapter]") ?? document.body;
+    const userEvents = ["wheel", "touchstart", "keydown", "mousedown"] as const;
+    let remaining = pending.length;
+    let quiet = 0;
+    let finished = false;
+
+    const finish = (settled: boolean) => {
+      if (finished) return;
+      finished = true;
+      observer.disconnect();
+      clearTimeout(quiet);
+      clearTimeout(cap);
+      for (const e of userEvents) window.removeEventListener(e, onUser);
+      cancelPin = null;
+      resolve(settled);
+    };
+    const onUser = () => finish(false);
+
+    const apply = () => {
+      if (finished) return;
+      const top = getTop();
+      if (top === null) return;
+      const delta = top - desired;
+      if (Math.abs(delta) > 2) window.scrollBy({ top: delta, behavior: "instant" as ScrollBehavior });
+    };
+
+    const armQuiet = () => {
+      clearTimeout(quiet);
+      if (remaining === 0) quiet = window.setTimeout(() => finish(true), 500);
+    };
+    const onImage = () => {
+      remaining -= 1;
+      apply();
+      armQuiet();
+    };
+
+    const observer = new ResizeObserver(() => {
+      apply();
+      armQuiet();
+    });
+    const cap = window.setTimeout(() => finish(true), 12000);
+
+    for (const e of userEvents) window.addEventListener(e, onUser, { passive: true });
+    for (const img of pending) {
+      img.addEventListener("load", onImage, { once: true });
+      img.addEventListener("error", onImage, { once: true });
+    }
+    cancelPin = () => finish(false);
+    observer.observe(root);
+    apply();
+    armQuiet();
+  });
+}
+
 function flashRects(rects: DOMRect[]) {
+  document.querySelectorAll(".kb-flash-layer").forEach((layer) => layer.remove());
+
   const layer = document.createElement("div");
   layer.setAttribute("aria-hidden", "true");
   layer.className = "kb-flash-layer";
@@ -99,28 +185,34 @@ function flashRects(rects: DOMRect[]) {
   setTimeout(() => layer.remove(), 2600);
 }
 
-function scrollToRect(rect: DOMRect) {
-  const top = rect.top + window.scrollY - window.innerHeight / 3;
-  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-}
-
-// true = frasa ketemu & di-highlight; false = fallback ke heading.
-export function highlightKbPhrase(anchor: string, phrase: string): boolean {
+// Lompat ke heading (tanpa highlight frasa), dengan koreksi posisi.
+export async function jumpToKbAnchor(anchor: string): Promise<boolean> {
   const heading = document.getElementById(anchor);
   const root = heading?.closest<HTMLElement>("[data-kb-chapter]");
   if (!heading || !root) return false;
 
+  const pending = loadImagesAbove(root, heading);
+  await pinTo(() => heading.getBoundingClientRect().top, 24, pending);
+  return true;
+}
+
+// true = frasa ketemu & di-highlight; false = fallback ke heading.
+export async function highlightKbPhrase(anchor: string, phrase: string): Promise<boolean> {
+  const heading = document.getElementById(anchor);
+  const root = heading?.closest<HTMLElement>("[data-kb-chapter]");
+  if (!heading || !root) return false;
+
+  document.querySelectorAll(".kb-flash-layer").forEach((layer) => layer.remove());
+  const pending = loadImagesAbove(root, heading);
+
   const range = phrase ? findRange(heading, root, phrase) : null;
   if (range) {
-    const rects = Array.from(range.getClientRects());
-    scrollToRect(range.getBoundingClientRect());
-    // Posisi dihitung dalam koordinat dokumen, jadi valid walau smooth scroll
-    // masih jalan.
-    flashRects(rects);
+    const settled = await pinTo(() => range.getBoundingClientRect().top, window.innerHeight / 3, pending);
+    if (settled) flashRects(Array.from(range.getClientRects()));
     return true;
   }
 
-  heading.scrollIntoView({ block: "start", behavior: "smooth" });
-  flashRects([heading.getBoundingClientRect()]);
+  const settled = await pinTo(() => heading.getBoundingClientRect().top, 24, pending);
+  if (settled) flashRects([heading.getBoundingClientRect()]);
   return false;
 }
