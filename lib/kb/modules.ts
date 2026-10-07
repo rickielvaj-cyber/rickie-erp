@@ -3,11 +3,11 @@ export type KbModuleSlug =
   | "fondasi-erp"
   | "digital-modeling"
   | "master-data"
+  | "accounting-common"
   | "purchasing"
   | "sales"
   | "inventory"
   | "inventory-accounting"
-  | "accounting-common"
   | "ap"
   | "ar"
   | "gl"
@@ -23,11 +23,11 @@ export const MODULE_LABELS: Record<KbModuleSlug, string> = {
   "fondasi-erp": "Bab 1 — Fondasi ERP & Akuntansi",
   "digital-modeling": "Bab 2 — Digital Modeling",
   "master-data": "Bab 3 — Master Data",
-  "purchasing": "Bab 4 — Purchasing",
-  "sales": "Bab 5 — Sales",
-  "inventory": "Bab 6 — Inventory Management",
-  "inventory-accounting": "Bab 7 — Inventory Accounting",
-  "accounting-common": "Bab 8 — Accounting Common",
+  "accounting-common": "Bab 4 — Accounting Common",
+  "purchasing": "Bab 5 — Purchasing",
+  "sales": "Bab 6 — Sales",
+  "inventory": "Bab 7 — Inventory Management",
+  "inventory-accounting": "Bab 8 — Inventory Accounting",
   "ap": "Bab 9 — Accounts Payable",
   "ar": "Bab 10 — Accounts Receivable",
   "gl": "Bab 11 — General Ledger",

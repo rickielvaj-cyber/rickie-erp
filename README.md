@@ -44,7 +44,7 @@ seed script di langkah 4 — isi nanti pas butuh, bukan sekarang.
 
 ### 3. Jalankan migration
 
-Migration ada di `supabase/migrations/`, urut sesuai nomornya (`0001` → `0004`).
+Migration ada di `supabase/migrations/`, urut sesuai nomornya (`0001` → `0005`).
 Jalankan lewat **SQL Editor** di Supabase Dashboard (copy-paste isi tiap file berurutan),
 atau via [Supabase CLI](https://supabase.com/docs/guides/cli) kalau sudah link project:
 
@@ -56,7 +56,9 @@ supabase db push
 - `0002_todos_updated_at_index.sql` — index tambahan.
 - `0003_kb_entries.sql` — tabel `kb_entries` (versi awal, 16 modul, satu entri per modul).
 - `0004_kb_entries_multi_entry.sql` — revisi ke 18 modul, banyak entri per modul (desain
-  final). Kalau baru setup dari nol, tetap jalankan `0003` dulu baru `0004` — `0004`
+  final).
+- `0005_kb_renumber_accounting_common.sql` — Accounting Common jadi Bab 4 (setelah Master
+  Data); Purchasing–Inventory Accounting bergeser jadi Bab 5–8. Nomor di judul entri ikut. Kalau baru setup dari nol, tetap jalankan `0003` dulu baru `0004` — `0004`
   cuma ALTER di atas tabel yang dibuat `0003`, bukan pengganti berdiri sendiri.
 
 ### 4. Seed Knowledge Base (opsional, sekali jalan)
