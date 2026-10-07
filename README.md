@@ -86,8 +86,10 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 ## Struktur
 
 ```
+app/page.tsx              Home publik (hero + kartu fitur; angka ringkas cuma kalau sudah login)
 app/login/                halaman login (Supabase Auth, email/password)
-app/(dashboard)/          shell dengan sidebar, halaman-halaman di belakang login
+components/TopNav.tsx     menu atas sticky (di root layout, ada di semua halaman)
+app/(dashboard)/          penjaga login untuk halaman-halaman privat di bawahnya
 app/(dashboard)/todos/    modul To-Do List
 app/(dashboard)/issues/   modul Issue Log
 app/(dashboard)/summary/  modul Ringkasan Mingguan
@@ -107,10 +109,29 @@ legacy-kb/                arsip situs KB lama, sudah diganti modul KB di atas
 
 ## Desain
 
-Warna aksen (heading, tombol utama, nav aktif) pakai CSS variable `--brand-red` di
-`app/globals.css` — sekarang masih **placeholder** (`#C8102E`), belum diverifikasi ke
-brand guideline Yonyou/用友 resmi. Tinggal ganti nilai variable itu begitu kode warna
-yang benar sudah ada.
+Gaya hitam-putih ala Apple: menu atas sticky, konten di tengah, banyak ruang kosong.
+Warna aksen (tombol utama, nav aktif) = CSS variable `--accent` (hitam) di
+`app/globals.css`. Merah (`--danger`) cuma buat pesan error dan aksi hapus.
+
+Home (`/`) satu-satunya halaman yang bisa dibuka tanpa login (lihat `PUBLIC_EXACT_PATHS` di
+`lib/supabase/middleware.ts`); Home nggak memuat data apa pun kalau belum login.
+
+To-Do (`/todos`): panel "Hari ini" + pelacak mingguan 7 kolom (Senin–Minggu). Minggu dipilih
+lewat `?week=YYYY-MM-DD`; tugas ditempatkan ke hari lewat kolom `due_date` yang sudah ada
+(nggak perlu migration). "Hari ini" dihitung di zona Asia/Jakarta (`lib/date.ts`).
+
+## Performa
+
+- **Wilayah fungsi Vercel = Singapura (`sin1`)**, lihat `vercel.json`, sekawasan dengan database
+  Supabase (`ap-southeast-1`). Kalau database pindah wilayah, ubah juga `regions` di sana.
+- **Login dicek lokal**: `getAuthUser()` (`lib/supabase/auth.ts`) memakai `getClaims()` yang
+  memverifikasi JWT tanpa panggilan jaringan (proyek memakai kunci asimetris ES256) dan dipakai
+  bersama per permintaan. Jangan kembali ke `auth.getUser()` di jalur render — itu satu
+  bolak-balik jaringan per panggilan. Akses data tetap dijaga RLS lewat JWT yang sama.
+- Hasil render bab KB di-cache di memori server per bab (`lib/kb/data.ts`), kedaluwarsa otomatis
+  saat entri disimpan (trigger `updated_at`).
+- `npm run dev` lambat di klik pertama karena kompilasi per halaman; ukur kecepatan dengan
+  `npm run build && npm start`.
 
 ## Yang belum ada
 

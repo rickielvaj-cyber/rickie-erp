@@ -21,7 +21,7 @@ function positionLabel(module: KbModuleSlug): string {
 
 function PrevNext({ module }: { module: KbModuleSlug }) {
   const links = kbPrevNext(module);
-  const card = "block rounded-md border border-border p-3 transition-colors hover:border-brand-red";
+  const card = "block rounded-md border border-border p-3 transition-colors hover:border-foreground";
 
   if (!links) {
     return (
@@ -71,14 +71,14 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
   );
 
   return (
-    <div className="flex max-w-6xl gap-10">
+    <div className="mx-auto flex max-w-6xl gap-10">
       <div className="min-w-0 max-w-3xl flex-1">
         <Link href="/knowledge-base" className="text-sm text-muted hover:underline">
           &larr; Knowledge Base
         </Link>
         <div className="mt-1 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-brand-red">{kbModuleLabel(module)}</h1>
+            <h1 className="text-2xl font-semibold text-foreground">{kbModuleLabel(module)}</h1>
             <p className="mt-1 text-xs text-muted">
               {positionLabel(module)} · {chapter.sections.length} entri
               {lastUpdated && ` · Diperbarui ${formatDateID(lastUpdated.slice(0, 10))}`}
@@ -92,7 +92,7 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
         </div>
 
         {error && (
-          <p className="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">
+          <p className="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
             Gagal memuat entri: {error.message}
           </p>
         )}

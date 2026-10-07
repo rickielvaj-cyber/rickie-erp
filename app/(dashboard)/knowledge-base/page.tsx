@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateID } from "@/lib/date";
 import { KB_MODULES } from "@/lib/kb/modules";
+import { KB_MODULE_ICONS } from "@/lib/kb/sequence";
 import { KbFlowDiagram } from "@/components/kb/KbFlowDiagram";
 import { KbSearch } from "@/components/kb/KbSearch";
 
@@ -22,38 +23,46 @@ export default async function KnowledgeBasePage() {
   const counts = new Map([...statsByModule].map(([slug, stats]) => [slug, stats.count]));
 
   return (
-    <div className="max-w-5xl">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand-red">Knowledge Base</h1>
-        <KbSearch />
-      </div>
+    <div className="mx-auto max-w-5xl">
+      <header className="flex flex-col items-center gap-5 pb-12 pt-4 text-center">
+        <h1 className="text-5xl font-semibold tracking-tight">Knowledge Base</h1>
+        <p className="max-w-md text-base text-muted">Referensi YonSuite. Cari istilah, atau ikuti urutan baca.</p>
+        <KbSearch variant="bar" />
+      </header>
 
-      <section className="mb-10">
-        <h2 className="mb-1 text-lg font-semibold">Alur Belajar</h2>
-        <p className="mb-5 text-sm text-muted">Urutan baca yang disarankan. Klik bab mana pun untuk langsung membuka.</p>
+      <section className="mb-14">
+        <h2 className="mb-1 text-2xl font-semibold tracking-tight">Alur Belajar</h2>
+        <p className="mb-6 text-sm text-muted">Urutan baca yang disarankan. Klik bab mana pun untuk langsung membuka.</p>
         <KbFlowDiagram counts={counts} />
       </section>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold">Semua Bab</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-5 flex items-baseline justify-between">
+          <h2 className="text-2xl font-semibold tracking-tight">Semua Modul</h2>
+          <span className="text-sm text-muted">{KB_MODULES.length} modul</span>
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {KB_MODULES.map(({ slug, label }) => {
             const stats = statsByModule.get(slug);
             return (
               <Link
                 key={slug}
                 href={`/knowledge-base/${slug}`}
-                className="rounded-md border border-border p-4 transition-colors hover:border-brand-red"
+                className="group flex flex-col gap-2.5 rounded-2xl border border-foreground p-5 transition-colors hover:bg-surface"
               >
-                <h3 className="font-medium">{label}</h3>
-                <p className="mt-1 text-xs text-muted">
-                  {stats ? `${stats.count} entri` : "Belum ada entri"}
+                <span
+                  aria-hidden="true"
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface text-2xl"
+                >
+                  {KB_MODULE_ICONS[slug]}
+                </span>
+                <h3 className="text-lg font-semibold tracking-tight">{label}</h3>
+                <p className="text-sm text-muted">
+                  {stats ? `${stats.count} entri · diperbarui ${formatDateID(stats.lastUpdated.slice(0, 10))}` : "Belum ada entri"}
                 </p>
-                {stats && (
-                  <p className="mt-0.5 text-xs text-muted">
-                    Diperbarui {formatDateID(stats.lastUpdated.slice(0, 10))}
-                  </p>
-                )}
+                <span className="mt-auto pt-1 text-sm underline underline-offset-4 group-hover:no-underline">
+                  Buka modul ›
+                </span>
               </Link>
             );
           })}

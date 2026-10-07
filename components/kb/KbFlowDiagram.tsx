@@ -14,8 +14,8 @@ function NodePill({
   variant?: "step" | "start" | "reference";
 }) {
   const styles = {
-    step: "border-border bg-background hover:border-brand-red hover:text-brand-red",
-    start: "border-brand-red bg-brand-red text-white hover:bg-brand-red-dark",
+    step: "border-border bg-background hover:border-foreground",
+    start: "border-accent bg-accent text-white hover:bg-accent-hover",
     reference: "border-dashed border-muted/60 bg-surface text-muted hover:border-foreground hover:text-foreground",
   }[variant];
 
@@ -63,14 +63,14 @@ export function KbFlowDiagram({ counts }: { counts: Counts }) {
         <Row
           connect
           marker={
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-brand-red bg-background text-brand-red">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-accent bg-background text-foreground">
               <svg viewBox="0 0 16 16" className="ml-0.5 h-3 w-3" fill="currentColor" aria-hidden="true">
                 <path d="M4 2.5v11l9-5.5z" />
               </svg>
             </span>
           }
         >
-          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-brand-red">Mulai di sini</p>
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-foreground">Mulai di sini</p>
           <NodePill slug={KB_START_HERE} count={counts.get(KB_START_HERE)} variant="start" />
         </Row>
 
@@ -79,7 +79,7 @@ export function KbFlowDiagram({ counts }: { counts: Counts }) {
             key={step.join("+")}
             connect={i < KB_STEPS.length - 1}
             marker={
-              <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-brand-red text-sm font-semibold text-white">
+              <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
                 {i + 1}
               </span>
             }

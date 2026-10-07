@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isISODate } from "@/lib/date";
 import type { TodoPriority, TodoStatus } from "@/lib/types";
 
 function readTodoFields(formData: FormData) {
@@ -21,6 +22,12 @@ function readTodoFields(formData: FormData) {
   };
 }
 
+function revalidateTodoViews() {
+  revalidatePath("/todos");
+  revalidatePath("/summary");
+  revalidatePath("/");
+}
+
 export async function createTodo(formData: FormData) {
   const fields = readTodoFields(formData);
   if (!fields.title) {
@@ -34,8 +41,7 @@ export async function createTodo(formData: FormData) {
     redirect("/todos?new=1&error=" + encodeURIComponent(error.message));
   }
 
-  revalidatePath("/todos");
-  revalidatePath("/summary");
+  revalidateTodoViews();
   redirect("/todos");
 }
 
@@ -52,8 +58,7 @@ export async function updateTodo(id: string, formData: FormData) {
     redirect(`/todos?edit=${id}&error=` + encodeURIComponent(error.message));
   }
 
-  revalidatePath("/todos");
-  revalidatePath("/summary");
+  revalidateTodoViews();
   redirect("/todos");
 }
 
@@ -61,23 +66,35 @@ export async function deleteTodo(id: string) {
   const supabase = await createClient();
   await supabase.from("todos").delete().eq("id", id);
 
-  revalidatePath("/todos");
-  revalidatePath("/summary");
+  revalidateTodoViews();
 }
 
-const STATUS_CYCLE: Record<TodoStatus, TodoStatus> = {
-  todo: "in_progress",
-  in_progress: "done",
-  done: "todo",
-};
-
-export async function cycleTodoStatus(id: string, currentStatus: TodoStatus) {
+// Checkbox: selesai <-> belum. Status "Dikerjakan" tetap bisa diatur lewat form edit.
+export async function toggleTodoDone(id: string, currentStatus: TodoStatus) {
   const supabase = await createClient();
   await supabase
     .from("todos")
-    .update({ status: STATUS_CYCLE[currentStatus] })
+    .update({ status: currentStatus === "done" ? "todo" : "done" })
     .eq("id", id);
 
-  revalidatePath("/todos");
-  revalidatePath("/summary");
+  revalidateTodoViews();
+}
+
+// Tambah cepat satu tugas ke tanggal tertentu (kolom hari di pelacak mingguan,
+// atau kotak "tugas baru" di panel Hari ini). Tanpa redirect: URL (termasuk
+// ?week=) tetap, halaman cuma dirender ulang.
+export async function createTodoForDay(date: string, formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title || !isISODate(date)) return;
+
+  const supabase = await createClient();
+  await supabase.from("todos").insert({
+    title,
+    description: null,
+    status: "todo",
+    priority: "medium",
+    due_date: date,
+  });
+
+  revalidateTodoViews();
 }

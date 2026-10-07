@@ -8,12 +8,12 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-background p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-brand-red">Personal Workspace</h1>
-        <p className="mt-1 text-sm text-muted">Masuk buat lanjut ke workspace kamu.</p>
+    <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-surface px-4 py-12">
+      <div className="w-full max-w-md rounded-3xl border border-foreground bg-background p-10">
+        <h1 className="text-center text-3xl font-semibold tracking-tight">Selamat datang kembali</h1>
+        <p className="mt-2 text-center text-base text-muted">Masuk ke workspace kamu.</p>
 
-        <form action={login} className="mt-6 space-y-4">
+        <form action={login} className="mt-8 space-y-5">
           <div>
             <label htmlFor="email" className="block text-sm font-medium">
               Email
@@ -24,7 +24,8 @@ export default async function LoginPage({
               type="email"
               required
               autoComplete="email"
-              className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+              placeholder="kamu@email.com"
+              className="mt-1.5 h-11 w-full rounded-xl border border-foreground px-4 text-base placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-foreground/20"
             />
           </div>
           <div>
@@ -37,22 +38,22 @@ export default async function LoginPage({
               type="password"
               required
               autoComplete="current-password"
-              className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+              className="mt-1.5 h-11 w-full rounded-xl border border-foreground px-4 text-base focus:outline-none focus:ring-2 focus:ring-foreground/20"
             />
           </div>
 
           {error ? (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">{error}</p>
+            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>
           ) : null}
 
           <button
             type="submit"
-            className="w-full rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-red-dark"
+            className="w-full rounded-full bg-accent px-4 py-3 text-base font-medium text-white transition-colors hover:bg-accent-hover"
           >
             Masuk
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

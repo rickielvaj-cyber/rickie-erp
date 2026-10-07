@@ -1,7 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Halaman yang bisa dibuka tanpa login. "/" (Home) harus dicocokkan persis —
+// kalau pakai startsWith, semua path ikut jadi publik.
 const PUBLIC_PATHS = ["/login"];
+const PUBLIC_EXACT_PATHS = ["/"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -27,13 +30,14 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims(): verifikasi JWT lokal (tanpa panggilan jaringan ke Auth) dan
+  // tetap menyegarkan token yang hampir kedaluwarsa. Lihat lib/supabase/auth.ts.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims?.sub ? claimsData.claims : null;
 
-  const isPublicPath = PUBLIC_PATHS.some((path) =>
-    request.nextUrl.pathname.startsWith(path),
-  );
+  const { pathname } = request.nextUrl;
+  const isPublicPath =
+    PUBLIC_EXACT_PATHS.includes(pathname) || PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   if (!user && !isPublicPath) {
     const loginUrl = request.nextUrl.clone();
