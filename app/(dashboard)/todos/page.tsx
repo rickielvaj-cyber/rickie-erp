@@ -9,10 +9,10 @@ import {
   mondayOfISO,
   todayISO,
 } from "@/lib/date";
-import type { Todo, TodoPriority } from "@/lib/types";
+import type { Goal, Todo, TodoPriority } from "@/lib/types";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { TodoUndoToast } from "@/components/TodoUndoToast";
-import { createTodo, createTodoForDay, toggleTodoDone, updateTodo } from "./actions";
+import { createTodo, createTodoForDay, moveTodoToToday, toggleTodoDone, updateTodo } from "./actions";
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = {
   low: "Rendah",
@@ -30,6 +30,7 @@ const PRIORITY_PILL: Record<TodoPriority, string> = {
 type SearchParams = {
   show?: string;
   priority?: string;
+  goal?: string;
   week?: string;
   new?: string;
   edit?: string;
@@ -38,10 +39,15 @@ type SearchParams = {
 
 type Show = "all" | "open" | "done";
 
-function buildHref(params: { show?: Show; priority?: string; week?: string }) {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type GoalOption = Pick<Goal, "id" | "title" | "status">;
+
+function buildHref(params: { show?: Show; priority?: string; goal?: string; week?: string }) {
   const q = new URLSearchParams();
   if (params.show && params.show !== "all") q.set("show", params.show);
   if (params.priority && params.priority !== "all") q.set("priority", params.priority);
+  if (params.goal && params.goal !== "all") q.set("goal", params.goal);
   if (params.week) q.set("week", params.week);
   const s = q.toString();
   return s ? `/todos?${s}` : "/todos";
@@ -55,6 +61,8 @@ export default async function TodosPage({
   const params = await searchParams;
   const show: Show = params.show === "open" || params.show === "done" ? params.show : "all";
   const priority = ["low", "medium", "high"].includes(params.priority ?? "") ? params.priority! : "all";
+  // Filter Goal: "all" | "none" (tanpa goal) | id goal tertentu.
+  const goal = params.goal === "none" || UUID_RE.test(params.goal ?? "") ? params.goal! : "all";
   const isNew = params.new === "1";
   const editId = params.edit ?? null;
 
@@ -78,8 +86,10 @@ export default async function TodosPage({
   if (priority !== "all") todayQuery = todayQuery.eq("priority", priority as TodoPriority);
   if (show === "done") todayQuery = todayQuery.eq("status", "done");
   if (show === "open") todayQuery = todayQuery.neq("status", "done");
+  if (goal === "none") todayQuery = todayQuery.is("goal_id", null);
+  else if (goal !== "all") todayQuery = todayQuery.eq("goal_id", goal);
 
-  const [todayResult, weekResult, editResult] = await Promise.all([
+  const [todayResult, weekResult, editResult, goalsResult] = await Promise.all([
     todayQuery.order("due_date", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
     supabase
       .from("todos")
@@ -88,12 +98,16 @@ export default async function TodosPage({
       .lte("due_date", weekEnd)
       .order("created_at", { ascending: true }),
     editId ? supabase.from("todos").select("*").eq("id", editId).maybeSingle() : Promise.resolve(null),
+    supabase.from("goals").select("id, title, status").order("created_at", { ascending: true }),
   ]);
 
   const todayTodos = todayResult.data ?? [];
   const weekTodos = weekResult.data ?? [];
   const editingTodo = editResult?.data ?? null;
-  const fetchError = todayResult.error ?? weekResult.error;
+  const goals: GoalOption[] = goalsResult.data ?? [];
+  const goalTitles = new Map(goals.map((g) => [g.id, g.title]));
+  const activeGoals = goals.filter((g) => g.status === "active");
+  const fetchError = todayResult.error ?? weekResult.error ?? goalsResult.error;
 
   const overdue = todayTodos.filter((t) => t.due_date !== null && t.due_date < today);
   const dueToday = todayTodos.filter((t) => t.due_date === today);
@@ -111,7 +125,7 @@ export default async function TodosPage({
     <div className="mx-auto">
       {(isNew || editingTodo) && (
         <div className="mx-auto mb-10 max-w-2xl">
-          <TodoForm key={editingTodo?.id ?? "new"} todo={editingTodo} error={params.error} />
+          <TodoForm key={editingTodo?.id ?? "new"} todo={editingTodo} goals={goals} error={params.error} />
         </div>
       )}
 
@@ -145,7 +159,7 @@ export default async function TodosPage({
             ).map(([value, label]) => (
               <Link
                 key={value}
-                href={buildHref({ show: value, priority, week: weekParam ?? undefined })}
+                href={buildHref({ show: value, priority, goal, week: weekParam ?? undefined })}
                 aria-current={show === value ? "true" : undefined}
                 className={tabClass(show === value)}
               >
@@ -165,7 +179,7 @@ export default async function TodosPage({
             ).map(([value, label]) => (
               <Link
                 key={value}
-                href={buildHref({ show, priority: value, week: weekParam ?? undefined })}
+                href={buildHref({ show, priority: value, goal, week: weekParam ?? undefined })}
                 aria-current={priority === value ? "true" : undefined}
                 className={
                   priority === value ? "font-medium underline underline-offset-4" : "text-muted hover:text-foreground"
@@ -175,6 +189,27 @@ export default async function TodosPage({
               </Link>
             ))}
           </div>
+          {goals.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" role="group" aria-label="Filter goal">
+              <span className="text-muted">Goal</span>
+              {[
+                { value: "all", label: "Semua" },
+                { value: "none", label: "Tanpa goal" },
+                ...activeGoals.map((g) => ({ value: g.id, label: g.title })),
+              ].map(({ value, label }) => (
+                <Link
+                  key={value}
+                  href={buildHref({ show, priority, goal: value, week: weekParam ?? undefined })}
+                  aria-current={goal === value ? "true" : undefined}
+                  className={
+                    goal === value ? "font-medium underline underline-offset-4" : "text-muted hover:text-foreground"
+                  }
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         {fetchError && (
@@ -184,9 +219,9 @@ export default async function TodosPage({
         )}
 
         <div className="flex flex-col gap-6">
-          <TaskGroup title="Terlewat" tone="danger" todos={overdue} />
-          <TaskGroup title={overdue.length || undated.length ? "Hari ini" : undefined} todos={dueToday} />
-          <TaskGroup title="Tanpa tanggal" todos={undated} />
+          <TaskGroup title="Terlewat" tone="danger" todos={overdue} goalTitles={goalTitles} moveToToday={today} />
+          <TaskGroup title={overdue.length || undated.length ? "Hari ini" : undefined} todos={dueToday} goalTitles={goalTitles} />
+          <TaskGroup title="Tanpa tanggal" todos={undated} goalTitles={goalTitles} />
 
           {todayTodos.length === 0 && (
             <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
@@ -220,19 +255,19 @@ export default async function TodosPage({
           </div>
           <nav aria-label="Pilih minggu" className="flex gap-2 text-sm">
             <Link
-              href={buildHref({ show, priority, week: addDaysISO(weekStart, -7) })}
+              href={buildHref({ show, priority, goal, week: addDaysISO(weekStart, -7) })}
               className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
             >
               ‹ Sebelumnya
             </Link>
             <Link
-              href={buildHref({ show, priority })}
+              href={buildHref({ show, priority, goal })}
               className={`rounded-full border border-foreground px-4 py-1.5 ${isCurrentWeek ? "bg-surface font-medium" : "hover:bg-surface"}`}
             >
               Minggu ini
             </Link>
             <Link
-              href={buildHref({ show, priority, week: addDaysISO(weekStart, 7) })}
+              href={buildHref({ show, priority, goal, week: addDaysISO(weekStart, 7) })}
               className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
             >
               Berikutnya ›
@@ -259,7 +294,7 @@ export default async function TodosPage({
 
                 <ul className="flex flex-col gap-2">
                   {dayTodos.map((todo) => (
-                    <WeekTask key={todo.id} todo={todo} week={weekParam ?? undefined} />
+                    <WeekTask key={todo.id} todo={todo} week={weekParam ?? undefined} goalTitle={goalTitles.get(todo.goal_id ?? "")} />
                   ))}
                 </ul>
 
@@ -312,10 +347,15 @@ function TaskGroup({
   title,
   todos,
   tone,
+  goalTitles,
+  moveToToday,
 }: {
   title?: string;
   todos: Todo[];
   tone?: "danger";
+  goalTitles: Map<string, string>;
+  /** Isi dengan tanggal hari ini untuk menampilkan tombol "Pindah ke hari ini" (grup Terlewat). */
+  moveToToday?: string;
 }) {
   if (todos.length === 0) return null;
   return (
@@ -327,14 +367,14 @@ function TaskGroup({
       )}
       <ul className="overflow-hidden rounded-2xl border border-foreground">
         {todos.map((todo) => (
-          <TodoRow key={todo.id} todo={todo} />
+          <TodoRow key={todo.id} todo={todo} goalTitle={goalTitles.get(todo.goal_id ?? "")} moveToToday={moveToToday} />
         ))}
       </ul>
     </div>
   );
 }
 
-function TodoRow({ todo }: { todo: Todo }) {
+function TodoRow({ todo, goalTitle, moveToToday }: { todo: Todo; goalTitle?: string; moveToToday?: string }) {
   const done = todo.status === "done";
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-5 py-4 last:border-b-0">
@@ -343,7 +383,18 @@ function TodoRow({ todo }: { todo: Todo }) {
         <p className={`text-lg ${done ? "text-muted line-through" : ""}`}>{todo.title}</p>
         {todo.description && <p className="mt-0.5 truncate text-sm text-muted">{todo.description}</p>}
         {todo.status === "in_progress" && <p className="mt-0.5 text-xs text-muted">Sedang dikerjakan</p>}
+        {goalTitle && <p className="mt-0.5 truncate text-xs text-muted">Goal: {goalTitle}</p>}
       </div>
+      {moveToToday && (
+        <form action={moveTodoToToday.bind(null, todo.id, moveToToday)}>
+          <button
+            type="submit"
+            className="rounded-full border border-foreground px-3 py-1 text-sm transition-colors hover:bg-surface"
+          >
+            Pindah ke hari ini
+          </button>
+        </form>
+      )}
       <PriorityPill priority={todo.priority} />
       <div className="flex shrink-0 items-center gap-1 text-sm">
         <Link
@@ -358,7 +409,7 @@ function TodoRow({ todo }: { todo: Todo }) {
   );
 }
 
-function WeekTask({ todo, week }: { todo: Todo; week?: string }) {
+function WeekTask({ todo, week, goalTitle }: { todo: Todo; week?: string; goalTitle?: string }) {
   const done = todo.status === "done";
   return (
     <li className="flex items-start gap-2 text-sm leading-snug">
@@ -367,7 +418,7 @@ function WeekTask({ todo, week }: { todo: Todo; week?: string }) {
       </span>
       <Link
         href={week ? `/todos?edit=${todo.id}&week=${week}` : `/todos?edit=${todo.id}`}
-        title={`${PRIORITY_LABEL[todo.priority]} · klik untuk edit`}
+        title={`${PRIORITY_LABEL[todo.priority]}${goalTitle ? ` · Goal: ${goalTitle}` : ""} · klik untuk edit`}
         className={`min-w-0 flex-1 break-words hover:underline ${done ? "text-muted line-through" : ""} ${
           todo.priority === "high" && !done ? "font-medium" : ""
         }`}
@@ -380,7 +431,7 @@ function WeekTask({ todo, week }: { todo: Todo; week?: string }) {
   );
 }
 
-function TodoForm({ todo, error }: { todo: Todo | null; error?: string }) {
+function TodoForm({ todo, goals, error }: { todo: Todo | null; goals: GoalOption[]; error?: string }) {
   const action = todo ? updateTodo.bind(null, todo.id) : createTodo;
   const field =
     "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
@@ -444,6 +495,27 @@ function TodoForm({ todo, error }: { todo: Todo | null; error?: string }) {
             className={field}
           />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="goal_id" className="block text-sm font-medium">
+          Goal
+        </label>
+        <select id="goal_id" name="goal_id" defaultValue={todo?.goal_id ?? ""} className={field}>
+          <option value="">Tanpa goal</option>
+          {goals
+            // Goal aktif saja untuk dipilih, kecuali goal yang sudah terpasang di tugas ini.
+            .filter((g) => g.status === "active" || g.id === todo?.goal_id)
+            .map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.title}
+                {g.status === "done" ? " (selesai)" : ""}
+              </option>
+            ))}
+        </select>
+        {goals.length === 0 && (
+          <p className="mt-1 text-xs text-muted">Belum ada goal. Goal dibuat di halaman Goals.</p>
+        )}
       </div>
 
       <div className="flex gap-2 pt-1">
