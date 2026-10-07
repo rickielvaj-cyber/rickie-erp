@@ -2,7 +2,7 @@
 
 Workspace pribadi (single-user) buat ERP Implementation Consultant (YonSuite/Yonyou).
 
-- **Fase 1**: **To-Do List**, **Issue Log**, **Ringkasan Mingguan**.
+- **Fase 1**: **To-Do List**, **Goals**, **Issue Log**, **Ringkasan Mingguan**, **Export**.
 - **Fase 2**: **Knowledge Base** — 18 modul (lihat `lib/kb/modules.ts`), tiap modul bisa
   berisi banyak entri, full-text search, edit inline.
 
@@ -60,6 +60,35 @@ supabase db push
 - `0005_kb_renumber_accounting_common.sql` — Accounting Common jadi Bab 4 (setelah Master
   Data); Purchasing–Inventory Accounting bergeser jadi Bab 5–8. Nomor di judul entri ikut. Kalau baru setup dari nol, tetap jalankan `0003` dulu baru `0004` — `0004`
   cuma ALTER di atas tabel yang dibuat `0003`, bukan pengganti berdiri sendiri.
+- `0006_user_id_and_owner_rls.sql` — **Fase 1**: `todos` & `issue_log` dapat `user_id`; RLS jadi
+  `auth.uid() = user_id` (sebelumnya "siapa pun yang login"). Baris lama otomatis dimiliki akun
+  Anda **asal `auth.users` berisi tepat 1 akun**; kalau tidak, migrasi berhenti dengan pesan jelas
+  dan tidak mengubah apa pun. Kode aplikasi tidak perlu diubah (user_id default `auth.uid()`).
+- `0007_goals.sql` — tabel `goals` + `goal_items` (checklist), RLS per pemilik.
+- `0008_todos_goal_issue_fields.sql` — `todos.goal_id` + `completed_at` (terisi otomatis lewat
+  trigger), `issue_log.module` + `root_cause`, dan kategori issue dibatasi 10 pilihan (hanya untuk
+  data baru; kategori lama tidak diubah).
+
+Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (Supabase
+Dashboard → Database → Backups) sebelum menjalankan `0006`, karena itu yang menyentuh data lama.
+
+### 3b. Matikan sign-up publik (wajib)
+
+App ini single-user, jadi tidak boleh ada orang lain yang bisa mendaftar. Ini setelan Supabase,
+bukan kode: **Authentication → Sign In / Providers (atau Settings) → matikan "Allow new users to
+sign up"** (di beberapa versi dashboard namanya "Disable sign-ups"). Akun Anda sendiri tetap bisa
+login.
+
+### 3c. Verifikasi RLS
+
+Setelah migrasi, pastikan tanpa login tidak ada data yang bisa dibaca:
+
+```bash
+bash scripts/verify-rls.sh
+```
+
+Semua baris harus `OK` (atau `SKIP` kalau tabelnya belum ada). `BOCOR` berarti policy RLS belum
+benar. Skrip hanya membaca, tidak menulis apa pun.
 
 ### 4. Seed Knowledge Base (opsional, sekali jalan)
 
@@ -83,6 +112,39 @@ npm run dev
 
 Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login`.
 
+## Fitur Fase 1
+
+- **To-Do** (`/todos`): panel Hari ini + pelacak mingguan. Tiap tugas bisa dikaitkan ke satu
+  **Goal** (dropdown di form, filter Goal). Tugas **Terlewat** punya tombol "Pindah ke hari ini".
+  Hapus memakai toast **Urungkan** (6 detik). Mencentang tugas **tidak** mengubah Goal.
+- **Goals** (`/goals`): target jangka panjang dengan checklist. Item punya grup (`group_name`
+  jadi judul), catatan, dan urutan (↑↓ dalam grup). Progres = item selesai / total. Goal
+  **diselesaikan manual** lewat checkbox, tidak otomatis dari item atau to-do, dan tidak muncul
+  di daftar to-do harian.
+- **Issue Log** (`/issues`): tanggal (default hari ini), klien, modul, kategori (10 pilihan di
+  `lib/issues.ts`), deskripsi, akar masalah, resolusi. Klien & modul = teks bebas dengan
+  autocomplete dari nilai yang pernah dipakai. Filter klien/modul/kategori/bulan, plus hitungan
+  per bulan, kategori, dan klien (mengikuti filter) sebagai dasar KPI bulanan.
+- **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
+  Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
+  termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke
+  YonWork. Hasil edit tidak disimpan.
+- **Export**: menu akun (avatar) → "Export semua data (JSON)" dan "Export issue log (CSV)";
+  halaman Issue Log punya tombol Export CSV yang mengikuti filter. CSV memakai BOM UTF-8 dan
+  menetralkan sel yang diawali `= + - @` (dengan awalan `'`) supaya tidak jadi rumus di Excel/Sheets.
+- **Zona waktu**: semua logika tanggal/minggu memakai Asia/Jakarta (`lib/date.ts`). Waktu selesai
+  (`completed_at`) diisi trigger database, bukan kode aplikasi.
+
+## Deploy ke Vercel
+
+1. Import repo ini di Vercel (Framework: Next.js, Root Directory: root repo).
+2. **Settings → Environment Variables** (Production dan Preview):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3. **Jangan** pernah menaruh `SUPABASE_SERVICE_ROLE_KEY` / `SEED_USER_ID` di Vercel.
+4. Migrasi database dijalankan di Supabase (Setup #3), bukan oleh Vercel.
+5. Cek setelah deploy: login, buka `/todos`, `/goals`, `/issues`, `/summary`, dan unduh Export.
+
 ## Struktur
 
 ```
@@ -90,9 +152,14 @@ app/page.tsx              Home publik (hero + kartu fitur; angka ringkas cuma ka
 app/login/                halaman login (Supabase Auth, email/password)
 components/TopNav.tsx     menu atas sticky (di root layout, ada di semua halaman)
 app/(dashboard)/          penjaga login untuk halaman-halaman privat di bawahnya
-app/(dashboard)/todos/    modul To-Do List
+app/(dashboard)/todos/    modul To-Do List (panel Hari ini + pelacak mingguan, terhubung ke Goals)
+app/(dashboard)/goals/    modul Goals: daftar + detail checklist (grup, urutan, centang)
 app/(dashboard)/issues/   modul Issue Log
-app/(dashboard)/summary/  modul Ringkasan Mingguan
+app/(dashboard)/summary/  modul Ringkasan Mingguan (format YonWork, bisa diedit + Copy)
+app/api/export/           Export: JSON semua data (/api/export), CSV issue log (/api/export/issues)
+lib/summary.ts            template teks ringkasan (murni, tanpa AI)
+lib/export.ts             ambil semua baris (batas 1000/permintaan) + builder CSV aman
+lib/issues.ts             daftar 10 kategori issue + hitung per kelompok
 app/(dashboard)/knowledge-base/  modul Knowledge Base (flow diagram + grid bab, satu halaman per bab + edit)
 app/api/knowledge-base/          API routes KB (list/get/update entri, search-index)
 lib/supabase/             Supabase client (browser, server, middleware)
@@ -103,6 +170,7 @@ lib/kb/search-index.ts    indeks search di browser (MiniSearch), lazy, di-reset 
 lib/kb/highlight.ts       highlight frasa hasil search di halaman bab
 supabase/migrations/      SQL migration
 scripts/seed-kb.ts        seed data awal KB, jalan lokal aja (lihat Setup #4)
+scripts/verify-rls.sh     cek baca-saja: tanpa login tidak ada data yang terbaca (Setup #3c)
 data/                     taruh kb_seed_phase2.json di sini (gitignored)
 legacy-kb/                arsip situs KB lama, sudah diganti modul KB di atas
 ```

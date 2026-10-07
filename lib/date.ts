@@ -1,47 +1,3 @@
-function toISODate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-/** Monday..Sunday range containing `reference`. */
-export function currentWeekRange(reference = new Date()): { start: string; end: string } {
-  const day = reference.getDay(); // 0 = Sunday
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-
-  const monday = startOfDay(reference);
-  monday.setDate(monday.getDate() + diffToMonday);
-
-  const sunday = new Date(monday);
-  sunday.setDate(sunday.getDate() + 6);
-
-  return { start: toISODate(monday), end: toISODate(sunday) };
-}
-
-/** Rolling 7-day window ending today. */
-export function last7DaysRange(reference = new Date()): { start: string; end: string } {
-  const end = startOfDay(reference);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 6);
-
-  return { start: toISODate(start), end: toISODate(end) };
-}
-
-export function nextWeekRange(reference = new Date()): { start: string; end: string } {
-  const { start: thisMonday } = currentWeekRange(reference);
-  const start = new Date(thisMonday);
-  start.setDate(start.getDate() + 7);
-
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-
-  return { start: toISODate(start), end: toISODate(end) };
-}
-
 // --- Tanggal kalender (YYYY-MM-DD), dipakai To-Do mingguan ---
 // "Hari ini" dihitung di zona Asia/Jakarta, bukan zona server (Vercel = UTC),
 // supaya setelah jam 17.00 WIB tugas "hari ini" nggak ikut hari kemarin.
@@ -97,4 +53,19 @@ export function formatDateID(isoDate: string | null): string {
     month: "short",
     year: "numeric",
   });
+}
+
+/** "2026-10" -> "Okt 2026" */
+export function formatMonthYearID(yyyyMm: string): string {
+  return formatISO(`${yyyyMm}-01`, { month: "short", year: "numeric" });
+}
+
+/** Hari terakhir bulan "YYYY-MM" sebagai YYYY-MM-DD. */
+export function endOfMonthISO(yyyyMm: string): string {
+  const [y, m] = yyyyMm.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
+export function isYearMonth(value: string | null | undefined): value is string {
+  return !!value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 }
