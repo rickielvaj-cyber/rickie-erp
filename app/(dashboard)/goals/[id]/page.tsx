@@ -250,16 +250,24 @@ export default async function GoalDetailPage({
         </form>
       </section>
 
-      <section aria-labelledby="todos-heading" className="mt-12">
-        <div className="mb-1 flex items-baseline justify-between gap-3">
-          <h2 id="todos-heading" className="text-2xl font-semibold tracking-tight">
+      {/* <details> bawaan browser: bisa dilipat/dibuka tanpa JavaScript. Default terbuka. */}
+      <details open className="group mt-12">
+        <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3 rounded-lg [&::-webkit-details-marker]:hidden">
+          <h2 id="todos-heading" className="flex items-baseline gap-2 text-2xl font-semibold tracking-tight">
+            <span
+              aria-hidden="true"
+              className="inline-block text-base text-muted transition-transform group-open:rotate-90"
+            >
+              ▸
+            </span>
             To-do terkait
           </h2>
           <span className="text-sm text-muted">
             {doneTodos.length} / {linkedTodos.length} selesai
+            <span className="ml-2 group-open:hidden">· klik untuk membuka</span>
           </span>
-        </div>
-        <p className="mb-4 text-sm text-muted">
+        </summary>
+        <p className="mb-4 mt-1 text-sm text-muted">
           To-do harian yang dikaitkan ke goal ini. Mencentangnya tidak mengubah checklist atau status goal.
         </p>
 
@@ -300,7 +308,7 @@ export default async function GoalDetailPage({
             Tambah
           </button>
         </form>
-      </section>
+      </details>
     </div>
   );
 }
