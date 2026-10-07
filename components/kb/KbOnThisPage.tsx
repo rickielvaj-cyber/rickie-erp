@@ -27,7 +27,7 @@ export function KbOnThisPage({ headings, defaultOpen }: { headings: KbHeading[];
             <a
               href={`#${encodeURIComponent(h.id)}`}
               onClick={(e) => onClick(e, h.id)}
-              className={`block truncate hover:text-brand-red ${
+              className={`block truncate hover:underline ${
                 h.depth > 2 ? "text-xs text-muted" : "font-medium"
               }`}
               title={h.text}

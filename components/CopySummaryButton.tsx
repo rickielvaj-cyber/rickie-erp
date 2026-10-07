@@ -17,7 +17,7 @@ export function CopySummaryButton({ text }: { text: string }) {
           window.prompt("Salin manual (Ctrl+C lalu Enter):", text);
         }
       }}
-      className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-red-dark"
+      className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
     >
       {copied ? "Tersalin!" : "Copy sebagai teks"}
     </button>

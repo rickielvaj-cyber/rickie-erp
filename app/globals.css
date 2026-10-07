@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  /* Placeholder Yonyou red — swap this one value once the official brand hex is confirmed. */
-  --brand-red: #c8102e;
-  --brand-red-dark: #a10d25;
+  /* Hitam-putih ala Apple: aksen = hitam. Merah (--danger) cuma buat error/hapus. */
+  --accent: #111111;
+  --accent-hover: #3a3a3a;
+  --danger: #c8102e;
   --background: #ffffff;
   --foreground: #111111;
   --muted: #6b6b6b;
@@ -14,8 +15,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-brand-red: var(--brand-red);
-  --color-brand-red-dark: var(--brand-red-dark);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-surface: var(--surface);

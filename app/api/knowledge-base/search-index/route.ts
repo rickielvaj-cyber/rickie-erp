@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { loadAllKbChapters } from "@/lib/kb/data";
 import { kbChapterSearchSections } from "@/lib/kb/chapter";
 
@@ -7,9 +8,7 @@ import { kbChapterSearchSections } from "@/lib/kb/chapter";
 // jalur render yang sama dengan halaman bab — anchor dijamin cocok dengan DOM.
 export async function GET() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

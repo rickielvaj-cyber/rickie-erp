@@ -2,14 +2,14 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-// Matches --brand-red / --surface / --border in app/globals.css. Mermaid's
+// Matches --accent / --surface / --border in app/globals.css. Mermaid's
 // themeVariables need literal color values (not CSS custom properties), so
 // these are kept in sync by hand rather than read at runtime.
 const MERMAID_THEME_VARIABLES = {
   primaryColor: "#fafafa",
-  primaryBorderColor: "#c8102e",
+  primaryBorderColor: "#111111",
   primaryTextColor: "#111111",
-  lineColor: "#c8102e",
+  lineColor: "#555555",
   secondaryColor: "#ffffff",
   tertiaryColor: "#ffffff",
   fontFamily: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
@@ -52,7 +52,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
 
   if (error) {
     return (
-      <div className="mb-3 rounded-md border border-border bg-red-50 p-3 text-xs text-brand-red">
+      <div className="mb-3 rounded-md border border-border bg-red-50 p-3 text-xs text-danger">
         Gagal render diagram mermaid: {error}
       </div>
     );

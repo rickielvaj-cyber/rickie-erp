@@ -74,9 +74,9 @@ export default async function SummaryPage({
   });
 
   return (
-    <div className="max-w-3xl">
+    <div className="mx-auto max-w-3xl">
       <div className="mb-2 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand-red">Ringkasan Mingguan</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Ringkasan Mingguan</h1>
         <CopySummaryButton text={summaryText} />
       </div>
       <p className="mb-6 text-sm text-muted">{periodLabel}</p>
@@ -84,13 +84,13 @@ export default async function SummaryPage({
       <div className="mb-6 flex gap-2 text-sm">
         <Link
           href="/summary?mode=week"
-          className={`rounded-md px-3 py-1.5 ${mode === "week" ? "bg-brand-red text-white" : "border border-border hover:border-brand-red hover:text-brand-red"}`}
+          className={`rounded-md px-3 py-1.5 ${mode === "week" ? "bg-accent text-white" : "border border-border hover:border-foreground"}`}
         >
           Senin–Minggu Berjalan
         </Link>
         <Link
           href="/summary?mode=last7"
-          className={`rounded-md px-3 py-1.5 ${mode === "last7" ? "bg-brand-red text-white" : "border border-border hover:border-brand-red hover:text-brand-red"}`}
+          className={`rounded-md px-3 py-1.5 ${mode === "last7" ? "bg-accent text-white" : "border border-border hover:border-foreground"}`}
         >
           7 Hari Terakhir
         </Link>

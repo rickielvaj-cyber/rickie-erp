@@ -9,7 +9,7 @@ export type KbHighlightDetail = { anchor: string; phrase: string };
 
 // Tombol "Cari" + command palette. Cuma dipasang di halaman Knowledge Base, dan
 // indeksnya cuma berisi section bab KB — nggak ada data To-Do/Issue Log/Ringkasan.
-export function KbSearch() {
+export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -103,14 +103,29 @@ export function KbSearch() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={openPalette}
-        className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-brand-red hover:text-brand-red"
-      >
-        Cari
-        <kbd className="rounded border border-border px-1 font-sans text-[10px] text-muted">Ctrl K</kbd>
-      </button>
+      {variant === "bar" ? (
+        <button
+          type="button"
+          onClick={openPalette}
+          aria-label="Cari di Knowledge Base"
+          className="flex h-12 w-full max-w-xl items-center gap-3 rounded-full border border-foreground bg-background px-5 text-left text-base text-muted transition-colors hover:bg-surface"
+        >
+          <span aria-hidden="true" className="text-lg leading-none text-foreground">
+            ⌕
+          </span>
+          <span className="flex-1">Cari di Knowledge Base…</span>
+          <kbd className="rounded border border-border px-1.5 font-sans text-[11px]">Ctrl K</kbd>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={openPalette}
+          className="inline-flex items-center gap-2 rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface"
+        >
+          Cari
+          <kbd className="rounded border border-border px-1 font-sans text-[10px] text-muted">Ctrl K</kbd>
+        </button>
+      )}
 
       {open && (
         <div
@@ -144,7 +159,7 @@ export function KbSearch() {
                 <p className="px-4 py-6 text-center text-sm text-muted">Menyiapkan indeks pencarian...</p>
               )}
               {status === "error" && (
-                <p className="px-4 py-6 text-center text-sm text-brand-red">
+                <p className="px-4 py-6 text-center text-sm text-foreground">
                   Gagal memuat indeks pencarian — tutup lalu coba lagi.
                 </p>
               )}
@@ -168,7 +183,7 @@ export function KbSearch() {
                       className={`cursor-pointer px-4 py-2.5 ${i === active ? "bg-surface" : ""}`}
                     >
                       <p className="text-xs text-muted">{hit.chapter}</p>
-                      <p className={`text-sm font-medium ${i === active ? "text-brand-red" : ""}`}>
+                      <p className={`text-sm font-medium ${i === active ? "text-foreground" : ""}`}>
                         {hit.heading}
                       </p>
                       {hit.snippet && (

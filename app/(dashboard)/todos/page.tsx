@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateID } from "@/lib/date";
-import type { Todo, TodoPriority, TodoStatus } from "@/lib/types";
+import {
+  addDaysISO,
+  formatDayMonthID,
+  formatLongDayID,
+  formatWeekdayShortID,
+  isISODate,
+  mondayOfISO,
+  todayISO,
+} from "@/lib/date";
+import type { Todo, TodoPriority } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { createTodo, cycleTodoStatus, deleteTodo, updateTodo } from "./actions";
-
-const STATUS_LABEL: Record<TodoStatus, string> = {
-  todo: "To-Do",
-  in_progress: "Dikerjakan",
-  done: "Selesai",
-};
+import { createTodo, createTodoForDay, deleteTodo, toggleTodoDone, updateTodo } from "./actions";
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = {
   low: "Rendah",
@@ -17,19 +19,32 @@ const PRIORITY_LABEL: Record<TodoPriority, string> = {
   high: "Tinggi",
 };
 
-const PRIORITY_BADGE: Record<TodoPriority, string> = {
-  low: "bg-zinc-100 text-zinc-600",
-  medium: "bg-amber-100 text-amber-700",
-  high: "bg-brand-red/10 text-brand-red",
+// Hitam-putih: prioritas dibedakan lewat isi pill, bukan warna.
+const PRIORITY_PILL: Record<TodoPriority, string> = {
+  high: "bg-foreground text-background border-foreground",
+  medium: "border-foreground",
+  low: "border-border text-muted",
 };
 
 type SearchParams = {
-  status?: string;
+  show?: string;
   priority?: string;
+  week?: string;
   new?: string;
   edit?: string;
   error?: string;
 };
+
+type Show = "all" | "open" | "done";
+
+function buildHref(params: { show?: Show; priority?: string; week?: string }) {
+  const q = new URLSearchParams();
+  if (params.show && params.show !== "all") q.set("show", params.show);
+  if (params.priority && params.priority !== "all") q.set("priority", params.priority);
+  if (params.week) q.set("week", params.week);
+  const s = q.toString();
+  return s ? `/todos?${s}` : "/todos";
+}
 
 export default async function TodosPage({
   searchParams,
@@ -37,132 +52,300 @@ export default async function TodosPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const statusFilter = params.status ?? "all";
-  const priorityFilter = params.priority ?? "all";
+  const show: Show = params.show === "open" || params.show === "done" ? params.show : "all";
+  const priority = ["low", "medium", "high"].includes(params.priority ?? "") ? params.priority! : "all";
   const isNew = params.new === "1";
   const editId = params.edit ?? null;
 
+  const today = todayISO();
+  const weekParam = isISODate(params.week) ? mondayOfISO(params.week) : null;
+  const weekStart = weekParam ?? mondayOfISO(today);
+  const weekEnd = addDaysISO(weekStart, 6);
+  const isCurrentWeek = weekStart === mondayOfISO(today);
+
   const supabase = await createClient();
 
-  let query = supabase.from("todos").select("*");
-  if (statusFilter !== "all") query = query.eq("status", statusFilter as TodoStatus);
-  if (priorityFilter !== "all") query = query.eq("priority", priorityFilter as TodoPriority);
+  // Panel "Hari ini": tugas jatuh tempo hari ini + yang terlewat/belum bertanggal
+  // selama belum selesai (biar nggak hilang dari pandangan). Filter berlaku di
+  // panel ini saja; pelacak mingguan selalu menampilkan semua tugas minggunya.
+  let todayQuery = supabase
+    .from("todos")
+    .select("*")
+    .or(
+      `due_date.eq.${today},and(due_date.lt.${today},status.neq.done),and(due_date.is.null,status.neq.done)`,
+    );
+  if (priority !== "all") todayQuery = todayQuery.eq("priority", priority as TodoPriority);
+  if (show === "done") todayQuery = todayQuery.eq("status", "done");
+  if (show === "open") todayQuery = todayQuery.neq("status", "done");
 
-  const { data: todos, error: fetchError } = await query.order("due_date", {
-    ascending: true,
-    nullsFirst: false,
-  });
+  const [todayResult, weekResult, editResult] = await Promise.all([
+    todayQuery.order("due_date", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
+    supabase
+      .from("todos")
+      .select("*")
+      .gte("due_date", weekStart)
+      .lte("due_date", weekEnd)
+      .order("created_at", { ascending: true }),
+    editId ? supabase.from("todos").select("*").eq("id", editId).maybeSingle() : Promise.resolve(null),
+  ]);
 
-  const editingTodo = editId ? (todos ?? []).find((t) => t.id === editId) ?? null : null;
+  const todayTodos = todayResult.data ?? [];
+  const weekTodos = weekResult.data ?? [];
+  const editingTodo = editResult?.data ?? null;
+  const fetchError = todayResult.error ?? weekResult.error;
+
+  const overdue = todayTodos.filter((t) => t.due_date !== null && t.due_date < today);
+  const dueToday = todayTodos.filter((t) => t.due_date === today);
+  const undated = todayTodos.filter((t) => t.due_date === null);
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
+  const weekDone = weekTodos.filter((t) => t.status === "done").length;
+
+  const tabClass = (active: boolean) =>
+    `rounded-full border px-4 py-1 text-sm transition-colors ${
+      active ? "border-accent bg-accent text-white" : "border-foreground hover:bg-surface"
+    }`;
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand-red">To-Do List</h1>
-        {!isNew && !editingTodo && (
-          <Link
-            href="/todos?new=1"
-            className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-red-dark"
-          >
-            + Tambah To-Do
-          </Link>
-        )}
-      </div>
-
+    <div className="mx-auto">
       {(isNew || editingTodo) && (
-        <TodoForm
-          key={editingTodo?.id ?? "new"}
-          todo={editingTodo}
-          error={params.error}
-        />
+        <div className="mx-auto mb-10 max-w-2xl">
+          <TodoForm key={editingTodo?.id ?? "new"} todo={editingTodo} error={params.error} />
+        </div>
       )}
 
-      <form method="GET" className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-border bg-surface p-4">
-        <div>
-          <label className="block text-xs font-medium text-muted">Status</label>
-          <select name="status" defaultValue={statusFilter} className="mt-1 rounded-md border border-border px-3 py-1.5 text-sm">
-            <option value="all">Semua</option>
-            <option value="todo">To-Do</option>
-            <option value="in_progress">Dikerjakan</option>
-            <option value="done">Selesai</option>
-          </select>
+      {/* ---- Hari ini ---- */}
+      <section aria-labelledby="today-heading" className="mx-auto flex max-w-2xl flex-col gap-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h1 id="today-heading" className="text-4xl font-semibold tracking-tight">
+              Hari ini
+            </h1>
+            <p className="mt-1 text-base text-muted">{formatLongDayID(today)}</p>
+          </div>
+          {!isNew && !editingTodo && (
+            <Link
+              href="/todos?new=1"
+              className="shrink-0 rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              + Tambah tugas
+            </Link>
+          )}
         </div>
-        <div>
-          <label className="block text-xs font-medium text-muted">Prioritas</label>
-          <select name="priority" defaultValue={priorityFilter} className="mt-1 rounded-md border border-border px-3 py-1.5 text-sm">
-            <option value="all">Semua</option>
-            <option value="low">Rendah</option>
-            <option value="medium">Sedang</option>
-            <option value="high">Tinggi</option>
-          </select>
+
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="flex gap-2" role="group" aria-label="Filter status">
+            {(
+              [
+                ["all", "Semua"],
+                ["open", "Belum selesai"],
+                ["done", "Selesai"],
+              ] as const
+            ).map(([value, label]) => (
+              <Link
+                key={value}
+                href={buildHref({ show: value, priority, week: weekParam ?? undefined })}
+                aria-current={show === value ? "true" : undefined}
+                className={tabClass(show === value)}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 text-sm" role="group" aria-label="Filter prioritas">
+            <span className="text-muted">Prioritas</span>
+            {(
+              [
+                ["all", "Semua"],
+                ["high", "Tinggi"],
+                ["medium", "Sedang"],
+                ["low", "Rendah"],
+              ] as const
+            ).map(([value, label]) => (
+              <Link
+                key={value}
+                href={buildHref({ show, priority: value, week: weekParam ?? undefined })}
+                aria-current={priority === value ? "true" : undefined}
+                className={
+                  priority === value ? "font-medium underline underline-offset-4" : "text-muted hover:text-foreground"
+                }
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
         </div>
-        <button type="submit" className="rounded-md border border-border px-4 py-1.5 text-sm font-medium hover:border-brand-red hover:text-brand-red">
-          Terapkan Filter
-        </button>
-        {(statusFilter !== "all" || priorityFilter !== "all") && (
-          <Link href="/todos" className="text-sm text-muted underline">
-            Reset
-          </Link>
+
+        {fetchError && (
+          <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+            Gagal memuat data: {fetchError.message}
+          </p>
         )}
-      </form>
 
-      {fetchError && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">
-          Gagal memuat data: {fetchError.message}
-        </p>
+        <div className="flex flex-col gap-6">
+          <TaskGroup title="Terlewat" tone="danger" todos={overdue} />
+          <TaskGroup title={overdue.length || undated.length ? "Hari ini" : undefined} todos={dueToday} />
+          <TaskGroup title="Tanpa tanggal" todos={undated} />
+
+          {todayTodos.length === 0 && (
+            <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+              {show === "done" ? "Belum ada tugas selesai hari ini." : "Tidak ada tugas untuk hari ini. Nikmati harimu."}
+            </p>
+          )}
+        </div>
+
+        <form action={createTodoForDay.bind(null, today)}>
+          <input
+            name="title"
+            required
+            placeholder="+ Tulis tugas baru, lalu Enter"
+            aria-label="Tugas baru untuk hari ini"
+            className="h-12 w-full rounded-2xl border border-dashed border-muted/60 px-5 text-base placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
+          />
+        </form>
+      </section>
+
+      {/* ---- Pelacak mingguan ---- */}
+      <section aria-labelledby="week-heading" className="mt-16 border-t border-foreground pt-12">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 id="week-heading" className="text-3xl font-semibold tracking-tight">
+              {isCurrentWeek ? "Minggu ini" : "Minggu"}
+            </h2>
+            <p className="mt-1 text-base text-muted">
+              {formatDayMonthID(weekStart)} – {formatDayMonthID(weekEnd)} · {weekDone} dari {weekTodos.length} tugas
+              selesai
+            </p>
+          </div>
+          <nav aria-label="Pilih minggu" className="flex gap-2 text-sm">
+            <Link
+              href={buildHref({ show, priority, week: addDaysISO(weekStart, -7) })}
+              className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
+            >
+              ‹ Sebelumnya
+            </Link>
+            <Link
+              href={buildHref({ show, priority })}
+              className={`rounded-full border border-foreground px-4 py-1.5 ${isCurrentWeek ? "bg-surface font-medium" : "hover:bg-surface"}`}
+            >
+              Minggu ini
+            </Link>
+            <Link
+              href={buildHref({ show, priority, week: addDaysISO(weekStart, 7) })}
+              className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
+            >
+              Berikutnya ›
+            </Link>
+          </nav>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+          {weekDays.map((day) => {
+            const dayTodos = weekTodos.filter((t) => t.due_date === day);
+            const isToday = day === today;
+            return (
+              <div
+                key={day}
+                aria-label={`${formatLongDayID(day)}${isToday ? " (hari ini)" : ""}`}
+                className={`flex min-h-[22rem] flex-col gap-3 rounded-2xl p-3.5 ${
+                  isToday ? "border-2 border-foreground bg-surface" : "border border-border"
+                }`}
+              >
+                <div className="flex items-baseline justify-between border-b border-border pb-2">
+                  <span className="text-base font-medium">{formatWeekdayShortID(day)}</span>
+                  <span className="text-sm text-muted">{formatDayMonthID(day)}</span>
+                </div>
+
+                <ul className="flex flex-col gap-2">
+                  {dayTodos.map((todo) => (
+                    <WeekTask key={todo.id} todo={todo} week={weekParam ?? undefined} />
+                  ))}
+                </ul>
+
+                <form action={createTodoForDay.bind(null, day)} className="mt-auto">
+                  <input
+                    name="title"
+                    required
+                    placeholder="+ Tambah"
+                    aria-label={`Tambah tugas untuk ${formatLongDayID(day)}`}
+                    className="w-full rounded-lg border border-dashed border-muted/60 bg-background px-2.5 py-1.5 text-center text-sm placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
+                  />
+                </form>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Checkbox({ todo, size = "md" }: { todo: Todo; size?: "md" | "sm" }) {
+  const done = todo.status === "done";
+  return (
+    <form action={toggleTodoDone.bind(null, todo.id, todo.status)} className="flex">
+      <button
+        type="submit"
+        aria-label={done ? `Tandai belum selesai: ${todo.title}` : `Tandai selesai: ${todo.title}`}
+        className={`flex shrink-0 items-center justify-center border border-foreground transition-colors ${
+          size === "md" ? "h-5 w-5 rounded-md text-xs" : "h-4 w-4 rounded text-[10px]"
+        } ${done ? "bg-foreground text-background" : "hover:bg-surface"}`}
+      >
+        {done ? "✓" : ""}
+      </button>
+    </form>
+  );
+}
+
+function PriorityPill({ priority }: { priority: TodoPriority }) {
+  return (
+    <span className={`rounded-full border px-2.5 py-0.5 text-xs ${PRIORITY_PILL[priority]}`}>
+      {PRIORITY_LABEL[priority]}
+    </span>
+  );
+}
+
+function TaskGroup({
+  title,
+  todos,
+  tone,
+}: {
+  title?: string;
+  todos: Todo[];
+  tone?: "danger";
+}) {
+  if (todos.length === 0) return null;
+  return (
+    <div>
+      {title && (
+        <h2 className={`mb-2 text-sm font-medium ${tone === "danger" ? "text-danger" : "text-muted"}`}>
+          {title} · {todos.length}
+        </h2>
       )}
-
-      <ul className="space-y-2">
-        {(todos ?? []).map((todo) => (
+      <ul className="overflow-hidden rounded-2xl border border-foreground">
+        {todos.map((todo) => (
           <TodoRow key={todo.id} todo={todo} />
         ))}
-        {todos && todos.length === 0 && (
-          <li className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted">
-            Belum ada to-do yang cocok dengan filter ini.
-          </li>
-        )}
       </ul>
     </div>
   );
 }
 
 function TodoRow({ todo }: { todo: Todo }) {
+  const done = todo.status === "done";
   return (
-    <li className="flex items-center justify-between gap-4 rounded-md border border-border p-4">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <form action={cycleTodoStatus.bind(null, todo.id, todo.status)}>
-            <button
-              type="submit"
-              title="Klik buat ganti status"
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                todo.status === "done"
-                  ? "bg-green-100 text-green-700"
-                  : todo.status === "in_progress"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-zinc-100 text-zinc-600"
-              }`}
-            >
-              {STATUS_LABEL[todo.status]}
-            </button>
-          </form>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_BADGE[todo.priority]}`}>
-            {PRIORITY_LABEL[todo.priority]}
-          </span>
-          {todo.due_date && (
-            <span className="text-xs text-muted">Jatuh tempo: {formatDateID(todo.due_date)}</span>
-          )}
-        </div>
-        <p className={`mt-1 font-medium ${todo.status === "done" ? "text-muted line-through" : ""}`}>
-          {todo.title}
-        </p>
-        {todo.description && <p className="mt-0.5 text-sm text-muted">{todo.description}</p>}
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-5 py-4 last:border-b-0">
+      <Checkbox todo={todo} />
+      <div className="min-w-0 flex-1 basis-40">
+        <p className={`text-lg ${done ? "text-muted line-through" : ""}`}>{todo.title}</p>
+        {todo.description && <p className="mt-0.5 truncate text-sm text-muted">{todo.description}</p>}
+        {todo.status === "in_progress" && <p className="mt-0.5 text-xs text-muted">Sedang dikerjakan</p>}
       </div>
-
-      <div className="flex shrink-0 items-center gap-2">
+      <PriorityPill priority={todo.priority} />
+      <div className="flex shrink-0 items-center gap-1 text-sm">
         <Link
           href={`/todos?edit=${todo.id}`}
-          className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-brand-red hover:text-brand-red"
+          className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
         >
           Edit
         </Link>
@@ -170,7 +353,7 @@ function TodoRow({ todo }: { todo: Todo }) {
           <ConfirmButton
             label="Hapus"
             confirmText={`Hapus to-do "${todo.title}"?`}
-            className="rounded-md border border-border px-3 py-1.5 text-sm text-muted hover:border-brand-red hover:text-brand-red"
+            className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-danger"
           />
         </form>
       </div>
@@ -178,27 +361,43 @@ function TodoRow({ todo }: { todo: Todo }) {
   );
 }
 
+function WeekTask({ todo, week }: { todo: Todo; week?: string }) {
+  const done = todo.status === "done";
+  return (
+    <li className="flex items-start gap-2 text-sm leading-snug">
+      <span className="mt-0.5">
+        <Checkbox todo={todo} size="sm" />
+      </span>
+      <Link
+        href={week ? `/todos?edit=${todo.id}&week=${week}` : `/todos?edit=${todo.id}`}
+        title={`${PRIORITY_LABEL[todo.priority]} · klik untuk edit`}
+        className={`min-w-0 flex-1 break-words hover:underline ${done ? "text-muted line-through" : ""} ${
+          todo.priority === "high" && !done ? "font-medium" : ""
+        }`}
+      >
+        {todo.priority === "high" && !done && <span aria-label="Prioritas tinggi">! </span>}
+        {todo.title}
+      </Link>
+    </li>
+  );
+}
+
 function TodoForm({ todo, error }: { todo: Todo | null; error?: string }) {
   const action = todo ? updateTodo.bind(null, todo.id) : createTodo;
+  const field =
+    "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
 
   return (
-    <form action={action} className="mb-6 space-y-4 rounded-md border border-border bg-surface p-5">
-      <h2 className="font-medium">{todo ? "Edit To-Do" : "Tambah To-Do Baru"}</h2>
+    <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
+      <h2 className="text-xl font-semibold tracking-tight">{todo ? "Edit tugas" : "Tugas baru"}</h2>
 
-      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">{error}</p>}
+      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
           Judul
         </label>
-        <input
-          id="title"
-          name="title"
-          type="text"
-          required
-          defaultValue={todo?.title}
-          className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
-        />
+        <input id="title" name="title" type="text" required defaultValue={todo?.title} className={field} />
       </div>
 
       <div>
@@ -210,21 +409,16 @@ function TodoForm({ todo, error }: { todo: Todo | null; error?: string }) {
           name="description"
           rows={2}
           defaultValue={todo?.description ?? ""}
-          className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
+          className={field}
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label htmlFor="status" className="block text-sm font-medium">
             Status
           </label>
-          <select
-            id="status"
-            name="status"
-            defaultValue={todo?.status ?? "todo"}
-            className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
-          >
+          <select id="status" name="status" defaultValue={todo?.status ?? "todo"} className={field}>
             <option value="todo">To-Do</option>
             <option value="in_progress">Dikerjakan</option>
             <option value="done">Selesai</option>
@@ -234,12 +428,7 @@ function TodoForm({ todo, error }: { todo: Todo | null; error?: string }) {
           <label htmlFor="priority" className="block text-sm font-medium">
             Prioritas
           </label>
-          <select
-            id="priority"
-            name="priority"
-            defaultValue={todo?.priority ?? "medium"}
-            className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
-          >
+          <select id="priority" name="priority" defaultValue={todo?.priority ?? "medium"} className={field}>
             <option value="low">Rendah</option>
             <option value="medium">Sedang</option>
             <option value="high">Tinggi</option>
@@ -247,28 +436,28 @@ function TodoForm({ todo, error }: { todo: Todo | null; error?: string }) {
         </div>
         <div>
           <label htmlFor="due_date" className="block text-sm font-medium">
-            Jatuh Tempo
+            Tanggal
           </label>
           <input
             id="due_date"
             name="due_date"
             type="date"
             defaultValue={todo?.due_date ?? ""}
-            className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
+            className={field}
           />
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-1">
         <button
           type="submit"
-          className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white hover:bg-brand-red-dark"
+          className="rounded-full bg-accent px-6 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
         >
           Simpan
         </button>
         <Link
           href="/todos"
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-brand-red hover:text-brand-red"
+          className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Batal
         </Link>

@@ -71,7 +71,7 @@ export function EntryEditor({
           type="button"
           data-kb-skip
           onClick={() => setEditing(true)}
-          className="absolute right-0 top-0 rounded-md border border-border px-3 py-1 text-xs font-medium hover:border-brand-red hover:text-brand-red"
+          className="absolute right-0 top-0 rounded-md border border-border px-3 py-1 text-xs font-medium hover:border-foreground"
         >
           Edit
         </button>
@@ -82,7 +82,7 @@ export function EntryEditor({
 
   return (
     <div className="space-y-4" data-kb-skip>
-      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">{error}</p>}
+      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor={`entry-title-${entryId}`} className="block text-sm font-medium">
@@ -122,7 +122,7 @@ export function EntryEditor({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white hover:bg-brand-red-dark disabled:opacity-50"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
         >
           {saving ? "Menyimpan..." : "Simpan"}
         </button>
@@ -130,7 +130,7 @@ export function EntryEditor({
           type="button"
           onClick={handleCancel}
           disabled={saving}
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+          className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-foreground disabled:opacity-50"
         >
           Batal
         </button>

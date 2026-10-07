@@ -57,13 +57,13 @@ export default async function IssuesPage({
   const editingIssue = editId ? (issues ?? []).find((i) => i.id === editId) ?? null : null;
 
   return (
-    <div className="max-w-5xl">
+    <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand-red">Issue Log</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Issue Log</h1>
         {!isNew && !editingIssue && (
           <Link
             href="/issues?new=1"
-            className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-red-dark"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
           >
             + Tambah Issue
           </Link>
@@ -105,7 +105,7 @@ export default async function IssuesPage({
           <label className="block text-xs font-medium text-muted">Sampai Bulan</label>
           <input type="month" name="month_to" defaultValue={monthTo} className="mt-1 rounded-md border border-border px-3 py-1.5 text-sm" />
         </div>
-        <button type="submit" className="rounded-md border border-border px-4 py-1.5 text-sm font-medium hover:border-brand-red hover:text-brand-red">
+        <button type="submit" className="rounded-md border border-border px-4 py-1.5 text-sm font-medium hover:border-foreground">
           Terapkan Filter
         </button>
         {(clientFilter !== "all" || categoryFilter !== "all" || monthFrom || monthTo) && (
@@ -116,7 +116,7 @@ export default async function IssuesPage({
       </form>
 
       {fetchError && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
           Gagal memuat data: {fetchError.message}
         </p>
       )}
@@ -143,7 +143,7 @@ export default async function IssuesPage({
                   <div className="flex justify-end gap-2">
                     <Link
                       href={`/issues?edit=${issue.id}`}
-                      className="rounded-md border border-border px-3 py-1 text-xs hover:border-brand-red hover:text-brand-red"
+                      className="rounded-md border border-border px-3 py-1 text-xs hover:border-foreground"
                     >
                       Edit
                     </Link>
@@ -151,7 +151,7 @@ export default async function IssuesPage({
                       <ConfirmButton
                         label="Hapus"
                         confirmText={`Hapus issue "${issue.title}"?`}
-                        className="rounded-md border border-border px-3 py-1 text-xs text-muted hover:border-brand-red hover:text-brand-red"
+                        className="rounded-md border border-border px-3 py-1 text-xs text-muted hover:border-foreground"
                       />
                     </form>
                   </div>
@@ -179,7 +179,7 @@ function IssueForm({ issue, error }: { issue: IssueLog | null; error?: string })
     <form action={action} className="mb-6 space-y-4 rounded-md border border-border bg-surface p-5">
       <h2 className="font-medium">{issue ? "Edit Issue" : "Tambah Issue Baru"}</h2>
 
-      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-brand-red">{error}</p>}
+      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
@@ -264,13 +264,13 @@ function IssueForm({ issue, error }: { issue: IssueLog | null; error?: string })
       <div className="flex gap-2">
         <button
           type="submit"
-          className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white hover:bg-brand-red-dark"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
           Simpan
         </button>
         <Link
           href="/issues"
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-brand-red hover:text-brand-red"
+          className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-foreground"
         >
           Batal
         </Link>

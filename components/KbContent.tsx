@@ -7,16 +7,16 @@ import { MermaidDiagram } from "@/components/kb/MermaidDiagram";
 // markdown sendiri di sini, biar id heading selalu sama dengan indeks search.
 
 const components: Partial<Components> = {
-  h1: (props) => <h1 className="mb-3 mt-6 scroll-mt-6 text-xl font-semibold text-brand-red" {...props} />,
+  h1: (props) => <h1 className="mb-3 mt-6 scroll-mt-6 text-xl font-semibold text-foreground" {...props} />,
   h2: (props) => (
-    <h2 className="mb-3 scroll-mt-6 pr-20 text-xl font-semibold text-brand-red" {...props} />
+    <h2 className="mb-3 scroll-mt-6 pr-20 text-xl font-semibold text-foreground" {...props} />
   ),
   h3: (props) => <h3 className="mb-2 mt-4 scroll-mt-6 text-base font-semibold" {...props} />,
   h4: (props) => <h4 className="mb-2 mt-3 scroll-mt-6 text-sm font-semibold" {...props} />,
   p: (props) => <p className="mb-3 text-sm leading-relaxed whitespace-pre-line" {...props} />,
   ul: (props) => <ul className="mb-3 list-inside list-disc space-y-1 text-sm" {...props} />,
   ol: (props) => <ol className="mb-3 list-inside list-decimal space-y-1 text-sm" {...props} />,
-  a: (props) => <a className="text-brand-red underline" {...props} />,
+  a: (props) => <a className="text-foreground underline" {...props} />,
   strong: (props) => <strong className="font-semibold" {...props} />,
   code: (props) => <code className="rounded bg-surface px-1 py-0.5 text-xs" {...props} />,
   pre: (props) => (
