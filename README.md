@@ -60,6 +60,35 @@ supabase db push
 - `0005_kb_renumber_accounting_common.sql` — Accounting Common jadi Bab 4 (setelah Master
   Data); Purchasing–Inventory Accounting bergeser jadi Bab 5–8. Nomor di judul entri ikut. Kalau baru setup dari nol, tetap jalankan `0003` dulu baru `0004` — `0004`
   cuma ALTER di atas tabel yang dibuat `0003`, bukan pengganti berdiri sendiri.
+- `0006_user_id_and_owner_rls.sql` — **Fase 1**: `todos` & `issue_log` dapat `user_id`; RLS jadi
+  `auth.uid() = user_id` (sebelumnya "siapa pun yang login"). Baris lama otomatis dimiliki akun
+  Anda **asal `auth.users` berisi tepat 1 akun**; kalau tidak, migrasi berhenti dengan pesan jelas
+  dan tidak mengubah apa pun. Kode aplikasi tidak perlu diubah (user_id default `auth.uid()`).
+- `0007_goals.sql` — tabel `goals` + `goal_items` (checklist), RLS per pemilik.
+- `0008_todos_goal_issue_fields.sql` — `todos.goal_id` + `completed_at` (terisi otomatis lewat
+  trigger), `issue_log.module` + `root_cause`, dan kategori issue dibatasi 10 pilihan (hanya untuk
+  data baru; kategori lama tidak diubah).
+
+Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (Supabase
+Dashboard → Database → Backups) sebelum menjalankan `0006`, karena itu yang menyentuh data lama.
+
+### 3b. Matikan sign-up publik (wajib)
+
+App ini single-user, jadi tidak boleh ada orang lain yang bisa mendaftar. Ini setelan Supabase,
+bukan kode: **Authentication → Sign In / Providers (atau Settings) → matikan "Allow new users to
+sign up"** (di beberapa versi dashboard namanya "Disable sign-ups"). Akun Anda sendiri tetap bisa
+login.
+
+### 3c. Verifikasi RLS
+
+Setelah migrasi, pastikan tanpa login tidak ada data yang bisa dibaca:
+
+```bash
+bash scripts/verify-rls.sh
+```
+
+Semua baris harus `OK` (atau `SKIP` kalau tabelnya belum ada). `BOCOR` berarti policy RLS belum
+benar. Skrip hanya membaca, tidak menulis apa pun.
 
 ### 4. Seed Knowledge Base (opsional, sekali jalan)
 
