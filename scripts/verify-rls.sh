@@ -27,6 +27,8 @@ for table in todos issue_log goals goal_items kb_entries; do
     echo "OK     $table: anon mendapat 0 baris"
   elif [ "$code" = "200" ]; then
     echo "BOCOR  $table: anon BISA membaca data! (HTTP 200)"; fail=1
+  elif [ "$code" = "000" ]; then
+    echo "GAGAL  $table: tidak bisa terhubung ke Supabase (cek NEXT_PUBLIC_SUPABASE_URL / internet)"; fail=1
   elif [ "$code" = "404" ]; then
     echo "SKIP   $table: tabel belum ada (migrasinya belum dijalankan?)"
   else
@@ -34,4 +36,4 @@ for table in todos issue_log goals goal_items kb_entries; do
   fi
 done
 
-[ "$fail" = "0" ] && echo "Semua tabel aman dari akses tanpa login." || { echo "ADA TABEL BOCOR — cek policy RLS."; exit 1; }
+[ "$fail" = "0" ] && echo "Semua tabel aman dari akses tanpa login." || { echo "ADA MASALAH — lihat baris BOCOR/GAGAL di atas."; exit 1; }
