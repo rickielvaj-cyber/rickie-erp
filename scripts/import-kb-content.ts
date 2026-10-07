@@ -576,7 +576,14 @@ async function main() {
       if (entry) flags.push(`judul beda tipis: DB "${entry.title}"`);
     }
     if (!entry) {
-      issues.push(`H2 tanpa entri: [${section.module}] "${section.title}" — di-skip`);
+      issues.push(`H2 tanpa entri: [${section.module}] "${section.title}" — di-skip (pratinjau di preview/_tanpa-entri/)`);
+      // Pratinjau isinya, biar entri baru bisa dibuat dari hasil yang sama.
+      const slug = entrySlug(title);
+      const ctx: Ctx = { module: section.module, slug, counter: 0, images: [], sourceImages, publicBase: url };
+      const markdown = renumberChapterRefs(blocksMd(section.nodes, ctx));
+      const file = resolve(PREVIEW_DIR, "_tanpa-entri", section.module, `${slug}.md`);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, `# ${title}\n\n(${ctx.images.length} gambar)\n\n${markdown}\n`);
       continue;
     }
     if (matched.has(entry)) {
