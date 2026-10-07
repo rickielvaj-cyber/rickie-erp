@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isISODate } from "@/lib/date";
-import type { TodoPriority, TodoStatus } from "@/lib/types";
+import type { Todo, TodoPriority, TodoStatus } from "@/lib/types";
 
 function readTodoFields(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
@@ -64,9 +64,39 @@ export async function updateTodo(id: string, formData: FormData) {
 
 export async function deleteTodo(id: string) {
   const supabase = await createClient();
-  await supabase.from("todos").delete().eq("id", id);
+  const { error } = await supabase.from("todos").delete().eq("id", id);
 
   revalidateTodoViews();
+  return { error: error?.message ?? null };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Undo hapus: masukkan lagi baris yang sama (id dan created_at asli dipertahankan,
+// jadi urutan di daftar tidak berubah). Argumen datang dari klien, jadi divalidasi.
+export async function restoreTodo(todo: Todo) {
+  const valid =
+    UUID_RE.test(todo.id) &&
+    todo.title.trim() !== "" &&
+    ["todo", "in_progress", "done"].includes(todo.status) &&
+    ["low", "medium", "high"].includes(todo.priority) &&
+    (todo.due_date === null || isISODate(todo.due_date)) &&
+    !Number.isNaN(Date.parse(todo.created_at));
+  if (!valid) return { error: "Data tugas tidak valid." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("todos").insert({
+    id: todo.id,
+    title: todo.title.trim(),
+    description: todo.description,
+    status: todo.status,
+    priority: todo.priority,
+    due_date: todo.due_date,
+    created_at: todo.created_at,
+  });
+
+  revalidateTodoViews();
+  return { error: error?.message ?? null };
 }
 
 // Checkbox: selesai <-> belum. Status "Dikerjakan" tetap bisa diatur lewat form edit.
