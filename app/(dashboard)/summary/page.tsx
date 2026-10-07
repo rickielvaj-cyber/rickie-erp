@@ -1,205 +1,112 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { currentWeekRange, formatDateID, last7DaysRange, nextWeekRange } from "@/lib/date";
-import { CopySummaryButton } from "@/components/CopySummaryButton";
+import { addDaysISO, formatDateID, isISODate, mondayOfISO, todayISO } from "@/lib/date";
+import { buildPlanText, buildSummaryText } from "@/lib/summary";
+import { SummaryEditor } from "@/components/SummaryEditor";
 
-type SearchParams = { mode?: string };
+type SearchParams = { week?: string };
 
-function groupCount(values: (string | null)[], fallbackLabel: string) {
-  const counts = new Map<string, number>();
-  for (const value of values) {
-    const key = value ?? fallbackLabel;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return Array.from(counts.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
-}
+// Zona waktu Jakarta (WIB, UTC+7, tanpa DST) untuk batas hari pada completed_at.
+const WIB = "+07:00";
 
-export default async function SummaryPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
+export default async function SummaryPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
-  const mode = params.mode === "last7" ? "last7" : "week";
-  const range = mode === "last7" ? last7DaysRange() : currentWeekRange();
-  const nextWeek = nextWeekRange();
+  const today = todayISO();
+  const currentMonday = mondayOfISO(today);
+  const weekStart = isISODate(params.week) ? mondayOfISO(params.week) : currentMonday;
+  const isCurrentWeek = weekStart === currentMonday;
+
+  // Senin–Jumat minggu terpilih, dan Senin–Jumat minggu depannya untuk rencana.
+  const weekEnd = addDaysISO(weekStart, 4);
+  const nextStart = addDaysISO(weekStart, 7);
+  const nextEnd = addDaysISO(weekStart, 11);
 
   const supabase = await createClient();
-
-  const [{ data: resolvedIssues }, { data: doneTodos }, { data: upcomingTodos }] = await Promise.all([
+  const [doneResult, issuesResult, planResult, goalsResult] = await Promise.all([
+    supabase
+      .from("todos")
+      .select("id, title, goal_id")
+      .eq("status", "done")
+      .gte("completed_at", `${weekStart}T00:00:00${WIB}`)
+      .lt("completed_at", `${addDaysISO(weekEnd, 1)}T00:00:00${WIB}`)
+      .order("completed_at", { ascending: true }),
     supabase
       .from("issue_log")
-      .select("id, title, category, client_name, date_resolved")
-      .gte("date_resolved", range.start)
-      .lte("date_resolved", range.end)
-      .order("date_resolved", { ascending: false }),
+      .select("id, title, client_name, module")
+      .gte("date_resolved", weekStart)
+      .lte("date_resolved", weekEnd)
+      .order("date_resolved", { ascending: true })
+      .order("created_at", { ascending: true }),
+    // Belum selesai dan terjadwal sampai Jumat minggu depan (termasuk yang terlewat).
     supabase
       .from("todos")
-      .select("id, title, updated_at")
-      .eq("status", "done")
-      .gte("updated_at", `${range.start}T00:00:00`)
-      .lte("updated_at", `${range.end}T23:59:59`)
-      .order("updated_at", { ascending: false }),
-    supabase
-      .from("todos")
-      .select("id, title, due_date")
-      .in("status", ["todo", "in_progress"])
-      .gte("due_date", nextWeek.start)
-      .lte("due_date", nextWeek.end)
+      .select("id, title, goal_id, due_date")
+      .neq("status", "done")
+      .not("due_date", "is", null)
+      .lte("due_date", nextEnd)
       .order("due_date", { ascending: true }),
+    supabase.from("goals").select("id, title"),
   ]);
 
-  const issues = resolvedIssues ?? [];
-  const done = doneTodos ?? [];
-  const upcoming = upcomingTodos ?? [];
-
-  const byCategory = groupCount(issues.map((i) => i.category), "Tanpa kategori");
-  const byClient = groupCount(issues.map((i) => i.client_name), "Tanpa klien");
-
-  const periodLabel =
-    mode === "last7"
-      ? `${formatDateID(range.start)} – ${formatDateID(range.end)} (7 hari terakhir)`
-      : `${formatDateID(range.start)} – ${formatDateID(range.end)} (Senin–Minggu berjalan)`;
+  const goalTitles = new Map((goalsResult.data ?? []).map((g) => [g.id, g.title]));
+  const goalOf = (id: string | null) => (id ? (goalTitles.get(id) ?? null) : null);
+  const done = doneResult.data ?? [];
+  const issues = issuesResult.data ?? [];
+  const plan = planResult.data ?? [];
+  const fetchError = doneResult.error ?? issuesResult.error ?? planResult.error ?? goalsResult.error;
 
   const summaryText = buildSummaryText({
-    periodLabel,
-    issues,
-    byCategory,
-    byClient,
-    done,
-    upcoming,
-    nextWeek,
+    weekStart,
+    weekEnd,
+    done: done.map((t) => ({ title: t.title, goalTitle: goalOf(t.goal_id) })),
+    issues: issues.map((i) => ({ client: i.client_name, module: i.module, title: i.title })),
   });
+  const planText = buildPlanText({
+    nextStart,
+    nextEnd,
+    tasks: plan.map((t) => ({ title: t.title, dueDate: t.due_date, goalTitle: goalOf(t.goal_id) })),
+  });
+
+  const pill = "rounded-full border border-foreground px-4 py-1.5 text-sm hover:bg-surface";
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-2 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Ringkasan Mingguan</h1>
-        <CopySummaryButton text={summaryText} />
-      </div>
-      <p className="mb-6 text-sm text-muted">{periodLabel}</p>
-
-      <div className="mb-6 flex gap-2 text-sm">
-        <Link
-          href="/summary?mode=week"
-          className={`rounded-md px-3 py-1.5 ${mode === "week" ? "bg-accent text-white" : "border border-border hover:border-foreground"}`}
-        >
-          Senin–Minggu Berjalan
-        </Link>
-        <Link
-          href="/summary?mode=last7"
-          className={`rounded-md px-3 py-1.5 ${mode === "last7" ? "bg-accent text-white" : "border border-border hover:border-foreground"}`}
-        >
-          7 Hari Terakhir
-        </Link>
-      </div>
-
-      <section className="mb-6 rounded-md border border-border p-5">
-        <h2 className="font-medium">Issue Log Diselesaikan ({issues.length})</h2>
-        <div className="mt-3 grid grid-cols-2 gap-6 text-sm">
-          <div>
-            <h3 className="mb-1 text-xs font-medium uppercase text-muted">Per Kategori</h3>
-            {byCategory.length === 0 && <p className="text-muted">Tidak ada.</p>}
-            <ul className="space-y-0.5">
-              {byCategory.map((c) => (
-                <li key={c.label} className="flex justify-between">
-                  <span>{c.label}</span>
-                  <span className="text-muted">{c.count}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="mb-1 text-xs font-medium uppercase text-muted">Per Klien</h3>
-            {byClient.length === 0 && <p className="text-muted">Tidak ada.</p>}
-            <ul className="space-y-0.5">
-              {byClient.map((c) => (
-                <li key={c.label} className="flex justify-between">
-                  <span>{c.label}</span>
-                  <span className="text-muted">{c.count}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-semibold tracking-tight">Ringkasan Mingguan</h1>
+          <p className="mt-1 text-base text-muted">
+            {formatDateID(weekStart)} – {formatDateID(weekEnd)} · Senin–Jumat · {done.length} tugas selesai ·{" "}
+            {issues.length} issue
+          </p>
         </div>
-      </section>
+        <nav aria-label="Pilih minggu" className="flex gap-2">
+          <Link href={`/summary?week=${addDaysISO(weekStart, -7)}`} className={pill}>
+            ‹ Sebelumnya
+          </Link>
+          <Link href="/summary" className={`${pill} ${isCurrentWeek ? "bg-surface font-medium" : ""}`}>
+            Minggu ini
+          </Link>
+          <Link href={`/summary?week=${addDaysISO(weekStart, 7)}`} className={pill}>
+            Berikutnya ›
+          </Link>
+        </nav>
+      </div>
 
-      <section className="mb-6 rounded-md border border-border p-5">
-        <h2 className="font-medium">To-Do Selesai Minggu Ini ({done.length})</h2>
-        {done.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Belum ada to-do yang ditandai selesai.</p>
-        ) : (
-          <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
-            {done.map((t) => (
-              <li key={t.id}>{t.title}</li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {fetchError && (
+        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+          Gagal memuat data: {fetchError.message}
+        </p>
+      )}
 
-      <section className="rounded-md border border-border p-5">
-        <h2 className="font-medium">
-          Draft Rencana Minggu Depan ({formatDateID(nextWeek.start)} – {formatDateID(nextWeek.end)})
-        </h2>
-        {upcoming.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Tidak ada to-do dengan jatuh tempo minggu depan.</p>
-        ) : (
-          <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
-            {upcoming.map((t) => (
-              <li key={t.id}>
-                {t.title} <span className="text-muted">(jatuh tempo {formatDateID(t.due_date)})</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="mt-8">
+        {/* key: pindah minggu = editor dimuat ulang dari template minggu itu. */}
+        <SummaryEditor key={weekStart} summaryText={summaryText} planText={planText} />
+      </div>
+
+      <p className="mt-8 text-sm text-muted">
+        Tugas dihitung selesai berdasarkan tanggal dicentang (zona Asia/Jakarta), issue berdasarkan tanggalnya.
+        Yang dicentang atau dicatat di Sabtu–Minggu tidak masuk ringkasan Senin–Jumat.
+      </p>
     </div>
   );
-}
-
-function buildSummaryText({
-  periodLabel,
-  issues,
-  byCategory,
-  byClient,
-  done,
-  upcoming,
-  nextWeek,
-}: {
-  periodLabel: string;
-  issues: { title: string }[];
-  byCategory: { label: string; count: number }[];
-  byClient: { label: string; count: number }[];
-  done: { title: string }[];
-  upcoming: { title: string; due_date: string | null }[];
-  nextWeek: { start: string; end: string };
-}) {
-  const lines: string[] = [];
-
-  lines.push(`Summary of This Week (${periodLabel}):`);
-  lines.push(`- Issue log diselesaikan: ${issues.length}`);
-  if (byCategory.length > 0) {
-    lines.push(`  Per kategori: ${byCategory.map((c) => `${c.label} (${c.count})`).join(", ")}`);
-  }
-  if (byClient.length > 0) {
-    lines.push(`  Per klien: ${byClient.map((c) => `${c.label} (${c.count})`).join(", ")}`);
-  }
-  lines.push(`- To-do selesai: ${done.length}`);
-  for (const t of done) {
-    lines.push(`  - ${t.title}`);
-  }
-
-  lines.push("");
-  lines.push(`Work Plan of Next Week (${formatDateID(nextWeek.start)} - ${formatDateID(nextWeek.end)}):`);
-  if (upcoming.length === 0) {
-    lines.push("- Tidak ada to-do dengan jatuh tempo minggu depan.");
-  } else {
-    for (const t of upcoming) {
-      lines.push(`- ${t.title} (jatuh tempo ${formatDateID(t.due_date)})`);
-    }
-  }
-
-  return lines.join("\n");
 }

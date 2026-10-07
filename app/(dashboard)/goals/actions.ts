@@ -26,6 +26,7 @@ function revalidateGoalViews(goalId?: string) {
   revalidatePath("/goals");
   if (goalId) revalidatePath(`/goals/${goalId}`);
   revalidatePath("/todos");
+  revalidatePath("/summary");
 }
 
 // ---- Goal ---------------------------------------------------------------
