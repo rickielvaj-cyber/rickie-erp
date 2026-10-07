@@ -28,6 +28,7 @@ function readTodoFields(formData: FormData) {
 
 function revalidateTodoViews() {
   revalidatePath("/todos");
+  revalidatePath("/goals", "layout"); // daftar goal + detail menampilkan to-do tertaut
   revalidatePath("/summary");
   revalidatePath("/");
 }
@@ -126,6 +127,7 @@ export async function toggleTodoDone(id: string, currentStatus: TodoStatus) {
 // ?week=) tetap, halaman cuma dirender ulang.
 export async function createTodoForDay(date: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
+  const goalId = String(formData.get("goal_id") ?? "").trim();
   if (!title || !isISODate(date)) return;
 
   const supabase = await createClient();
@@ -135,6 +137,7 @@ export async function createTodoForDay(date: string, formData: FormData) {
     status: "todo",
     priority: "medium",
     due_date: date,
+    goal_id: UUID_RE.test(goalId) ? goalId : null,
   });
 
   revalidateTodoViews();

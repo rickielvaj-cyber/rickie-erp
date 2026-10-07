@@ -231,6 +231,8 @@ export default async function TodosPage({
         </div>
 
         <form action={createTodoForDay.bind(null, today)}>
+          {/* Sedang memfilter satu goal: tugas baru dari kotak ini ikut tertaut ke goal itu. */}
+          {UUID_RE.test(goal) && <input type="hidden" name="goal_id" value={goal} />}
           <input
             name="title"
             required

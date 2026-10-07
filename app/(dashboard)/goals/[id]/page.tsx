@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateID, todayISO } from "@/lib/date";
-import type { Goal, GoalItem, GoalType } from "@/lib/types";
+import type { Goal, GoalItem, GoalType, Todo, TodoPriority } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { toggleTodoDone } from "../../todos/actions";
 import {
   addGoalItem,
+  createTodoForGoal,
   deleteGoal,
   deleteGoalItem,
   moveGoalItem,
@@ -17,6 +19,7 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TYPE_LABEL: Record<GoalType, string> = { learning: "Belajar", work: "Kerja" };
+const PRIORITY_LABEL: Record<TodoPriority, string> = { low: "Rendah", medium: "Sedang", high: "Tinggi" };
 
 const field =
   "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
@@ -51,7 +54,7 @@ export default async function GoalDetailPage({
   const query = await searchParams;
 
   const supabase = await createClient();
-  const [goalResult, itemsResult] = await Promise.all([
+  const [goalResult, itemsResult, todosResult] = await Promise.all([
     supabase.from("goals").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("goal_items")
@@ -59,12 +62,22 @@ export default async function GoalDetailPage({
       .eq("goal_id", id)
       .order("position", { ascending: true })
       .order("id", { ascending: true }),
+    supabase
+      .from("todos")
+      .select("*")
+      .eq("goal_id", id)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true }),
   ]);
 
   const goal = goalResult.data;
   if (!goal) notFound();
 
   const items = itemsResult.data ?? [];
+  // To-do harian yang tertaut ke goal ini: yang belum selesai di atas, yang selesai di bawah.
+  const linkedTodos = todosResult.data ?? [];
+  const openTodos = linkedTodos.filter((t) => t.status !== "done");
+  const doneTodos = linkedTodos.filter((t) => t.status === "done");
   const groups = groupItems(items);
   const groupNames = groups.map((g) => g.name).filter((n): n is string => n !== null);
   const doneCount = items.filter((i) => i.is_done).length;
@@ -157,9 +170,9 @@ export default async function GoalDetailPage({
       {!editingGoal && !editingItemId && query.error && (
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{query.error}</p>
       )}
-      {(goalResult.error || itemsResult.error) && (
+      {(goalResult.error || itemsResult.error || todosResult.error) && (
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
-          Gagal memuat data: {(goalResult.error ?? itemsResult.error)?.message}
+          Gagal memuat data: {(goalResult.error ?? itemsResult.error ?? todosResult.error)?.message}
         </p>
       )}
 
@@ -236,7 +249,95 @@ export default async function GoalDetailPage({
           </button>
         </form>
       </section>
+
+      <section aria-labelledby="todos-heading" className="mt-12">
+        <div className="mb-1 flex items-baseline justify-between gap-3">
+          <h2 id="todos-heading" className="text-2xl font-semibold tracking-tight">
+            To-do terkait
+          </h2>
+          <span className="text-sm text-muted">
+            {doneTodos.length} / {linkedTodos.length} selesai
+          </span>
+        </div>
+        <p className="mb-4 text-sm text-muted">
+          To-do harian yang dikaitkan ke goal ini. Mencentangnya tidak mengubah checklist atau status goal.
+        </p>
+
+        {linkedTodos.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+            Belum ada to-do yang dikaitkan. Pilih goal ini saat menulis to-do, atau tambah langsung di bawah.
+          </p>
+        ) : (
+          <ul className="overflow-hidden rounded-2xl border border-foreground">
+            {[...openTodos, ...doneTodos].map((todo) => (
+              <LinkedTodoRow key={todo.id} todo={todo} />
+            ))}
+          </ul>
+        )}
+
+        <form
+          action={createTodoForGoal.bind(null, goal.id)}
+          className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-muted/60 p-3"
+        >
+          <input
+            name="title"
+            required
+            placeholder="+ Tulis to-do baru untuk goal ini"
+            aria-label="To-do baru untuk goal ini"
+            className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+          />
+          <input
+            name="due_date"
+            type="date"
+            defaultValue={todayISO()}
+            aria-label="Tanggal to-do"
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+          >
+            Tambah
+          </button>
+        </form>
+      </section>
     </div>
+  );
+}
+
+function LinkedTodoRow({ todo }: { todo: Todo }) {
+  const done = todo.status === "done";
+  return (
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-4 py-3.5 last:border-b-0">
+      <form action={toggleTodoDone.bind(null, todo.id, todo.status)} className="flex">
+        <button
+          type="submit"
+          role="checkbox"
+          aria-checked={done}
+          aria-label={done ? `Tandai belum selesai: ${todo.title}` : `Tandai selesai: ${todo.title}`}
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
+            done ? "bg-foreground text-background" : "hover:bg-surface"
+          }`}
+        >
+          {done ? "✓" : ""}
+        </button>
+      </form>
+      <div className="min-w-0 flex-1 basis-40">
+        <Link
+          href={`/todos?edit=${todo.id}`}
+          className={`text-lg hover:underline ${done ? "text-muted line-through" : ""}`}
+        >
+          {todo.title}
+        </Link>
+        <p className="text-xs text-muted">
+          {todo.due_date ? formatDateID(todo.due_date) : "Tanpa tanggal"}
+          {todo.status === "in_progress" ? " · Sedang dikerjakan" : ""}
+        </p>
+      </div>
+      <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted">
+        {PRIORITY_LABEL[todo.priority]}
+      </span>
+    </li>
   );
 }
 

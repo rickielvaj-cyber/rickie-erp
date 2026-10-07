@@ -20,9 +20,10 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
   const isNew = params.new === "1";
 
   const supabase = await createClient();
-  const [goalsResult, itemsResult] = await Promise.all([
+  const [goalsResult, itemsResult, todosResult] = await Promise.all([
     supabase.from("goals").select("*").order("created_at", { ascending: false }),
     supabase.from("goal_items").select("goal_id, is_done"),
+    supabase.from("todos").select("goal_id, status").not("goal_id", "is", null),
   ]);
 
   const progress = new Map<string, { done: number; total: number }>();
@@ -33,9 +34,18 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
     progress.set(item.goal_id, p);
   }
 
+  const todoCounts = new Map<string, { done: number; total: number }>();
+  for (const todo of todosResult.data ?? []) {
+    if (!todo.goal_id) continue;
+    const c = todoCounts.get(todo.goal_id) ?? { done: 0, total: 0 };
+    c.total += 1;
+    if (todo.status === "done") c.done += 1;
+    todoCounts.set(todo.goal_id, c);
+  }
+
   const allGoals = goalsResult.data ?? [];
   const goals = allGoals.filter((g) => show === "all" || g.status === show);
-  const fetchError = goalsResult.error ?? itemsResult.error;
+  const fetchError = goalsResult.error ?? itemsResult.error ?? todosResult.error;
 
   const tabClass = (active: boolean) =>
     `rounded-full border px-4 py-1 text-sm transition-colors ${
@@ -95,7 +105,12 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
       ) : (
         <ul className="mt-6 flex flex-col gap-4">
           {goals.map((goal) => (
-            <GoalCard key={goal.id} goal={goal} progress={progress.get(goal.id) ?? { done: 0, total: 0 }} />
+            <GoalCard
+              key={goal.id}
+              goal={goal}
+              progress={progress.get(goal.id) ?? { done: 0, total: 0 }}
+              todos={todoCounts.get(goal.id) ?? { done: 0, total: 0 }}
+            />
           ))}
         </ul>
       )}
@@ -103,7 +118,15 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function GoalCard({ goal, progress }: { goal: Goal; progress: { done: number; total: number } }) {
+function GoalCard({
+  goal,
+  progress,
+  todos,
+}: {
+  goal: Goal;
+  progress: { done: number; total: number };
+  todos: { done: number; total: number };
+}) {
   const done = goal.status === "done";
   const percent = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100);
 
@@ -158,6 +181,9 @@ function GoalCard({ goal, progress }: { goal: Goal; progress: { done: number; to
             </>
           )}
         </div>
+        <p className="mt-1.5 text-sm text-muted">
+          {todos.total === 0 ? "Belum ada to-do terkait" : `${todos.total} to-do terkait · ${todos.done} selesai`}
+        </p>
       </div>
 
       <Link
