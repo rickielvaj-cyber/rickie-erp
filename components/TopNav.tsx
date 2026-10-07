@@ -91,6 +91,25 @@ function UserMenu({ email }: { email: string }) {
               {email}
             </p>
           </div>
+          <div className="border-b border-border py-1">
+            {/* <a> biasa (bukan Link): ini unduhan berkas, jangan di-prefetch. */}
+            <a
+              href="/api/export"
+              download
+              role="menuitem"
+              className="block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface"
+            >
+              Export semua data (JSON)
+            </a>
+            <a
+              href="/api/export/issues"
+              download
+              role="menuitem"
+              className="block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface"
+            >
+              Export issue log (CSV)
+            </a>
+          </div>
           <form action={logout} className="pt-1">
             <button
               type="submit"

@@ -74,6 +74,15 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   const filtered =
     clientFilter !== "all" || moduleFilter !== "all" || categoryFilter !== "all" || monthFrom || monthTo;
 
+  // Tombol Export CSV mengekspor persis yang sedang terfilter (tanpa filter = semua issue).
+  const exportQuery = new URLSearchParams();
+  if (clientFilter !== "all") exportQuery.set("client", clientFilter);
+  if (moduleFilter !== "all") exportQuery.set("module", moduleFilter);
+  if (categoryFilter !== "all") exportQuery.set("category", categoryFilter);
+  if (monthFrom) exportQuery.set("month_from", monthFrom);
+  if (monthTo) exportQuery.set("month_to", monthTo);
+  const exportHref = `/api/export/issues${exportQuery.size ? `?${exportQuery}` : ""}`;
+
   return (
     <div className="mx-auto max-w-5xl">
       <div className="flex items-end justify-between gap-4">
@@ -169,6 +178,13 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             Reset
           </Link>
         )}
+        <a
+          href={exportHref}
+          download
+          className="ml-auto rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-background"
+        >
+          Export CSV{filtered ? " (sesuai filter)" : ""}
+        </a>
       </form>
 
       {fetchError && (
