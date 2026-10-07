@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/knowledge-base", label: "Knowledge Base" },
   { href: "/todos", label: "To-Do List" },
+  { href: "/goals", label: "Goals" },
   { href: "/issues", label: "Issue Log" },
   { href: "/summary", label: "Ringkasan Mingguan" },
 ];

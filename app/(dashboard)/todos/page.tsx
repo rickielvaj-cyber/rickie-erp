@@ -514,7 +514,12 @@ function TodoForm({ todo, goals, error }: { todo: Todo | null; goals: GoalOption
             ))}
         </select>
         {goals.length === 0 && (
-          <p className="mt-1 text-xs text-muted">Belum ada goal. Goal dibuat di halaman Goals.</p>
+          <p className="mt-1 text-xs text-muted">
+            Belum ada goal.{" "}
+            <Link href="/goals?new=1" className="underline underline-offset-2 hover:text-foreground">
+              Buat goal
+            </Link>
+          </p>
         )}
       </div>
 
