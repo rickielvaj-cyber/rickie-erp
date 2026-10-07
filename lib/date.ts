@@ -98,3 +98,18 @@ export function formatDateID(isoDate: string | null): string {
     year: "numeric",
   });
 }
+
+/** "2026-10" -> "Okt 2026" */
+export function formatMonthYearID(yyyyMm: string): string {
+  return formatISO(`${yyyyMm}-01`, { month: "short", year: "numeric" });
+}
+
+/** Hari terakhir bulan "YYYY-MM" sebagai YYYY-MM-DD. */
+export function endOfMonthISO(yyyyMm: string): string {
+  const [y, m] = yyyyMm.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
+export function isYearMonth(value: string | null | undefined): value is string {
+  return !!value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
