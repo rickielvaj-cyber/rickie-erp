@@ -176,10 +176,23 @@ export default async function GoalDetailPage({
         </p>
       )}
 
-      <section aria-labelledby="checklist-heading" className="mt-10">
-        <h2 id="checklist-heading" className="mb-4 text-2xl font-semibold tracking-tight">
-          Checklist
-        </h2>
+      {/* <details> bawaan browser: bisa dilipat/dibuka tanpa JavaScript. Default terbuka. */}
+      <details open className="group mt-10">
+        <summary className="mb-4 flex cursor-pointer list-none items-baseline justify-between gap-3 rounded-lg [&::-webkit-details-marker]:hidden">
+          <h2 id="checklist-heading" className="flex items-baseline gap-2 text-2xl font-semibold tracking-tight">
+            <span
+              aria-hidden="true"
+              className="inline-block text-base text-muted transition-transform group-open:rotate-90"
+            >
+              ▸
+            </span>
+            Checklist
+          </h2>
+          <span className="text-sm text-muted">
+            {doneCount} / {items.length} selesai
+            <span className="ml-2 group-open:hidden">· klik untuk membuka</span>
+          </span>
+        </summary>
 
         {items.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
@@ -248,7 +261,7 @@ export default async function GoalDetailPage({
             Tambah
           </button>
         </form>
-      </section>
+      </details>
 
       {/* <details> bawaan browser: bisa dilipat/dibuka tanpa JavaScript. Default terbuka. */}
       <details open className="group mt-12">
