@@ -10,8 +10,9 @@ import {
   todayISO,
 } from "@/lib/date";
 import type { Todo, TodoPriority } from "@/lib/types";
-import { ConfirmButton } from "@/components/ConfirmButton";
-import { createTodo, createTodoForDay, deleteTodo, toggleTodoDone, updateTodo } from "./actions";
+import { TodoDeleteButton } from "@/components/TodoDeleteButton";
+import { TodoUndoToast } from "@/components/TodoUndoToast";
+import { createTodo, createTodoForDay, toggleTodoDone, updateTodo } from "./actions";
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = {
   low: "Rendah",
@@ -276,6 +277,8 @@ export default async function TodosPage({
           })}
         </div>
       </section>
+
+      <TodoUndoToast />
     </div>
   );
 }
@@ -349,13 +352,7 @@ function TodoRow({ todo }: { todo: Todo }) {
         >
           Edit
         </Link>
-        <form action={deleteTodo.bind(null, todo.id)}>
-          <ConfirmButton
-            label="Hapus"
-            confirmText={`Hapus to-do "${todo.title}"?`}
-            className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-danger"
-          />
-        </form>
+        <TodoDeleteButton todo={todo} />
       </div>
     </li>
   );
@@ -378,6 +375,7 @@ function WeekTask({ todo, week }: { todo: Todo; week?: string }) {
         {todo.priority === "high" && !done && <span aria-label="Prioritas tinggi">! </span>}
         {todo.title}
       </Link>
+      <TodoDeleteButton todo={todo} variant="week" />
     </li>
   );
 }
