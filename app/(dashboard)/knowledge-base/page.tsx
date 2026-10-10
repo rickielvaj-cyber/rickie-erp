@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateID } from "@/lib/date";
+import { formatDate } from "@/lib/date";
 import { KB_MODULES } from "@/lib/kb/modules";
 import { KB_MODULE_ICONS } from "@/lib/kb/sequence";
 import { KbFlowDiagram } from "@/components/kb/KbFlowDiagram";
@@ -26,20 +26,20 @@ export default async function KnowledgeBasePage() {
     <div className="mx-auto max-w-5xl">
       <header className="flex flex-col items-center gap-5 pb-12 pt-4 text-center">
         <h1 className="text-5xl font-semibold tracking-tight">Knowledge Base</h1>
-        <p className="max-w-md text-base text-muted">Referensi YonSuite. Cari istilah, atau ikuti urutan baca.</p>
+        <p className="max-w-md text-base text-muted">YonSuite reference. Search for a term, or follow the reading order.</p>
         <KbSearch variant="bar" />
       </header>
 
       <section className="mb-14">
-        <h2 className="mb-1 text-2xl font-semibold tracking-tight">Alur Belajar</h2>
-        <p className="mb-6 text-sm text-muted">Urutan baca yang disarankan. Klik bab mana pun untuk langsung membuka.</p>
+        <h2 className="mb-1 text-2xl font-semibold tracking-tight">Learning Path</h2>
+        <p className="mb-6 text-sm text-muted">Suggested reading order. Click any chapter to open it directly.</p>
         <KbFlowDiagram counts={counts} />
       </section>
 
       <section>
         <div className="mb-5 flex items-baseline justify-between">
-          <h2 className="text-2xl font-semibold tracking-tight">Semua Modul</h2>
-          <span className="text-sm text-muted">{KB_MODULES.length} modul</span>
+          <h2 className="text-2xl font-semibold tracking-tight">All Modules</h2>
+          <span className="text-sm text-muted">{KB_MODULES.length} modules</span>
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {KB_MODULES.map(({ slug, label }) => {
@@ -58,10 +58,10 @@ export default async function KnowledgeBasePage() {
                 </span>
                 <h3 className="text-lg font-semibold tracking-tight">{label}</h3>
                 <p className="text-sm text-muted">
-                  {stats ? `${stats.count} entri · diperbarui ${formatDateID(stats.lastUpdated.slice(0, 10))}` : "Belum ada entri"}
+                  {stats ? `${stats.count} ${stats.count === 1 ? "entry" : "entries"} · updated ${formatDate(stats.lastUpdated.slice(0, 10))}` : "No entries yet"}
                 </p>
                 <span className="mt-auto pt-1 text-sm underline underline-offset-4 group-hover:no-underline">
-                  Buka modul ›
+                  Open module ›
                 </span>
               </Link>
             );

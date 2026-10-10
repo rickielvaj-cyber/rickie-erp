@@ -40,7 +40,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Gagal render diagram.");
+          setError(err instanceof Error ? err.message : "Failed to render diagram.");
         }
       }
     });
@@ -53,7 +53,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
   if (error) {
     return (
       <div className="mb-3 rounded-md border border-border bg-red-50 p-3 text-xs text-danger">
-        Gagal render diagram mermaid: {error}
+        Failed to render mermaid diagram: {error}
       </div>
     );
   }

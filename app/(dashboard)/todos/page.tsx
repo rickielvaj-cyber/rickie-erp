@@ -2,9 +2,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
   addDaysISO,
-  formatDayMonthID,
-  formatLongDayID,
-  formatWeekdayShortID,
+  formatDayMonth,
+  formatLongDay,
+  formatWeekdayShort,
   isISODate,
   mondayOfISO,
   todayISO,
@@ -15,9 +15,9 @@ import { TodoUndoToast } from "@/components/TodoUndoToast";
 import { createTodo, createTodoForDay, moveTodoToToday, toggleTodoDone, updateTodo } from "./actions";
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = {
-  low: "Rendah",
-  medium: "Sedang",
-  high: "Tinggi",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
 };
 
 // Hitam-putih: prioritas dibedakan lewat isi pill, bukan warna.
@@ -134,27 +134,27 @@ export default async function TodosPage({
         <div className="flex items-end justify-between gap-4">
           <div>
             <h1 id="today-heading" className="text-4xl font-semibold tracking-tight">
-              Hari ini
+              Today
             </h1>
-            <p className="mt-1 text-base text-muted">{formatLongDayID(today)}</p>
+            <p className="mt-1 text-base text-muted">{formatLongDay(today)}</p>
           </div>
           {!isNew && !editingTodo && (
             <Link
               href="/todos?new=1"
               className="shrink-0 rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
             >
-              + Tambah tugas
+              + Add task
             </Link>
           )}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex gap-2" role="group" aria-label="Filter status">
+          <div className="flex gap-2" role="group" aria-label="Status filter">
             {(
               [
-                ["all", "Semua"],
-                ["open", "Belum selesai"],
-                ["done", "Selesai"],
+                ["all", "All"],
+                ["open", "Open"],
+                ["done", "Done"],
               ] as const
             ).map(([value, label]) => (
               <Link
@@ -167,14 +167,14 @@ export default async function TodosPage({
               </Link>
             ))}
           </div>
-          <div className="flex items-center gap-3 text-sm" role="group" aria-label="Filter prioritas">
-            <span className="text-muted">Prioritas</span>
+          <div className="flex items-center gap-3 text-sm" role="group" aria-label="Priority filter">
+            <span className="text-muted">Priority</span>
             {(
               [
-                ["all", "Semua"],
-                ["high", "Tinggi"],
-                ["medium", "Sedang"],
-                ["low", "Rendah"],
+                ["all", "All"],
+                ["high", "High"],
+                ["medium", "Medium"],
+                ["low", "Low"],
               ] as const
             ).map(([value, label]) => (
               <Link
@@ -190,11 +190,11 @@ export default async function TodosPage({
             ))}
           </div>
           {goals.length > 0 && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" role="group" aria-label="Filter goal">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" role="group" aria-label="Goal filter">
               <span className="text-muted">Goal</span>
               {[
-                { value: "all", label: "Semua" },
-                { value: "none", label: "Tanpa goal" },
+                { value: "all", label: "All" },
+                { value: "none", label: "No goal" },
                 ...activeGoals.map((g) => ({ value: g.id, label: g.title })),
               ].map(({ value, label }) => (
                 <Link
@@ -214,18 +214,18 @@ export default async function TodosPage({
 
         {fetchError && (
           <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
-            Gagal memuat data: {fetchError.message}
+            Failed to load data: {fetchError.message}
           </p>
         )}
 
         <div className="flex flex-col gap-6">
-          <TaskGroup title="Terlewat" tone="danger" todos={overdue} goalTitles={goalTitles} moveToToday={today} />
-          <TaskGroup title={overdue.length || undated.length ? "Hari ini" : undefined} todos={dueToday} goalTitles={goalTitles} />
-          <TaskGroup title="Tanpa tanggal" todos={undated} goalTitles={goalTitles} />
+          <TaskGroup title="Overdue" tone="danger" todos={overdue} goalTitles={goalTitles} moveToToday={today} />
+          <TaskGroup title={overdue.length || undated.length ? "Today" : undefined} todos={dueToday} goalTitles={goalTitles} />
+          <TaskGroup title="No date" todos={undated} goalTitles={goalTitles} />
 
           {todayTodos.length === 0 && (
             <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
-              {show === "done" ? "Belum ada tugas selesai hari ini." : "Tidak ada tugas untuk hari ini. Nikmati harimu."}
+              {show === "done" ? "No tasks completed today yet." : "No tasks for today. Enjoy your day."}
             </p>
           )}
         </div>
@@ -236,8 +236,8 @@ export default async function TodosPage({
           <input
             name="title"
             required
-            placeholder="+ Tulis tugas baru, lalu Enter"
-            aria-label="Tugas baru untuk hari ini"
+            placeholder="+ Write a new task, then press Enter"
+            aria-label="New task for today"
             className="h-12 w-full rounded-2xl border border-dashed border-muted/60 px-5 text-base placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
           />
         </form>
@@ -248,31 +248,31 @@ export default async function TodosPage({
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 id="week-heading" className="text-3xl font-semibold tracking-tight">
-              {isCurrentWeek ? "Minggu ini" : "Minggu"}
+              {isCurrentWeek ? "This week" : "Week"}
             </h2>
             <p className="mt-1 text-base text-muted">
-              {formatDayMonthID(weekStart)} – {formatDayMonthID(weekEnd)} · {weekDone} dari {weekTodos.length} tugas
-              selesai
+              {formatDayMonth(weekStart)} – {formatDayMonth(weekEnd)} · {weekDone} of {weekTodos.length} tasks
+              completed
             </p>
           </div>
-          <nav aria-label="Pilih minggu" className="flex gap-2 text-sm">
+          <nav aria-label="Select week" className="flex gap-2 text-sm">
             <Link
               href={buildHref({ show, priority, goal, week: addDaysISO(weekStart, -7) })}
               className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
             >
-              ‹ Sebelumnya
+              ‹ Previous
             </Link>
             <Link
               href={buildHref({ show, priority, goal })}
               className={`rounded-full border border-foreground px-4 py-1.5 ${isCurrentWeek ? "bg-surface font-medium" : "hover:bg-surface"}`}
             >
-              Minggu ini
+              This week
             </Link>
             <Link
               href={buildHref({ show, priority, goal, week: addDaysISO(weekStart, 7) })}
               className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
             >
-              Berikutnya ›
+              Next ›
             </Link>
           </nav>
         </div>
@@ -284,14 +284,14 @@ export default async function TodosPage({
             return (
               <div
                 key={day}
-                aria-label={`${formatLongDayID(day)}${isToday ? " (hari ini)" : ""}`}
+                aria-label={`${formatLongDay(day)}${isToday ? " (today)" : ""}`}
                 className={`flex min-h-[22rem] flex-col gap-3 rounded-2xl p-3.5 ${
                   isToday ? "border-2 border-foreground bg-surface" : "border border-border"
                 }`}
               >
                 <div className="flex items-baseline justify-between border-b border-border pb-2">
-                  <span className="text-base font-medium">{formatWeekdayShortID(day)}</span>
-                  <span className="text-sm text-muted">{formatDayMonthID(day)}</span>
+                  <span className="text-base font-medium">{formatWeekdayShort(day)}</span>
+                  <span className="text-sm text-muted">{formatDayMonth(day)}</span>
                 </div>
 
                 <ul className="flex flex-col gap-2">
@@ -304,8 +304,8 @@ export default async function TodosPage({
                   <input
                     name="title"
                     required
-                    placeholder="+ Tambah"
-                    aria-label={`Tambah tugas untuk ${formatLongDayID(day)}`}
+                    placeholder="+ Add"
+                    aria-label={`Add task for ${formatLongDay(day)}`}
                     className="w-full rounded-lg border border-dashed border-muted/60 bg-background px-2.5 py-1.5 text-center text-sm placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
                   />
                 </form>
@@ -326,7 +326,7 @@ function Checkbox({ todo, size = "md" }: { todo: Todo; size?: "md" | "sm" }) {
     <form action={toggleTodoDone.bind(null, todo.id, todo.status)} className="flex">
       <button
         type="submit"
-        aria-label={done ? `Tandai belum selesai: ${todo.title}` : `Tandai selesai: ${todo.title}`}
+        aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
         className={`flex shrink-0 items-center justify-center border border-foreground transition-colors ${
           size === "md" ? "h-5 w-5 rounded-md text-xs" : "h-4 w-4 rounded text-[10px]"
         } ${done ? "bg-foreground text-background" : "hover:bg-surface"}`}
@@ -356,7 +356,7 @@ function TaskGroup({
   todos: Todo[];
   tone?: "danger";
   goalTitles: Map<string, string>;
-  /** Isi dengan tanggal hari ini untuk menampilkan tombol "Pindah ke hari ini" (grup Terlewat). */
+  /** Isi dengan tanggal hari ini untuk menampilkan tombol "Move to today" (grup Overdue). */
   moveToToday?: string;
 }) {
   if (todos.length === 0) return null;
@@ -384,7 +384,7 @@ function TodoRow({ todo, goalTitle, moveToToday }: { todo: Todo; goalTitle?: str
       <div className="min-w-0 flex-1 basis-40">
         <p className={`text-lg ${done ? "text-muted line-through" : ""}`}>{todo.title}</p>
         {todo.description && <p className="mt-0.5 truncate text-sm text-muted">{todo.description}</p>}
-        {todo.status === "in_progress" && <p className="mt-0.5 text-xs text-muted">Sedang dikerjakan</p>}
+        {todo.status === "in_progress" && <p className="mt-0.5 text-xs text-muted">In progress</p>}
         {goalTitle && <p className="mt-0.5 truncate text-xs text-muted">Goal: {goalTitle}</p>}
       </div>
       {moveToToday && (
@@ -393,7 +393,7 @@ function TodoRow({ todo, goalTitle, moveToToday }: { todo: Todo; goalTitle?: str
             type="submit"
             className="rounded-full border border-foreground px-3 py-1 text-sm transition-colors hover:bg-surface"
           >
-            Pindah ke hari ini
+            Move to today
           </button>
         </form>
       )}
@@ -420,12 +420,12 @@ function WeekTask({ todo, week, goalTitle }: { todo: Todo; week?: string; goalTi
       </span>
       <Link
         href={week ? `/todos?edit=${todo.id}&week=${week}` : `/todos?edit=${todo.id}`}
-        title={`${PRIORITY_LABEL[todo.priority]}${goalTitle ? ` · Goal: ${goalTitle}` : ""} · klik untuk edit`}
+        title={`${PRIORITY_LABEL[todo.priority]}${goalTitle ? ` · Goal: ${goalTitle}` : ""} · click to edit`}
         className={`min-w-0 flex-1 break-words hover:underline ${done ? "text-muted line-through" : ""} ${
           todo.priority === "high" && !done ? "font-medium" : ""
         }`}
       >
-        {todo.priority === "high" && !done && <span aria-label="Prioritas tinggi">! </span>}
+        {todo.priority === "high" && !done && <span aria-label="High priority">! </span>}
         {todo.title}
       </Link>
       <TodoDeleteButton todo={todo} variant="week" />
@@ -440,20 +440,20 @@ function TodoForm({ todo, goals, error }: { todo: Todo | null; goals: GoalOption
 
   return (
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
-      <h2 className="text-xl font-semibold tracking-tight">{todo ? "Edit tugas" : "Tugas baru"}</h2>
+      <h2 className="text-xl font-semibold tracking-tight">{todo ? "Edit task" : "New task"}</h2>
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
-          Judul
+          Title
         </label>
         <input id="title" name="title" type="text" required defaultValue={todo?.title} className={field} />
       </div>
 
       <div>
         <label htmlFor="description" className="block text-sm font-medium">
-          Deskripsi
+          Description
         </label>
         <textarea
           id="description"
@@ -471,23 +471,23 @@ function TodoForm({ todo, goals, error }: { todo: Todo | null; goals: GoalOption
           </label>
           <select id="status" name="status" defaultValue={todo?.status ?? "todo"} className={field}>
             <option value="todo">To-Do</option>
-            <option value="in_progress">Dikerjakan</option>
-            <option value="done">Selesai</option>
+            <option value="in_progress">In progress</option>
+            <option value="done">Done</option>
           </select>
         </div>
         <div>
           <label htmlFor="priority" className="block text-sm font-medium">
-            Prioritas
+            Priority
           </label>
           <select id="priority" name="priority" defaultValue={todo?.priority ?? "medium"} className={field}>
-            <option value="low">Rendah</option>
-            <option value="medium">Sedang</option>
-            <option value="high">Tinggi</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
           </select>
         </div>
         <div>
           <label htmlFor="due_date" className="block text-sm font-medium">
-            Tanggal
+            Date
           </label>
           <input
             id="due_date"
@@ -504,22 +504,22 @@ function TodoForm({ todo, goals, error }: { todo: Todo | null; goals: GoalOption
           Goal
         </label>
         <select id="goal_id" name="goal_id" defaultValue={todo?.goal_id ?? ""} className={field}>
-          <option value="">Tanpa goal</option>
+          <option value="">No goal</option>
           {goals
             // Goal aktif saja untuk dipilih, kecuali goal yang sudah terpasang di tugas ini.
             .filter((g) => g.status === "active" || g.id === todo?.goal_id)
             .map((g) => (
               <option key={g.id} value={g.id}>
                 {g.title}
-                {g.status === "done" ? " (selesai)" : ""}
+                {g.status === "done" ? " (done)" : ""}
               </option>
             ))}
         </select>
         {goals.length === 0 && (
           <p className="mt-1 text-xs text-muted">
-            Belum ada goal.{" "}
+            No goals yet.{" "}
             <Link href="/goals?new=1" className="underline underline-offset-2 hover:text-foreground">
-              Buat goal
+              Create goal
             </Link>
           </p>
         )}
@@ -530,13 +530,13 @@ function TodoForm({ todo, goals, error }: { todo: Todo | null; goals: GoalOption
           type="submit"
           className="rounded-full bg-accent px-6 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
         >
-          Simpan
+          Save
         </button>
         <Link
           href="/todos"
           className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
-          Batal
+          Cancel
         </Link>
       </div>
     </form>

@@ -33,8 +33,8 @@ function revalidateIssueViews() {
 }
 
 function validate(fields: ReturnType<typeof readIssueFields>): string | null {
-  if (!fields.title || !fields.description) return "Judul dan deskripsi wajib diisi.";
-  if (fields.categoryInvalid) return "Kategori tidak valid.";
+  if (!fields.title || !fields.description) return "Title and description are required.";
+  if (fields.categoryInvalid) return "Invalid category.";
   return null;
 }
 

@@ -36,7 +36,7 @@ function revalidateTodoViews() {
 export async function createTodo(formData: FormData) {
   const fields = readTodoFields(formData);
   if (!fields.title) {
-    redirect("/todos?new=1&error=" + encodeURIComponent("Judul wajib diisi."));
+    redirect("/todos?new=1&error=" + encodeURIComponent("Title is required."));
   }
 
   const supabase = await createClient();
@@ -53,7 +53,7 @@ export async function createTodo(formData: FormData) {
 export async function updateTodo(id: string, formData: FormData) {
   const fields = readTodoFields(formData);
   if (!fields.title) {
-    redirect(`/todos?edit=${id}&error=` + encodeURIComponent("Judul wajib diisi."));
+    redirect(`/todos?edit=${id}&error=` + encodeURIComponent("Title is required."));
   }
 
   const supabase = await createClient();
@@ -86,7 +86,7 @@ export async function restoreTodo(todo: Todo) {
     (todo.due_date === null || isISODate(todo.due_date)) &&
     (todo.goal_id === null || UUID_RE.test(todo.goal_id)) &&
     !Number.isNaN(Date.parse(todo.created_at));
-  if (!valid) return { error: "Data tugas tidak valid." };
+  if (!valid) return { error: "Invalid task data." };
 
   const supabase = await createClient();
   const row = {
@@ -111,7 +111,7 @@ export async function restoreTodo(todo: Todo) {
   return { error: error?.message ?? null };
 }
 
-// Checkbox: selesai <-> belum. Status "Dikerjakan" tetap bisa diatur lewat form edit.
+// Checkbox: selesai <-> belum. Status "In progress" tetap bisa diatur lewat form edit.
 export async function toggleTodoDone(id: string, currentStatus: TodoStatus) {
   const supabase = await createClient();
   await supabase

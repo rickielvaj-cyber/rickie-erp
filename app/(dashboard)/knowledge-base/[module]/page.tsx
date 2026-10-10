@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateID } from "@/lib/date";
+import { formatDate } from "@/lib/date";
 import { isKbModuleSlug, kbModuleLabel, type KbModuleSlug } from "@/lib/kb/modules";
 import { kbChapterPosition, kbPrevNext } from "@/lib/kb/sequence";
 import { loadKbChapter } from "@/lib/kb/data";
@@ -14,9 +14,9 @@ import { KbSearchHighlighter } from "@/components/kb/KbSearchHighlighter";
 
 function positionLabel(module: KbModuleSlug): string {
   const position = kbChapterPosition(module);
-  if (position.kind === "start") return "Mulai di sini";
-  if (position.kind === "reference") return "Referensi lintas bab";
-  return `Langkah ${position.step} dari ${position.totalSteps}${position.parallel ? " · paralel" : ""}`;
+  if (position.kind === "start") return "Start here";
+  if (position.kind === "reference") return "Cross-chapter reference";
+  return `Step ${position.step} of ${position.totalSteps}${position.parallel ? " · parallel" : ""}`;
 }
 
 function PrevNext({ module }: { module: KbModuleSlug }) {
@@ -26,8 +26,8 @@ function PrevNext({ module }: { module: KbModuleSlug }) {
   if (!links) {
     return (
       <Link href="/knowledge-base" className={card}>
-        <span className="block text-xs text-muted">Bab referensi</span>
-        <span className="text-sm font-medium">&larr; Kembali ke Knowledge Base</span>
+        <span className="block text-xs text-muted">Reference chapter</span>
+        <span className="text-sm font-medium">&larr; Back to Knowledge Base</span>
       </Link>
     );
   }
@@ -36,7 +36,7 @@ function PrevNext({ module }: { module: KbModuleSlug }) {
     <div className="grid grid-cols-2 gap-3">
       {links.prev ? (
         <Link href={`/knowledge-base/${links.prev}`} className={card}>
-          <span className="block text-xs text-muted">&larr; Sebelumnya</span>
+          <span className="block text-xs text-muted">&larr; Previous</span>
           <span className="text-sm font-medium">{kbModuleLabel(links.prev)}</span>
         </Link>
       ) : (
@@ -44,13 +44,13 @@ function PrevNext({ module }: { module: KbModuleSlug }) {
       )}
       {links.next ? (
         <Link href={`/knowledge-base/${links.next}`} className={`${card} text-right`}>
-          <span className="block text-xs text-muted">Berikutnya &rarr;</span>
+          <span className="block text-xs text-muted">Next &rarr;</span>
           <span className="text-sm font-medium">{kbModuleLabel(links.next)}</span>
         </Link>
       ) : (
         <Link href="/knowledge-base" className={`${card} text-right`}>
-          <span className="block text-xs text-muted">Selesai urutan baca</span>
-          <span className="text-sm font-medium">Kembali ke Knowledge Base</span>
+          <span className="block text-xs text-muted">End of reading order</span>
+          <span className="text-sm font-medium">Back to Knowledge Base</span>
         </Link>
       )}
     </div>
@@ -80,8 +80,8 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
           <div>
             <h1 className="text-2xl font-semibold text-foreground">{kbModuleLabel(module)}</h1>
             <p className="mt-1 text-xs text-muted">
-              {positionLabel(module)} · {chapter.sections.length} entri
-              {lastUpdated && ` · Diperbarui ${formatDateID(lastUpdated.slice(0, 10))}`}
+              {positionLabel(module)} · {chapter.sections.length} {chapter.sections.length === 1 ? "entry" : "entries"}
+              {lastUpdated && ` · Updated ${formatDate(lastUpdated.slice(0, 10))}`}
             </p>
           </div>
           <KbSearch />
@@ -93,13 +93,13 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
 
         {error && (
           <p className="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
-            Gagal memuat entri: {error.message}
+            Failed to load entries: {error.message}
           </p>
         )}
 
         {!error && chapter.sections.length === 0 && (
           <p className="mt-6 rounded-md border border-dashed border-border p-8 text-center text-sm text-muted">
-            Belum ada entri untuk modul ini.
+            No entries for this module yet.
           </p>
         )}
 

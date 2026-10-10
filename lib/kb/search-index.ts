@@ -12,7 +12,7 @@ let indexPromise: Promise<KbIndex> | null = null;
 
 async function buildIndex(): Promise<KbIndex> {
   const res = await fetch("/api/knowledge-base/search-index", { cache: "no-store" });
-  if (!res.ok) throw new Error(`Gagal memuat indeks (${res.status})`);
+  if (!res.ok) throw new Error(`Failed to load index (${res.status})`);
   const { sections } = (await res.json()) as { sections: KbSearchSection[] };
 
   const index = new MiniSearch<KbSearchSection>({

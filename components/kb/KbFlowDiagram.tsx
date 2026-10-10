@@ -58,7 +58,7 @@ function Row({
 
 export function KbFlowDiagram({ counts }: { counts: Counts }) {
   return (
-    <nav aria-label="Alur belajar Knowledge Base">
+    <nav aria-label="Knowledge Base learning path">
       <ol>
         <Row
           connect
@@ -70,7 +70,7 @@ export function KbFlowDiagram({ counts }: { counts: Counts }) {
             </span>
           }
         >
-          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-foreground">Mulai di sini</p>
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-foreground">Start here</p>
           <NodePill slug={KB_START_HERE} count={counts.get(KB_START_HERE)} variant="start" />
         </Row>
 
@@ -88,16 +88,16 @@ export function KbFlowDiagram({ counts }: { counts: Counts }) {
               {step.map((slug) => (
                 <NodePill key={slug} slug={slug} count={counts.get(slug)} />
               ))}
-              {step.length > 1 && <span className="text-xs text-muted">paralel — urutan bebas</span>}
+              {step.length > 1 && <span className="text-xs text-muted">parallel — any order</span>}
             </div>
           </Row>
         ))}
       </ol>
 
       <div className="ml-12 mt-4 rounded-md border border-dashed border-border p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">Referensi lintas bab</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">Cross-chapter reference</p>
         <p className="mb-3 mt-0.5 text-xs text-muted">
-          Bukan langkah berurutan — buka kapan saja saat butuh, dari bab mana pun.
+          Not sequential steps — open any time you need them, from any chapter.
         </p>
         <div className="flex flex-wrap gap-2">
           {KB_REFERENCE.map((slug) => (

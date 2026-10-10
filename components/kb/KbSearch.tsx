@@ -107,13 +107,13 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
         <button
           type="button"
           onClick={openPalette}
-          aria-label="Cari di Knowledge Base"
+          aria-label="Search Knowledge Base"
           className="flex h-12 w-full max-w-xl items-center gap-3 rounded-full border border-foreground bg-background px-5 text-left text-base text-muted transition-colors hover:bg-surface"
         >
           <span aria-hidden="true" className="text-lg leading-none text-foreground">
             ⌕
           </span>
-          <span className="flex-1">Cari di Knowledge Base…</span>
+          <span className="flex-1">Search Knowledge Base…</span>
           <kbd className="rounded border border-border px-1.5 font-sans text-[11px]">Ctrl K</kbd>
         </button>
       ) : (
@@ -122,7 +122,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
           onClick={openPalette}
           className="inline-flex items-center gap-2 rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface"
         >
-          Cari
+          Search
           <kbd className="rounded border border-border px-1 font-sans text-[10px] text-muted">Ctrl K</kbd>
         </button>
       )}
@@ -137,7 +137,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Cari Knowledge Base"
+            aria-label="Search Knowledge Base"
             className="w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-background shadow-xl"
           >
             <input
@@ -146,7 +146,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onInputKeyDown}
-              placeholder="Cari di Knowledge Base..."
+              placeholder="Search Knowledge Base..."
               role="combobox"
               aria-expanded={hits.length > 0}
               aria-controls={listId}
@@ -156,18 +156,18 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
 
             <div className="max-h-[60vh] overflow-y-auto">
               {status === "loading" && (
-                <p className="px-4 py-6 text-center text-sm text-muted">Menyiapkan indeks pencarian...</p>
+                <p className="px-4 py-6 text-center text-sm text-muted">Preparing search index...</p>
               )}
               {status === "error" && (
                 <p className="px-4 py-6 text-center text-sm text-foreground">
-                  Gagal memuat indeks pencarian — tutup lalu coba lagi.
+                  Failed to load the search index — close and try again.
                 </p>
               )}
               {status === "ready" && !query.trim() && (
-                <p className="px-4 py-6 text-center text-sm text-muted">Ketik kata kunci untuk mulai mencari.</p>
+                <p className="px-4 py-6 text-center text-sm text-muted">Type a keyword to start searching.</p>
               )}
               {status === "ready" && query.trim() && hits.length === 0 && (
-                <p className="px-4 py-6 text-center text-sm text-muted">Tidak ada hasil yang cocok.</p>
+                <p className="px-4 py-6 text-center text-sm text-muted">No matching results.</p>
               )}
 
               {status === "ready" && hits.length > 0 && (
@@ -204,7 +204,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
             </div>
 
             <p className="border-t border-border px-4 py-2 text-[11px] text-muted">
-              ↑↓ pilih · Enter buka · Esc tutup — hanya mencari di Knowledge Base
+              ↑↓ select · Enter open · Esc close — searches the Knowledge Base only
             </p>
           </div>
         </div>

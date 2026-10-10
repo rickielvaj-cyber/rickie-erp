@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Export gagal." },
+      { error: error instanceof Error ? error.message : "Export failed." },
       { status: 500 },
     );
   }

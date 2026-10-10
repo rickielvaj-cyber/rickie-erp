@@ -35,7 +35,7 @@ function revalidateGoalViews(goalId?: string) {
 export async function createGoal(formData: FormData) {
   const fields = readGoalFields(formData);
   if (!fields.title) {
-    redirect("/goals?new=1&error=" + encodeURIComponent("Judul wajib diisi."));
+    redirect("/goals?new=1&error=" + encodeURIComponent("Title is required."));
   }
 
   const supabase = await createClient();
@@ -51,7 +51,7 @@ export async function createGoal(formData: FormData) {
 export async function updateGoal(id: string, formData: FormData) {
   const fields = readGoalFields(formData);
   if (!fields.title) {
-    redirect(`/goals/${id}?edit=1&error=` + encodeURIComponent("Judul wajib diisi."));
+    redirect(`/goals/${id}?edit=1&error=` + encodeURIComponent("Title is required."));
   }
 
   const supabase = await createClient();
@@ -115,7 +115,7 @@ export async function createTodoForGoal(goalId: string, formData: FormData) {
 export async function addGoalItem(goalId: string, formData: FormData) {
   const fields = readItemFields(formData);
   if (!fields.title) {
-    redirect(`/goals/${goalId}?error=` + encodeURIComponent("Judul item wajib diisi."));
+    redirect(`/goals/${goalId}?error=` + encodeURIComponent("Item title is required."));
   }
 
   const supabase = await createClient();
@@ -140,7 +140,7 @@ export async function addGoalItem(goalId: string, formData: FormData) {
 export async function updateGoalItem(goalId: string, itemId: string, formData: FormData) {
   const fields = readItemFields(formData);
   if (!fields.title) {
-    redirect(`/goals/${goalId}?item=${itemId}&error=` + encodeURIComponent("Judul item wajib diisi."));
+    redirect(`/goals/${goalId}?item=${itemId}&error=` + encodeURIComponent("Item title is required."));
   }
 
   const supabase = await createClient();

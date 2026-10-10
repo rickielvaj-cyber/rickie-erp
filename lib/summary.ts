@@ -1,4 +1,4 @@
-import { formatDateID } from "@/lib/date";
+import { formatDate } from "@/lib/date";
 
 // Template ringkasan mingguan untuk YonWork. Murni berbasis template, tanpa AI.
 // Fungsi di sini murni (tanpa akses database) supaya mudah diuji.
@@ -10,7 +10,7 @@ export type PlanTask = { title: string; dueDate: string | null; goalTitle: strin
 const OTHER = "Other";
 
 function range(start: string, end: string) {
-  return `${formatDateID(start)} – ${formatDateID(end)}`;
+  return `${formatDate(start)} – ${formatDate(end)}`;
 }
 
 /** Kelompokkan per Goal (abjad); yang tanpa goal di paling bawah dengan label "Other". */
@@ -94,7 +94,7 @@ export function buildPlanText({
     const label = (t: PlanTask) => {
       if (!t.dueDate) return t.title;
       const carried = t.dueDate < nextStart ? "carried over, " : "";
-      return `${t.title} (${carried}due ${formatDateID(t.dueDate)})`;
+      return `${t.title} (${carried}due ${formatDate(t.dueDate)})`;
     };
     out.push(
       ...lines(

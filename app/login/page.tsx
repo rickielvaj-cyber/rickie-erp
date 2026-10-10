@@ -10,8 +10,8 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-surface px-4 py-12">
       <div className="w-full max-w-md rounded-3xl border border-foreground bg-background p-10">
-        <h1 className="text-center text-3xl font-semibold tracking-tight">Selamat datang kembali</h1>
-        <p className="mt-2 text-center text-base text-muted">Masuk ke workspace kamu.</p>
+        <h1 className="text-center text-3xl font-semibold tracking-tight">Welcome back</h1>
+        <p className="mt-2 text-center text-base text-muted">Sign in to your workspace.</p>
 
         <form action={login} className="mt-8 space-y-5">
           <div>
@@ -24,7 +24,7 @@ export default async function LoginPage({
               type="email"
               required
               autoComplete="email"
-              placeholder="kamu@email.com"
+              placeholder="you@email.com"
               className="mt-1.5 h-11 w-full rounded-xl border border-foreground px-4 text-base placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-foreground/20"
             />
           </div>
@@ -50,7 +50,7 @@ export default async function LoginPage({
             type="submit"
             className="w-full rounded-full bg-accent px-4 py-3 text-base font-medium text-white transition-colors hover:bg-accent-hover"
           >
-            Masuk
+            Sign in
           </button>
         </form>
       </div>

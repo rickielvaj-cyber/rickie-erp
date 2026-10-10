@@ -23,7 +23,7 @@ const FEATURES = [
   {
     href: "/knowledge-base",
     title: "Knowledge Base",
-    desc: "Referensi YonSuite per modul. Cari cepat saat sedang bingung.",
+    desc: "YonSuite reference by module. Search fast when you are stuck.",
     icon: (
       <svg {...iconProps}>
         <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z" />
@@ -34,7 +34,7 @@ const FEATURES = [
   {
     href: "/todos",
     title: "To-Do List",
-    desc: "Tugas hari ini dan rencana satu minggu, lengkap dengan prioritas.",
+    desc: "Today's tasks and the week's plan, with priorities.",
     icon: (
       <svg {...iconProps}>
         <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
@@ -45,7 +45,7 @@ const FEATURES = [
   {
     href: "/issues",
     title: "Issue Log",
-    desc: "Catat masalah klien dan penyelesaiannya di satu tempat yang bisa dicari.",
+    desc: "Record client issues and their fixes in one searchable place.",
     icon: (
       <svg {...iconProps}>
         <path d="M5 21V4" />
@@ -71,9 +71,9 @@ async function HomeStats() {
   return (
     <dl className="mt-10 grid w-full max-w-xl grid-cols-3 gap-3 text-center">
       {[
-        { label: "Modul", value: KB_MODULES.length },
-        { label: "Entri Knowledge Base", value: stats.entries },
-        { label: "To-Do belum selesai", value: stats.openTodos },
+        { label: "Modules", value: KB_MODULES.length },
+        { label: "Knowledge Base entries", value: stats.entries },
+        { label: "Open to-dos", value: stats.openTodos },
       ].map((s) => (
         <div key={s.label} className="rounded-2xl border border-border bg-background px-3 py-4">
           <dd className="text-2xl font-semibold tracking-tight">{s.value}</dd>
@@ -107,29 +107,29 @@ export default async function HomePage() {
       <section className="bg-surface px-6 pb-20 pt-24 text-center">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-5">
           <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight sm:text-6xl">
-            Catatan, tugas, dan hari kerjamu. Satu tempat.
+            Your notes, tasks, and workday. One place.
           </h1>
           <p className="max-w-xl text-lg text-muted sm:text-xl">
-            Workspace pribadi yang tenang untuk mencari referensi, mencatat issue, dan merencanakan
-            minggu, tanpa kesan dashboard.
+            A calm personal workspace to look up references, log issues, and plan your week, without
+            the dashboard feel.
           </p>
           <div className="mt-3 flex flex-wrap justify-center gap-4">
             {user ? (
               <>
                 <Link href="/knowledge-base" className={primaryButton}>
-                  Buka Knowledge Base
+                  Open Knowledge Base
                 </Link>
                 <Link href="/todos" className={outlineButton}>
-                  Lihat To-Do
+                  View To-Do
                 </Link>
               </>
             ) : (
               <>
                 <Link href="/login" className={primaryButton}>
-                  Masuk
+                  Sign in
                 </Link>
                 <Link href="/knowledge-base" className={outlineButton}>
-                  Buka Knowledge Base
+                  Open Knowledge Base
                 </Link>
               </>
             )}
@@ -157,7 +157,7 @@ export default async function HomePage() {
               <h2 className="text-2xl font-semibold tracking-tight">{f.title}</h2>
               <p className="text-base text-muted">{f.desc}</p>
               <span className="mt-1 text-base underline underline-offset-4 group-hover:no-underline">
-                Buka ›
+                Open ›
               </span>
             </Link>
           ))}

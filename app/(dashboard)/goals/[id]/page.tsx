@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateID, todayISO } from "@/lib/date";
+import { formatDate, todayISO } from "@/lib/date";
 import type { Goal, GoalItem, GoalType, Todo, TodoPriority } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { toggleTodoDone } from "../../todos/actions";
@@ -18,8 +18,8 @@ import {
 } from "../actions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TYPE_LABEL: Record<GoalType, string> = { learning: "Belajar", work: "Kerja" };
-const PRIORITY_LABEL: Record<TodoPriority, string> = { low: "Rendah", medium: "Sedang", high: "Tinggi" };
+const TYPE_LABEL: Record<GoalType, string> = { learning: "Learning", work: "Work" };
+const PRIORITY_LABEL: Record<TodoPriority, string> = { low: "Low", medium: "Medium", high: "High" };
 
 const field =
   "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
@@ -89,7 +89,7 @@ export default async function GoalDetailPage({
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/goals" className="text-sm text-muted hover:text-foreground">
-        ‹ Semua goal
+        ‹ All goals
       </Link>
 
       {editingGoal ? (
@@ -104,8 +104,8 @@ export default async function GoalDetailPage({
                 type="submit"
                 role="checkbox"
                 aria-checked={done}
-                aria-label={done ? "Buka kembali goal ini" : "Tandai goal ini selesai"}
-                title={done ? "Buka kembali goal" : "Tandai goal selesai"}
+                aria-label={done ? "Reopen this goal" : "Mark this goal as done"}
+                title={done ? "Reopen goal" : "Mark goal as done"}
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground text-sm transition-colors ${
                   done ? "bg-foreground text-background" : "hover:bg-surface"
                 }`}
@@ -120,9 +120,9 @@ export default async function GoalDetailPage({
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                 <span className="rounded-full border border-border px-2.5 py-0.5 text-xs">{TYPE_LABEL[goal.type]}</span>
                 {done && goal.completed_at ? (
-                  <span>Selesai {formatDateID(todayISO(new Date(goal.completed_at)))}</span>
+                  <span>Completed {formatDate(todayISO(new Date(goal.completed_at)))}</span>
                 ) : (
-                  <span>Centang kotak di kiri judul untuk menandai goal selesai.</span>
+                  <span>Tick the box left of the title to mark the goal as done.</span>
                 )}
               </div>
               {goal.description && <p className="mt-3 whitespace-pre-line text-base text-muted">{goal.description}</p>}
@@ -136,8 +136,8 @@ export default async function GoalDetailPage({
               </Link>
               <form action={deleteGoal.bind(null, goal.id)}>
                 <ConfirmButton
-                  label="Hapus"
-                  confirmText={`Hapus goal "${goal.title}" beserta ${items.length} item checklist-nya? To-do yang terkait tidak ikut terhapus.`}
+                  label="Delete"
+                  confirmText={`Delete goal "${goal.title}" and its ${items.length} checklist ${items.length === 1 ? "item" : "items"}? Linked to-dos are not deleted.`}
                   className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-danger"
                 />
               </form>
@@ -146,7 +146,7 @@ export default async function GoalDetailPage({
 
           <div className="mt-5 flex items-center gap-3 text-sm">
             <span className="whitespace-nowrap">
-              {doneCount} / {items.length} item
+              {doneCount} / {items.length} {items.length === 1 ? "item" : "items"}
             </span>
             {items.length > 0 && (
               <>
@@ -155,7 +155,7 @@ export default async function GoalDetailPage({
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label="Progres checklist"
+                  aria-label="Checklist progress"
                   className="h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-border"
                 >
                   <div className="h-full bg-foreground" style={{ width: `${percent}%` }} />
@@ -172,7 +172,7 @@ export default async function GoalDetailPage({
       )}
       {(goalResult.error || itemsResult.error || todosResult.error) && (
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
-          Gagal memuat data: {(goalResult.error ?? itemsResult.error ?? todosResult.error)?.message}
+          Failed to load data: {(goalResult.error ?? itemsResult.error ?? todosResult.error)?.message}
         </p>
       )}
 
@@ -189,14 +189,14 @@ export default async function GoalDetailPage({
             Checklist
           </h2>
           <span className="text-sm text-muted">
-            {doneCount} / {items.length} selesai
-            <span className="ml-2 group-open:hidden">· klik untuk membuka</span>
+            {doneCount} / {items.length} done
+            <span className="ml-2 group-open:hidden">· click to expand</span>
           </span>
         </summary>
 
         {items.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
-            Belum ada item. Tambahkan langkah pertama di bawah.
+            No items yet. Add the first step below.
           </p>
         ) : (
           <div className="flex flex-col gap-6">
@@ -226,26 +226,26 @@ export default async function GoalDetailPage({
         )}
 
         <form action={addGoalItem.bind(null, goal.id)} className="mt-6 space-y-3 rounded-2xl border border-dashed border-muted/60 p-4">
-          <p className="text-sm font-medium">Tambah item</p>
+          <p className="text-sm font-medium">Add item</p>
           <input
             name="title"
             required
-            placeholder="+ Tulis item baru"
-            aria-label="Judul item baru"
+            placeholder="+ Write a new item"
+            aria-label="New item title"
             className="h-11 w-full rounded-xl border border-border bg-background px-4 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input
               name="group_name"
               list="group-options"
-              placeholder="Grup (mis. Fase 1 — Fondasi), boleh kosong"
-              aria-label="Grup item"
+              placeholder="Group (e.g. Phase 1 — Foundation), optional"
+              aria-label="Item group"
               className="h-10 w-full rounded-xl border border-border bg-background px-3.5 text-sm placeholder:text-muted focus:border-foreground focus:outline-none"
             />
             <input
               name="note"
-              placeholder="Catatan, boleh kosong"
-              aria-label="Catatan item"
+              placeholder="Note, optional"
+              aria-label="Item note"
               className="h-10 w-full rounded-xl border border-border bg-background px-3.5 text-sm placeholder:text-muted focus:border-foreground focus:outline-none"
             />
           </div>
@@ -258,7 +258,7 @@ export default async function GoalDetailPage({
             type="submit"
             className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
           >
-            Tambah
+            Add
           </button>
         </form>
       </details>
@@ -273,20 +273,20 @@ export default async function GoalDetailPage({
             >
               ▸
             </span>
-            To-do terkait
+            Linked to-dos
           </h2>
           <span className="text-sm text-muted">
-            {doneTodos.length} / {linkedTodos.length} selesai
-            <span className="ml-2 group-open:hidden">· klik untuk membuka</span>
+            {doneTodos.length} / {linkedTodos.length} done
+            <span className="ml-2 group-open:hidden">· click to expand</span>
           </span>
         </summary>
         <p className="mb-4 mt-1 text-sm text-muted">
-          To-do harian yang dikaitkan ke goal ini. Mencentangnya tidak mengubah checklist atau status goal.
+          Daily to-dos linked to this goal. Ticking them does not change the checklist or the goal status.
         </p>
 
         {linkedTodos.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
-            Belum ada to-do yang dikaitkan. Pilih goal ini saat menulis to-do, atau tambah langsung di bawah.
+            No linked to-dos yet. Pick this goal when writing a to-do, or add one directly below.
           </p>
         ) : (
           <ul className="overflow-hidden rounded-2xl border border-foreground">
@@ -303,22 +303,22 @@ export default async function GoalDetailPage({
           <input
             name="title"
             required
-            placeholder="+ Tulis to-do baru untuk goal ini"
-            aria-label="To-do baru untuk goal ini"
+            placeholder="+ Write a new to-do for this goal"
+            aria-label="New to-do for this goal"
             className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
           />
           <input
             name="due_date"
             type="date"
             defaultValue={todayISO()}
-            aria-label="Tanggal to-do"
+            aria-label="To-do date"
             className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
           />
           <button
             type="submit"
             className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
           >
-            Tambah
+            Add
           </button>
         </form>
       </details>
@@ -335,7 +335,7 @@ function LinkedTodoRow({ todo }: { todo: Todo }) {
           type="submit"
           role="checkbox"
           aria-checked={done}
-          aria-label={done ? `Tandai belum selesai: ${todo.title}` : `Tandai selesai: ${todo.title}`}
+          aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
             done ? "bg-foreground text-background" : "hover:bg-surface"
           }`}
@@ -351,8 +351,8 @@ function LinkedTodoRow({ todo }: { todo: Todo }) {
           {todo.title}
         </Link>
         <p className="text-xs text-muted">
-          {todo.due_date ? formatDateID(todo.due_date) : "Tanpa tanggal"}
-          {todo.status === "in_progress" ? " · Sedang dikerjakan" : ""}
+          {todo.due_date ? formatDate(todo.due_date) : "No date"}
+          {todo.status === "in_progress" ? " · In progress" : ""}
         </p>
       </div>
       <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted">
@@ -382,7 +382,7 @@ function ItemRow({
           type="submit"
           role="checkbox"
           aria-checked={item.is_done}
-          aria-label={item.is_done ? `Tandai belum selesai: ${item.title}` : `Tandai selesai: ${item.title}`}
+          aria-label={item.is_done ? `Mark as not done: ${item.title}` : `Mark as done: ${item.title}`}
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
             item.is_done ? "bg-foreground text-background" : "hover:bg-surface"
           }`}
@@ -398,12 +398,12 @@ function ItemRow({
 
       <div className="flex shrink-0 items-center gap-0.5 text-sm">
         <form action={moveGoalItem.bind(null, goalId, item.id, "up")}>
-          <button type="submit" disabled={isFirst} aria-label={`Naikkan: ${item.title}`} title="Naikkan" className={move}>
+          <button type="submit" disabled={isFirst} aria-label={`Move up: ${item.title}`} title="Move up" className={move}>
             ↑
           </button>
         </form>
         <form action={moveGoalItem.bind(null, goalId, item.id, "down")}>
-          <button type="submit" disabled={isLast} aria-label={`Turunkan: ${item.title}`} title="Turunkan" className={move}>
+          <button type="submit" disabled={isLast} aria-label={`Move down: ${item.title}`} title="Move down" className={move}>
             ↓
           </button>
         </form>
@@ -415,8 +415,8 @@ function ItemRow({
         </Link>
         <form action={deleteGoalItem.bind(null, goalId, item.id)}>
           <ConfirmButton
-            label="Hapus"
-            confirmText={`Hapus item "${item.title}"?`}
+            label="Delete"
+            confirmText={`Delete item "${item.title}"?`}
             className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-danger"
           />
         </form>
@@ -441,14 +441,14 @@ function ItemEditForm({
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
       <div>
         <label htmlFor={`title-${item.id}`} className="block text-sm font-medium">
-          Judul item
+          Item title
         </label>
         <input id={`title-${item.id}`} name="title" required defaultValue={item.title} className={field} />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={`group-${item.id}`} className="block text-sm font-medium">
-            Grup
+            Group
           </label>
           <input
             id={`group-${item.id}`}
@@ -465,7 +465,7 @@ function ItemEditForm({
         </div>
         <div>
           <label htmlFor={`note-${item.id}`} className="block text-sm font-medium">
-            Catatan
+            Note
           </label>
           <input id={`note-${item.id}`} name="note" defaultValue={item.note ?? ""} className={field} />
         </div>
@@ -475,13 +475,13 @@ function ItemEditForm({
           type="submit"
           className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
         >
-          Simpan
+          Save
         </button>
         <Link
           href={`/goals/${goalId}`}
           className="rounded-full border border-foreground px-5 py-2 text-sm font-medium transition-colors hover:bg-background"
         >
-          Batal
+          Cancel
         </Link>
       </div>
     </form>
@@ -497,25 +497,25 @@ function GoalEditForm({ goal, error }: { goal: Goal; error?: string }) {
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
-          Judul
+          Title
         </label>
         <input id="title" name="title" type="text" required defaultValue={goal.title} className={field} />
       </div>
 
       <div>
         <label htmlFor="description" className="block text-sm font-medium">
-          Deskripsi
+          Description
         </label>
         <textarea id="description" name="description" rows={3} defaultValue={goal.description ?? ""} className={field} />
       </div>
 
       <div>
         <label htmlFor="type" className="block text-sm font-medium">
-          Jenis
+          Type
         </label>
         <select id="type" name="type" defaultValue={goal.type} className={field}>
-          <option value="learning">Belajar</option>
-          <option value="work">Kerja</option>
+          <option value="learning">Learning</option>
+          <option value="work">Work</option>
         </select>
       </div>
 
@@ -524,13 +524,13 @@ function GoalEditForm({ goal, error }: { goal: Goal; error?: string }) {
           type="submit"
           className="rounded-full bg-accent px-6 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
         >
-          Simpan
+          Save
         </button>
         <Link
           href={`/goals/${goal.id}`}
           className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
-          Batal
+          Cancel
         </Link>
       </div>
     </form>

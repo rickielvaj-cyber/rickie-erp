@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { endOfMonthISO, formatDateID, formatMonthYearID, isYearMonth, todayISO } from "@/lib/date";
+import { endOfMonthISO, formatDate, formatMonthYear, isYearMonth, todayISO } from "@/lib/date";
 import { ISSUE_CATEGORIES, countBy } from "@/lib/issues";
 import type { IssueLog } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -63,13 +63,13 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   const moduleOptions = distinct((allForOptions ?? []).map((r) => r.module));
 
   // Dasar KPI bulanan: hitungan dari hasil yang sedang difilter.
-  // Bulan terbaru di atas; baris "Tanpa tanggal" (data lama tanpa tanggal) di paling bawah.
-  const perMonth = countBy(issues, (i) => i.date_resolved?.slice(0, 7) ?? null, "Tanpa tanggal").sort((a, b) => {
+  // Bulan terbaru di atas; baris "No date" (data lama tanpa tanggal) di paling bawah.
+  const perMonth = countBy(issues, (i) => i.date_resolved?.slice(0, 7) ?? null, "No date").sort((a, b) => {
     if (isYearMonth(a.label) !== isYearMonth(b.label)) return isYearMonth(a.label) ? -1 : 1;
     return b.label.localeCompare(a.label);
   });
-  const perCategory = countBy(issues, (i) => i.category, "Tanpa kategori");
-  const perClient = countBy(issues, (i) => i.client_name, "Tanpa klien");
+  const perCategory = countBy(issues, (i) => i.category, "No category");
+  const perClient = countBy(issues, (i) => i.client_name, "No client");
 
   const filtered =
     clientFilter !== "all" || moduleFilter !== "all" || categoryFilter !== "all" || monthFrom || monthTo;
@@ -88,14 +88,14 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold tracking-tight">Issue Log</h1>
-          <p className="mt-1 text-base text-muted">Catatan issue klien, pengganti sheet harian.</p>
+          <p className="mt-1 text-base text-muted">Client issue records, replacing the daily sheet.</p>
         </div>
         {!isNew && !editingIssue && (
           <Link
             href="/issues?new=1"
             className="shrink-0 rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
           >
-            + Tambah issue
+            + Add issue
           </Link>
         )}
       </div>
@@ -118,10 +118,10 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
       >
         <div>
           <label htmlFor="f-client" className="block text-xs font-medium text-muted">
-            Klien
+            Client
           </label>
           <select id="f-client" name="client" defaultValue={clientFilter} className={filterField}>
-            <option value="all">Semua</option>
+            <option value="all">All</option>
             {clientOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -131,10 +131,10 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
         </div>
         <div>
           <label htmlFor="f-module" className="block text-xs font-medium text-muted">
-            Modul
+            Module
           </label>
           <select id="f-module" name="module" defaultValue={moduleFilter} className={filterField}>
-            <option value="all">Semua</option>
+            <option value="all">All</option>
             {moduleOptions.map((m) => (
               <option key={m} value={m}>
                 {m}
@@ -144,10 +144,10 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
         </div>
         <div>
           <label htmlFor="f-category" className="block text-xs font-medium text-muted">
-            Kategori
+            Category
           </label>
           <select id="f-category" name="category" defaultValue={categoryFilter} className={filterField}>
-            <option value="all">Semua</option>
+            <option value="all">All</option>
             {ISSUE_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -157,13 +157,13 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
         </div>
         <div>
           <label htmlFor="f-from" className="block text-xs font-medium text-muted">
-            Dari bulan
+            From month
           </label>
           <input id="f-from" type="month" name="month_from" defaultValue={monthFrom} className={filterField} />
         </div>
         <div>
           <label htmlFor="f-to" className="block text-xs font-medium text-muted">
-            Sampai bulan
+            To month
           </label>
           <input id="f-to" type="month" name="month_to" defaultValue={monthTo} className={filterField} />
         </div>
@@ -171,7 +171,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           type="submit"
           className="rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-background"
         >
-          Terapkan
+          Apply
         </button>
         {filtered && (
           <Link href="/issues" className="py-1.5 text-sm text-muted underline underline-offset-4 hover:text-foreground">
@@ -183,36 +183,36 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           download
           className="ml-auto rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-background"
         >
-          Export CSV{filtered ? " (sesuai filter)" : ""}
+          Export CSV{filtered ? " (filtered)" : ""}
         </a>
       </form>
 
       {fetchError && (
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
-          Gagal memuat data: {fetchError.message}
+          Failed to load data: {fetchError.message}
         </p>
       )}
 
       <section aria-labelledby="stats-heading" className="mt-6 rounded-2xl border border-foreground p-5">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 id="stats-heading" className="text-lg font-semibold tracking-tight">
-            Ringkasan{filtered ? " (sesuai filter)" : ""}
+            Summary{filtered ? " (filtered)" : ""}
           </h2>
-          <span className="text-sm text-muted">{issues.length} issue</span>
+          <span className="text-sm text-muted">{issues.length} {issues.length === 1 ? "issue" : "issues"}</span>
         </div>
         {issues.length === 0 ? (
-          <p className="text-sm text-muted">Belum ada data untuk dihitung.</p>
+          <p className="text-sm text-muted">No data to count yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 text-sm sm:grid-cols-3">
             <CountList
-              title="Per bulan"
+              title="By month"
               rows={perMonth.map((r) => ({
-                label: isYearMonth(r.label) ? formatMonthYearID(r.label) : r.label,
+                label: isYearMonth(r.label) ? formatMonthYear(r.label) : r.label,
                 count: r.count,
               }))}
             />
-            <CountList title="Per kategori" rows={perCategory} />
-            <CountList title="Per klien" rows={perClient} />
+            <CountList title="By category" rows={perCategory} />
+            <CountList title="By client" rows={perClient} />
           </div>
         )}
       </section>
@@ -221,18 +221,18 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
         <table className="w-full text-left text-sm">
           <thead className="bg-surface text-xs uppercase text-muted">
             <tr>
-              <th className="px-4 py-2.5 font-medium">Tanggal</th>
-              <th className="px-4 py-2.5 font-medium">Klien</th>
-              <th className="px-4 py-2.5 font-medium">Modul</th>
-              <th className="px-4 py-2.5 font-medium">Kategori</th>
-              <th className="px-4 py-2.5 font-medium">Judul</th>
-              <th className="px-4 py-2.5 text-right font-medium">Aksi</th>
+              <th className="px-4 py-2.5 font-medium">Date</th>
+              <th className="px-4 py-2.5 font-medium">Client</th>
+              <th className="px-4 py-2.5 font-medium">Module</th>
+              <th className="px-4 py-2.5 font-medium">Category</th>
+              <th className="px-4 py-2.5 font-medium">Title</th>
+              <th className="px-4 py-2.5 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {issues.map((issue) => (
               <tr key={issue.id} className="border-t border-border align-top">
-                <td className="whitespace-nowrap px-4 py-3">{formatDateID(issue.date_resolved)}</td>
+                <td className="whitespace-nowrap px-4 py-3">{formatDate(issue.date_resolved)}</td>
                 <td className="px-4 py-3">{issue.client_name ?? "-"}</td>
                 <td className="px-4 py-3">{issue.module ?? "-"}</td>
                 <td className="px-4 py-3">{issue.category ?? "-"}</td>
@@ -240,9 +240,9 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                   <details className="group">
                     <summary className="cursor-pointer list-none font-medium hover:underline">{issue.title}</summary>
                     <dl className="mt-2 space-y-2 text-muted">
-                      <Detail label="Deskripsi" value={issue.description} />
-                      <Detail label="Akar masalah" value={issue.root_cause} />
-                      <Detail label="Resolusi" value={issue.resolution} />
+                      <Detail label="Description" value={issue.description} />
+                      <Detail label="Root cause" value={issue.root_cause} />
+                      <Detail label="Resolution" value={issue.resolution} />
                     </dl>
                   </details>
                 </td>
@@ -256,8 +256,8 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                     </Link>
                     <form action={deleteIssue.bind(null, issue.id)}>
                       <ConfirmButton
-                        label="Hapus"
-                        confirmText={`Hapus issue "${issue.title}"?`}
+                        label="Delete"
+                        confirmText={`Delete issue "${issue.title}"?`}
                         className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-danger"
                       />
                     </form>
@@ -268,7 +268,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             {issues.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-base text-muted">
-                  {filtered ? "Tidak ada issue yang cocok dengan filter ini." : "Belum ada issue. Klik “+ Tambah issue”."}
+                  {filtered ? "No issues match these filters." : "No issues yet. Click “+ Add issue”."}
                 </td>
               </tr>
             )}
@@ -320,13 +320,13 @@ function IssueForm({
 
   return (
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
-      <h2 className="text-xl font-semibold tracking-tight">{issue ? "Edit issue" : "Issue baru"}</h2>
+      <h2 className="text-xl font-semibold tracking-tight">{issue ? "Edit issue" : "New issue"}</h2>
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
-          Judul
+          Title
         </label>
         <input id="title" name="title" type="text" required defaultValue={issue?.title} className={field} />
       </div>
@@ -334,7 +334,7 @@ function IssueForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label htmlFor="date_resolved" className="block text-sm font-medium">
-            Tanggal
+            Date
           </label>
           <input
             id="date_resolved"
@@ -346,7 +346,7 @@ function IssueForm({
         </div>
         <div>
           <label htmlFor="client_name" className="block text-sm font-medium">
-            Klien
+            Client
           </label>
           <input
             id="client_name"
@@ -365,7 +365,7 @@ function IssueForm({
         </div>
         <div>
           <label htmlFor="module" className="block text-sm font-medium">
-            Modul
+            Module
           </label>
           <input
             id="module"
@@ -384,10 +384,10 @@ function IssueForm({
         </div>
         <div>
           <label htmlFor="category" className="block text-sm font-medium">
-            Kategori
+            Category
           </label>
           <select id="category" name="category" defaultValue={issue?.category ?? ""} className={field}>
-            <option value="">Pilih kategori</option>
+            <option value="">Select category</option>
             {ISSUE_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -399,7 +399,7 @@ function IssueForm({
 
       <div>
         <label htmlFor="description" className="block text-sm font-medium">
-          Deskripsi
+          Description
         </label>
         <textarea id="description" name="description" rows={3} required defaultValue={issue?.description ?? ""} className={field} />
       </div>
@@ -407,13 +407,13 @@ function IssueForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="root_cause" className="block text-sm font-medium">
-            Akar masalah
+            Root cause
           </label>
           <textarea id="root_cause" name="root_cause" rows={3} defaultValue={issue?.root_cause ?? ""} className={field} />
         </div>
         <div>
           <label htmlFor="resolution" className="block text-sm font-medium">
-            Resolusi
+            Resolution
           </label>
           <textarea id="resolution" name="resolution" rows={3} defaultValue={issue?.resolution ?? ""} className={field} />
         </div>
@@ -424,13 +424,13 @@ function IssueForm({
           type="submit"
           className="rounded-full bg-accent px-6 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
         >
-          Simpan
+          Save
         </button>
         <Link
           href="/issues"
           className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
-          Batal
+          Cancel
         </Link>
       </div>
     </form>
