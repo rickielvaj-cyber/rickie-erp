@@ -90,14 +90,23 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           <h1 className="text-4xl font-semibold tracking-tight">Issue Log</h1>
           <p className="mt-1 text-base text-muted">Client issue records, replacing the daily sheet.</p>
         </div>
-        {!isNew && !editingIssue && (
-          <Link
-            href="/issues?new=1"
-            className="shrink-0 rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <a
+            href={exportHref}
+            download
+            className="rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
           >
-            + Add issue
-          </Link>
-        )}
+            Export CSV{filtered ? " (filtered)" : ""}
+          </a>
+          {!isNew && !editingIssue && (
+            <Link
+              href="/issues?new=1"
+              className="rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              + Add issue
+            </Link>
+          )}
+        </div>
       </div>
 
       {(isNew || editingIssue) && (
@@ -178,13 +187,6 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             Reset
           </Link>
         )}
-        <a
-          href={exportHref}
-          download
-          className="ml-auto rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-background"
-        >
-          Export CSV{filtered ? " (filtered)" : ""}
-        </a>
       </form>
 
       {fetchError && (

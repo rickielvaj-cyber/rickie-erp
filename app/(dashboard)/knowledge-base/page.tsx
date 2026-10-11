@@ -41,27 +41,29 @@ export default async function KnowledgeBasePage() {
           <h2 className="text-2xl font-semibold tracking-tight">All Modules</h2>
           <span className="text-sm text-muted">{KB_MODULES.length} modules</span>
         </div>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {KB_MODULES.map(({ slug, label }) => {
             const stats = statsByModule.get(slug);
             return (
               <Link
                 key={slug}
                 href={`/knowledge-base/${slug}`}
-                className="group flex flex-col gap-2.5 rounded-2xl border border-foreground p-5 transition-colors hover:bg-surface"
+                className="group flex items-center gap-4 rounded-2xl border border-foreground p-4 transition-colors hover:bg-surface"
               >
                 <span
                   aria-hidden="true"
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface text-2xl"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-xl"
                 >
                   {KB_MODULE_ICONS[slug]}
                 </span>
-                <h3 className="text-lg font-semibold tracking-tight">{label}</h3>
-                <p className="text-sm text-muted">
+                <span className="min-w-0 flex-1">
+                  <h3 className="text-base font-semibold leading-snug tracking-tight">{label}</h3>
+                  <p className="mt-0.5 text-sm text-muted">
                   {stats ? `${stats.count} ${stats.count === 1 ? "entry" : "entries"} · updated ${formatDate(stats.lastUpdated.slice(0, 10))}` : "No entries yet"}
-                </p>
-                <span className="mt-auto pt-1 text-sm underline underline-offset-4 group-hover:no-underline">
-                  Open module ›
+                  </p>
+                </span>
+                <span aria-hidden="true" className="text-muted transition-transform group-hover:translate-x-0.5">
+                  ›
                 </span>
               </Link>
             );

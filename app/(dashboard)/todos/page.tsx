@@ -277,45 +277,68 @@ export default async function TodosPage({
           </nav>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-          {weekDays.map((day) => {
-            const dayTodos = weekTodos.filter((t) => t.due_date === day);
-            const isToday = day === today;
-            return (
-              <div
-                key={day}
-                aria-label={`${formatLongDay(day)}${isToday ? " (today)" : ""}`}
-                className={`flex min-h-[22rem] flex-col gap-3 rounded-2xl p-3.5 ${
-                  isToday ? "border-2 border-foreground bg-surface" : "border border-border"
-                }`}
-              >
-                <div className="flex items-baseline justify-between border-b border-border pb-2">
-                  <span className="text-base font-medium">{formatWeekdayShort(day)}</span>
-                  <span className="text-sm text-muted">{formatDayMonth(day)}</span>
-                </div>
-
-                <ul className="flex flex-col gap-2">
-                  {dayTodos.map((todo) => (
-                    <WeekTask key={todo.id} todo={todo} week={weekParam ?? undefined} goalTitle={goalTitles.get(todo.goal_id ?? "")} />
-                  ))}
-                </ul>
-
-                <form action={createTodoForDay.bind(null, day)} className="mt-auto">
-                  <input
-                    name="title"
-                    required
-                    placeholder="+ Add"
-                    aria-label={`Add task for ${formatLongDay(day)}`}
-                    className="w-full rounded-lg border border-dashed border-muted/60 bg-background px-2.5 py-1.5 text-center text-sm placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
-                  />
-                </form>
-              </div>
-            );
-          })}
+        {/* Senin–Jumat = 5 kolom lebar; Sabtu + Minggu ditumpuk di satu kolom supaya kolom kerja tidak sempit. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {weekDays.slice(0, 5).map((day) => (
+            <DayCard key={day} day={day} today={today} todos={weekTodos} week={weekParam ?? undefined} goalTitles={goalTitles} />
+          ))}
+          <div className="flex flex-col gap-3">
+            {weekDays.slice(5).map((day) => (
+              <DayCard key={day} day={day} today={today} todos={weekTodos} week={weekParam ?? undefined} goalTitles={goalTitles} compact />
+            ))}
+          </div>
         </div>
       </section>
 
       <TodoUndoToast />
+    </div>
+  );
+}
+
+function DayCard({
+  day,
+  today,
+  todos,
+  week,
+  goalTitles,
+  compact,
+}: {
+  day: string;
+  today: string;
+  todos: Todo[];
+  week?: string;
+  goalTitles: Map<string, string>;
+  compact?: boolean;
+}) {
+  const dayTodos = todos.filter((t) => t.due_date === day);
+  const isToday = day === today;
+  return (
+    <div
+      aria-label={`${formatLongDay(day)}${isToday ? " (today)" : ""}`}
+      className={`flex flex-col gap-3 rounded-2xl p-3.5 ${compact ? "min-h-[10.5rem] flex-1" : "min-h-[22rem]"} ${
+        isToday ? "border-2 border-foreground bg-surface" : "border border-border"
+      }`}
+    >
+      <div className="flex items-baseline justify-between border-b border-border pb-2">
+        <span className="text-base font-medium">{formatWeekdayShort(day)}</span>
+        <span className="text-sm text-muted">{formatDayMonth(day)}</span>
+      </div>
+
+      <ul className="flex flex-col gap-2">
+        {dayTodos.map((todo) => (
+          <WeekTask key={todo.id} todo={todo} week={week} goalTitle={goalTitles.get(todo.goal_id ?? "")} />
+        ))}
+      </ul>
+
+      <form action={createTodoForDay.bind(null, day)} className="mt-auto">
+        <input
+          name="title"
+          required
+          placeholder="+ Add"
+          aria-label={`Add task for ${formatLongDay(day)}`}
+          className="w-full rounded-lg border border-dashed border-muted/60 bg-background px-2.5 py-1.5 text-center text-sm placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
+        />
+      </form>
     </div>
   );
 }
@@ -387,25 +410,27 @@ function TodoRow({ todo, goalTitle, moveToToday }: { todo: Todo; goalTitle?: str
         {todo.status === "in_progress" && <p className="mt-0.5 text-xs text-muted">In progress</p>}
         {goalTitle && <p className="mt-0.5 truncate text-xs text-muted">Goal: {goalTitle}</p>}
       </div>
-      {moveToToday && (
-        <form action={moveTodoToToday.bind(null, todo.id, moveToToday)}>
-          <button
-            type="submit"
-            className="rounded-full border border-foreground px-3 py-1 text-sm transition-colors hover:bg-surface"
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        {moveToToday && (
+          <form action={moveTodoToToday.bind(null, todo.id, moveToToday)}>
+            <button
+              type="submit"
+              className="rounded-full border border-foreground px-3 py-1 text-sm transition-colors hover:bg-surface"
+            >
+              Move to today
+            </button>
+          </form>
+        )}
+        <PriorityPill priority={todo.priority} />
+        <div className="flex shrink-0 items-center gap-1 text-sm">
+          <Link
+            href={`/todos?edit=${todo.id}`}
+            className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
           >
-            Move to today
-          </button>
-        </form>
-      )}
-      <PriorityPill priority={todo.priority} />
-      <div className="flex shrink-0 items-center gap-1 text-sm">
-        <Link
-          href={`/todos?edit=${todo.id}`}
-          className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
-        >
-          Edit
-        </Link>
-        <TodoDeleteButton todo={todo} />
+            Edit
+          </Link>
+          <TodoDeleteButton todo={todo} />
+        </div>
       </div>
     </li>
   );

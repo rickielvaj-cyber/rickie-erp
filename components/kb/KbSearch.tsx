@@ -114,7 +114,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
             ⌕
           </span>
           <span className="flex-1">Search Knowledge Base…</span>
-          <kbd className="rounded border border-border px-1.5 font-sans text-[11px]">Ctrl K</kbd>
+          <kbd className="hidden rounded border border-border px-1.5 font-sans text-[11px] sm:inline">Ctrl K</kbd>
         </button>
       ) : (
         <button
@@ -123,7 +123,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
           className="inline-flex items-center gap-2 rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface"
         >
           Search
-          <kbd className="rounded border border-border px-1 font-sans text-[10px] text-muted">Ctrl K</kbd>
+          <kbd className="hidden rounded border border-border px-1 font-sans text-[10px] text-muted sm:inline">Ctrl K</kbd>
         </button>
       )}
 

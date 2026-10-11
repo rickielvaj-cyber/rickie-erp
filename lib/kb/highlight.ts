@@ -186,13 +186,16 @@ function flashRects(rects: DOMRect[]) {
 }
 
 // Lompat ke heading (tanpa highlight frasa), dengan koreksi posisi.
+// Menu atas bersifat sticky: heading yang dituju harus berhenti DI BAWAH menu, bukan di baliknya.
+const stickyOffset = () => (document.querySelector("header")?.getBoundingClientRect().bottom ?? 0) + 16;
+
 export async function jumpToKbAnchor(anchor: string): Promise<boolean> {
   const heading = document.getElementById(anchor);
   const root = heading?.closest<HTMLElement>("[data-kb-chapter]");
   if (!heading || !root) return false;
 
   const pending = loadImagesAbove(root, heading);
-  await pinTo(() => heading.getBoundingClientRect().top, 24, pending);
+  await pinTo(() => heading.getBoundingClientRect().top, stickyOffset(), pending);
   return true;
 }
 
@@ -212,7 +215,7 @@ export async function highlightKbPhrase(anchor: string, phrase: string): Promise
     return true;
   }
 
-  const settled = await pinTo(() => heading.getBoundingClientRect().top, 24, pending);
+  const settled = await pinTo(() => heading.getBoundingClientRect().top, stickyOffset(), pending);
   if (settled) flashRects([heading.getBoundingClientRect()]);
   return false;
 }

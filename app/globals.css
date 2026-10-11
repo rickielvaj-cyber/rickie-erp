@@ -30,6 +30,16 @@ body {
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
+/* Fokus keyboard yang jelas untuk link, tombol, dan ringkasan (<summary>). Kolom isian
+   punya gaya fokus sendiri (garis tepi hitam). */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+[role="checkbox"]:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
 /* KB search: overlay highlight sementara di atas frasa yang ditemukan (lib/kb/highlight.ts). */
 .kb-flash-layer {
   position: absolute;

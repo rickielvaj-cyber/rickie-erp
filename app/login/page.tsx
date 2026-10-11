@@ -25,7 +25,7 @@ export default async function LoginPage({
               required
               autoComplete="email"
               placeholder="you@email.com"
-              className="mt-1.5 h-11 w-full rounded-xl border border-foreground px-4 text-base placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              className="mt-1.5 h-11 w-full rounded-xl border border-foreground px-4 text-base placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-foreground/20"
             />
           </div>
           <div>

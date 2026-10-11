@@ -26,8 +26,8 @@ function PrevNext({ module }: { module: KbModuleSlug }) {
   if (!links) {
     return (
       <Link href="/knowledge-base" className={card}>
-        <span className="block text-xs text-muted">Reference chapter</span>
-        <span className="text-sm font-medium">&larr; Back to Knowledge Base</span>
+        <span className="block text-sm text-muted">Reference chapter</span>
+        <span className="text-base font-medium">&larr; Back to Knowledge Base</span>
       </Link>
     );
   }
@@ -36,21 +36,21 @@ function PrevNext({ module }: { module: KbModuleSlug }) {
     <div className="grid grid-cols-2 gap-3">
       {links.prev ? (
         <Link href={`/knowledge-base/${links.prev}`} className={card}>
-          <span className="block text-xs text-muted">&larr; Previous</span>
-          <span className="text-sm font-medium">{kbModuleLabel(links.prev)}</span>
+          <span className="block text-sm text-muted">&larr; Previous</span>
+          <span className="text-base font-medium">{kbModuleLabel(links.prev)}</span>
         </Link>
       ) : (
         <span />
       )}
       {links.next ? (
         <Link href={`/knowledge-base/${links.next}`} className={`${card} text-right`}>
-          <span className="block text-xs text-muted">Next &rarr;</span>
-          <span className="text-sm font-medium">{kbModuleLabel(links.next)}</span>
+          <span className="block text-sm text-muted">Next &rarr;</span>
+          <span className="text-base font-medium">{kbModuleLabel(links.next)}</span>
         </Link>
       ) : (
         <Link href="/knowledge-base" className={`${card} text-right`}>
-          <span className="block text-xs text-muted">End of reading order</span>
-          <span className="text-sm font-medium">Back to Knowledge Base</span>
+          <span className="block text-sm text-muted">End of reading order</span>
+          <span className="text-base font-medium">Back to Knowledge Base</span>
         </Link>
       )}
     </div>
@@ -72,14 +72,14 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
 
   return (
     <div className="mx-auto flex max-w-6xl gap-10">
-      <div className="min-w-0 max-w-3xl flex-1">
+      <div className="min-w-0 max-w-[46rem] flex-1">
         <Link href="/knowledge-base" className="text-sm text-muted hover:underline">
           &larr; Knowledge Base
         </Link>
         <div className="mt-1 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">{kbModuleLabel(module)}</h1>
-            <p className="mt-1 text-xs text-muted">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{kbModuleLabel(module)}</h1>
+            <p className="mt-1.5 text-sm text-muted">
               {positionLabel(module)} · {chapter.sections.length} {chapter.sections.length === 1 ? "entry" : "entries"}
               {lastUpdated && ` · Updated ${formatDate(lastUpdated.slice(0, 10))}`}
             </p>
@@ -103,9 +103,9 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
           </p>
         )}
 
-        <div data-kb-chapter className="mt-8 space-y-10">
+        <div data-kb-chapter className="mt-10 space-y-14">
           {chapter.sections.map(({ entry, tree }) => (
-            <article key={entry.id} className="border-t border-border pt-6 first:border-t-0 first:pt-0">
+            <article key={entry.id} className="border-t border-border pt-10 first:border-t-0 first:pt-0">
               <EntryEditor entryId={entry.id} initialTitle={entry.title} initialContent={entry.content}>
                 <KbContent tree={tree} />
               </EntryEditor>
@@ -119,7 +119,7 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
       </div>
 
       <aside className="hidden w-60 shrink-0 xl:block">
-        <div className="sticky top-8">
+        <div className="sticky top-20">
           <KbOnThisPage headings={chapter.headings} defaultOpen />
         </div>
       </aside>
