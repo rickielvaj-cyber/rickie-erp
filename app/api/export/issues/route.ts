@@ -5,6 +5,8 @@ import { endOfMonthISO, isYearMonth, todayISO } from "@/lib/date";
 import { fetchAll, toCsv } from "@/lib/export";
 import type { IssueLog } from "@/lib/types";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // CSV issue log. Tanpa parameter = semua issue. Parameter filter sama dengan halaman
 // Issue Log (client, module, category, month_from, month_to), supaya tombol di sana
 // mengekspor persis yang sedang terlihat.
@@ -24,7 +26,10 @@ export async function GET(request: NextRequest) {
   try {
     const issues = await fetchAll<IssueLog>((from, to) => {
       let query = supabase.from("issue_log").select("*");
-      if (client && client !== "all") query = query.eq("client_name", client);
+      // Filter klien di halaman = id klien (atau "unlinked"); teks lain tetap dibaca sebagai nama.
+      if (client === "unlinked") query = query.is("client_id", null);
+      else if (client && UUID_RE.test(client)) query = query.eq("client_id", client);
+      else if (client && client !== "all") query = query.eq("client_name", client);
       if (moduleName && moduleName !== "all") query = query.eq("module", moduleName);
       if (category && category !== "all") query = query.eq("category", category);
       if (isYearMonth(monthFrom)) query = query.gte("date_resolved", `${monthFrom}-01`);

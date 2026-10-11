@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { endOfMonthISO, formatDate, formatMonthYear, isYearMonth, todayISO } from "@/lib/date";
-import { ISSUE_CATEGORIES, countBy } from "@/lib/issues";
-import type { IssueLog } from "@/lib/types";
+import { ISSUE_CATEGORIES, ISSUE_MODULE_SUGGESTIONS, countBy } from "@/lib/issues";
+import { sheetSegmentDG, sheetSegmentKL } from "@/lib/sheet";
+import type { Client, IssueLog } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { createIssue, deleteIssue, updateIssue } from "./actions";
+import { CopyForSheet } from "@/components/CopyForSheet";
+import { createIssue, deleteIssue, setIssueCopied, updateIssue } from "./actions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -43,24 +45,32 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   const supabase = await createClient();
 
   let query = supabase.from("issue_log").select("*");
-  if (clientFilter !== "all") query = query.eq("client_name", clientFilter);
+  if (clientFilter === "unlinked") query = query.is("client_id", null);
+  else if (clientFilter !== "all") query = query.eq("client_id", clientFilter);
   if (moduleFilter !== "all") query = query.eq("module", moduleFilter);
   if (categoryFilter !== "all") query = query.eq("category", categoryFilter);
   if (monthFrom) query = query.gte("date_resolved", `${monthFrom}-01`);
   if (monthTo) query = query.lte("date_resolved", endOfMonthISO(monthTo));
 
-  const [{ data: allForOptions }, { data: found, error: fetchError }, editResult] = await Promise.all([
-    supabase.from("issue_log").select("client_name, module"),
+  const [{ data: allForOptions }, { data: found, error: fetchError }, editResult, clientsResult] = await Promise.all([
+    supabase.from("issue_log").select("client_id, client_name, module"),
     query
       .order("date_resolved", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
     editId ? supabase.from("issue_log").select("*").eq("id", editId).maybeSingle() : Promise.resolve(null),
+    supabase.from("clients").select("*").order("canonical_name", { ascending: true }),
   ]);
 
   const issues = found ?? [];
   const editingIssue = editResult?.data ?? null;
-  const clientOptions = distinct((allForOptions ?? []).map((r) => r.client_name));
-  const moduleOptions = distinct((allForOptions ?? []).map((r) => r.module));
+  const clients: Client[] = clientsResult.data ?? [];
+  const clientById = new Map(clients.map((c) => [c.id, c]));
+  // Filter: hanya klien yang punya issue; plus pilihan untuk issue lama yang belum tertaut ke daftar.
+  const usedClientIds = new Set((allForOptions ?? []).map((r) => r.client_id).filter((v): v is string => Boolean(v)));
+  const filterClients = clients.filter((c) => usedClientIds.has(c.id));
+  const hasUnlinked = (allForOptions ?? []).some((r) => !r.client_id && r.client_name?.trim());
+  const usedModules = distinct((allForOptions ?? []).map((r) => r.module));
+  const moduleSuggestions = distinct([...ISSUE_MODULE_SUGGESTIONS, ...usedModules]);
 
   // Dasar KPI bulanan: hitungan dari hasil yang sedang difilter.
   // Bulan terbaru di atas; baris "No date" (data lama tanpa tanggal) di paling bawah.
@@ -91,6 +101,12 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           <p className="mt-1 text-base text-muted">Client issue records, replacing the daily sheet.</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <Link
+            href="/clients"
+            className="rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
+          >
+            Clients
+          </Link>
           <a
             href={exportHref}
             download
@@ -114,8 +130,8 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           <IssueForm
             key={editingIssue?.id ?? "new"}
             issue={editingIssue}
-            clients={clientOptions}
-            modules={moduleOptions}
+            clients={clients}
+            modules={moduleSuggestions}
             error={params.error}
           />
         </div>
@@ -131,11 +147,12 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           </label>
           <select id="f-client" name="client" defaultValue={clientFilter} className={filterField}>
             <option value="all">All</option>
-            {clientOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {filterClients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.canonical_name}
               </option>
             ))}
+            {hasUnlinked && <option value="unlinked">(not in client list)</option>}
           </select>
         </div>
         <div>
@@ -144,7 +161,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           </label>
           <select id="f-module" name="module" defaultValue={moduleFilter} className={filterField}>
             <option value="all">All</option>
-            {moduleOptions.map((m) => (
+            {usedModules.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
@@ -228,6 +245,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
               <th className="px-4 py-2.5 font-medium">Module</th>
               <th className="px-4 py-2.5 font-medium">Category</th>
               <th className="px-4 py-2.5 font-medium">Title</th>
+              <th className="px-4 py-2.5 font-medium">Sheet</th>
               <th className="px-4 py-2.5 text-right font-medium">Actions</th>
             </tr>
           </thead>
@@ -235,10 +253,20 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             {issues.map((issue) => (
               <tr key={issue.id} className="border-t border-border align-top">
                 <td className="whitespace-nowrap px-4 py-3">{formatDate(issue.date_resolved)}</td>
-                <td className="px-4 py-3">{issue.client_name ?? "-"}</td>
+                <td className="px-4 py-3">
+                  {issue.client_name ?? "-"}
+                  {issue.client_name && !issue.client_id && (
+                    <span
+                      title="Not linked to the client list. Add the client (or an alias), then edit this issue."
+                      className="mt-1 block w-fit rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted"
+                    >
+                      not in list
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3">{issue.module ?? "-"}</td>
                 <td className="px-4 py-3">{issue.category ?? "-"}</td>
-                <td className="px-4 py-3">
+                <td className="min-w-[20rem] px-4 py-3">
                   <details className="group">
                     <summary className="cursor-pointer list-none font-medium hover:underline">{issue.title}</summary>
                     <dl className="mt-2 space-y-2 text-muted">
@@ -246,7 +274,38 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                       <Detail label="Root cause" value={issue.root_cause} />
                       <Detail label="Resolution" value={issue.resolution} />
                     </dl>
+                    <div className="mt-3 space-y-2 border-t border-border pt-3">
+                      <CopyForSheet
+                        dg={sheetSegmentDG(issue, (issue.client_id ? clientById.get(issue.client_id)?.canonical_name : null) ?? issue.client_name)}
+                        kl={sheetSegmentKL(issue)}
+                      />
+                      {issue.client_id && clientById.get(issue.client_id)?.verified_in_sheet === false && (
+                        <p className="text-xs text-danger">
+                          This client is not verified against Sheet1 yet. Check the name before pasting.
+                        </p>
+                      )}
+                      {issue.client_name && !issue.client_id && (
+                        <p className="text-xs text-danger">
+                          “{issue.client_name}” is not in the client list, so the spelling may not match Sheet1.
+                        </p>
+                      )}
+                    </div>
                   </details>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  <form action={setIssueCopied.bind(null, issue.id, !issue.copied_to_sheet_at)}>
+                    <button
+                      type="submit"
+                      title={issue.copied_to_sheet_at ? "Mark as not in the sheet" : "Mark as entered in the sheet"}
+                      className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                        issue.copied_to_sheet_at
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border text-muted hover:border-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {issue.copied_to_sheet_at ? "✓ In sheet" : "Not yet"}
+                    </button>
+                  </form>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
@@ -269,7 +328,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             ))}
             {issues.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-base text-muted">
+                <td colSpan={7} className="px-4 py-8 text-center text-base text-muted">
                   {filtered ? "No issues match these filters." : "No issues yet. Click “+ Add issue”."}
                 </td>
               </tr>
@@ -314,11 +373,16 @@ function IssueForm({
   error,
 }: {
   issue: IssueLog | null;
-  clients: string[];
+  clients: Client[];
   modules: string[];
   error?: string;
 }) {
   const action = issue ? updateIssue.bind(null, issue.id) : createIssue;
+  // Issue lama yang namanya belum cocok dengan daftar klien: teksnya dipertahankan kecuali
+  // klien dipilih dari daftar (lihat resolveClient di actions.ts).
+  const legacyName = issue && !issue.client_id ? (issue.client_name ?? "") : "";
+  // Hanya klien aktif untuk dipilih, kecuali klien yang sudah terpasang di issue ini.
+  const selectable = clients.filter((c) => c.active || c.id === issue?.client_id);
 
   return (
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
@@ -326,44 +390,32 @@ function IssueForm({
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
-      <div>
-        <label htmlFor="title" className="block text-sm font-medium">
-          Title
-        </label>
-        <input id="title" name="title" type="text" required defaultValue={issue?.title} className={field} />
-      </div>
+      <p className="text-sm text-muted">
+        Fields below are in the same order as the Issue Tracker sheet. Use <span className="font-medium text-foreground">Copy D–G</span>{" "}
+        and <span className="font-medium text-foreground">Copy K–L</span> on the issue after saving.
+      </p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
-          <label htmlFor="date_resolved" className="block text-sm font-medium">
-            Date
-          </label>
-          <input
-            id="date_resolved"
-            name="date_resolved"
-            type="date"
-            defaultValue={issue?.date_resolved ?? todayISO()}
-            className={field}
-          />
-        </div>
-        <div>
-          <label htmlFor="client_name" className="block text-sm font-medium">
+          <label htmlFor="client_id" className="block text-sm font-medium">
             Client
           </label>
-          <input
-            id="client_name"
-            name="client_name"
-            type="text"
-            list="client-options"
-            autoComplete="off"
-            defaultValue={issue?.client_name ?? ""}
-            className={field}
-          />
-          <datalist id="client-options">
-            {clients.map((c) => (
-              <option key={c} value={c} />
+          <select id="client_id" name="client_id" defaultValue={issue?.client_id ?? ""} className={field}>
+            <option value="">{legacyName ? `Keep “${legacyName}” (not in list)` : "Select client"}</option>
+            {selectable.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.canonical_name}
+                {c.verified_in_sheet ? "" : " (not verified)"}
+              </option>
             ))}
-          </datalist>
+          </select>
+          {legacyName && <input type="hidden" name="legacy_client_name" value={legacyName} />}
+          <p className="mt-1 text-xs text-muted">
+            Not listed?{" "}
+            <Link href="/clients" className="underline underline-offset-2 hover:text-foreground">
+              Add a client
+            </Link>
+          </p>
         </div>
         <div>
           <label htmlFor="module" className="block text-sm font-medium">
@@ -386,7 +438,7 @@ function IssueForm({
         </div>
         <div>
           <label htmlFor="category" className="block text-sm font-medium">
-            Category
+            Issue category
           </label>
           <select id="category" name="category" defaultValue={issue?.category ?? ""} className={field}>
             <option value="">Select category</option>
@@ -401,7 +453,7 @@ function IssueForm({
 
       <div>
         <label htmlFor="description" className="block text-sm font-medium">
-          Description
+          Issue description
         </label>
         <textarea id="description" name="description" rows={3} required defaultValue={issue?.description ?? ""} className={field} />
       </div>
@@ -415,11 +467,42 @@ function IssueForm({
         </div>
         <div>
           <label htmlFor="resolution" className="block text-sm font-medium">
-            Resolution
+            Action / Resolution
           </label>
           <textarea id="resolution" name="resolution" rows={3} defaultValue={issue?.resolution ?? ""} className={field} />
         </div>
       </div>
+
+      <fieldset className="rounded-2xl border border-dashed border-border p-4">
+        <legend className="px-2 text-xs font-medium uppercase text-muted">Website only (not copied to the sheet)</legend>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_12rem]">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium">
+              Short title (optional)
+            </label>
+            <input
+              id="title"
+              name="title"
+              type="text"
+              placeholder="Defaults to the start of the description"
+              defaultValue={issue?.title}
+              className={field}
+            />
+          </div>
+          <div>
+            <label htmlFor="date_resolved" className="block text-sm font-medium">
+              Date
+            </label>
+            <input
+              id="date_resolved"
+              name="date_resolved"
+              type="date"
+              defaultValue={issue?.date_resolved ?? todayISO()}
+              className={field}
+            />
+          </div>
+        </div>
+      </fieldset>
 
       <div className="flex gap-2 pt-1">
         <button
