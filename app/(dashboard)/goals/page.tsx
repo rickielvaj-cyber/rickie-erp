@@ -3,15 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import type { Goal, GoalType } from "@/lib/types";
 import { createGoal, toggleGoalDone } from "./actions";
 
-const TYPE_LABEL: Record<GoalType, string> = { learning: "Belajar", work: "Kerja" };
+const TYPE_LABEL: Record<GoalType, string> = { learning: "Learning", work: "Work" };
 
 type SearchParams = { show?: string; new?: string; error?: string };
 type Show = "active" | "done" | "all";
 
 const FILTERS: [Show, string][] = [
-  ["active", "Aktif"],
-  ["done", "Selesai"],
-  ["all", "Semua"],
+  ["active", "Active"],
+  ["done", "Done"],
+  ["all", "All"],
 ];
 
 export default async function GoalsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -57,14 +57,14 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold tracking-tight">Goals</h1>
-          <p className="mt-1 text-base text-muted">Target jangka panjang dengan checklist. Terpisah dari to-do harian.</p>
+          <p className="mt-1 text-base text-muted">Long-term targets with checklists. Separate from daily to-dos.</p>
         </div>
         {!isNew && (
           <Link
             href="/goals?new=1"
             className="shrink-0 rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
           >
-            + Tambah goal
+            + Add goal
           </Link>
         )}
       </div>
@@ -75,7 +75,7 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
         </div>
       )}
 
-      <div className="mt-8 flex gap-2" role="group" aria-label="Filter status goal">
+      <div className="mt-8 flex gap-2" role="group" aria-label="Goal status filter">
         {FILTERS.map(([value, label]) => (
           <Link
             key={value}
@@ -90,17 +90,17 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
 
       {fetchError && (
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
-          Gagal memuat data: {fetchError.message}
+          Failed to load data: {fetchError.message}
         </p>
       )}
 
       {goals.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
           {allGoals.length === 0
-            ? "Belum ada goal. Klik “+ Tambah goal” untuk membuat yang pertama."
+            ? "No goals yet. Click “+ Add goal” to create your first one."
             : show === "done"
-              ? "Belum ada goal yang selesai."
-              : "Tidak ada goal aktif."}
+              ? "No goals completed yet."
+              : "No active goals."}
         </p>
       ) : (
         <ul className="mt-6 flex flex-col gap-4">
@@ -137,8 +137,8 @@ function GoalCard({
           type="submit"
           role="checkbox"
           aria-checked={done}
-          aria-label={done ? `Tandai goal belum selesai: ${goal.title}` : `Tandai goal selesai: ${goal.title}`}
-          title={done ? "Buka kembali goal" : "Tandai goal selesai"}
+          aria-label={done ? `Mark goal as not done: ${goal.title}` : `Mark goal as done: ${goal.title}`}
+          title={done ? "Reopen goal" : "Mark goal as done"}
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
             done ? "bg-foreground text-background" : "hover:bg-surface"
           }`}
@@ -163,7 +163,7 @@ function GoalCard({
 
         <div className="mt-3 flex items-center gap-3 text-sm">
           <span className="whitespace-nowrap">
-            {progress.done} / {progress.total} item
+            {progress.done} / {progress.total} {progress.total === 1 ? "item" : "items"}
           </span>
           {progress.total > 0 && (
             <>
@@ -172,7 +172,7 @@ function GoalCard({
                 aria-valuenow={percent}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`Progres ${goal.title}`}
+                aria-label={`Progress: ${goal.title}`}
                 className="h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-border"
               >
                 <div className="h-full bg-foreground" style={{ width: `${percent}%` }} />
@@ -182,7 +182,7 @@ function GoalCard({
           )}
         </div>
         <p className="mt-1.5 text-sm text-muted">
-          {todos.total === 0 ? "Belum ada to-do terkait" : `${todos.total} to-do terkait · ${todos.done} selesai`}
+          {todos.total === 0 ? "No linked to-dos yet" : `${todos.total} linked ${todos.total === 1 ? "to-do" : "to-dos"} · ${todos.done} done`}
         </p>
       </div>
 
@@ -190,7 +190,7 @@ function GoalCard({
         href={`/goals/${goal.id}`}
         className="shrink-0 rounded-full px-3 py-1 text-sm text-muted transition-colors hover:bg-surface hover:text-foreground"
       >
-        Buka ›
+        Open ›
       </Link>
     </li>
   );
@@ -202,31 +202,31 @@ function GoalForm({ error }: { error?: string }) {
 
   return (
     <form action={createGoal} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
-      <h2 className="text-xl font-semibold tracking-tight">Goal baru</h2>
+      <h2 className="text-xl font-semibold tracking-tight">New goal</h2>
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
-          Judul
+          Title
         </label>
         <input id="title" name="title" type="text" required className={field} />
       </div>
 
       <div>
         <label htmlFor="description" className="block text-sm font-medium">
-          Deskripsi
+          Description
         </label>
         <textarea id="description" name="description" rows={2} className={field} />
       </div>
 
       <div>
         <label htmlFor="type" className="block text-sm font-medium">
-          Jenis
+          Type
         </label>
         <select id="type" name="type" defaultValue="learning" className={field}>
-          <option value="learning">Belajar</option>
-          <option value="work">Kerja</option>
+          <option value="learning">Learning</option>
+          <option value="work">Work</option>
         </select>
       </div>
 
@@ -235,13 +235,13 @@ function GoalForm({ error }: { error?: string }) {
           type="submit"
           className="rounded-full bg-accent px-6 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
         >
-          Simpan
+          Save
         </button>
         <Link
           href="/goals"
           className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
-          Batal
+          Cancel
         </Link>
       </div>
     </form>

@@ -20,7 +20,7 @@ export function SummaryEditor({ summaryText, planText }: { summaryText: string; 
       setCopied(which);
       setTimeout(() => setCopied(null), 2000);
     } catch {
-      window.prompt("Salin manual (Ctrl+C lalu Enter):", text);
+      window.prompt("Copy manually (Ctrl+C, then Enter):", text);
     }
   }
 
@@ -37,7 +37,7 @@ export function SummaryEditor({ summaryText, planText }: { summaryText: string; 
             Summary of This Week
           </label>
           <button type="button" onClick={() => copy("summary")} className={button}>
-            {copied === "summary" ? "Tersalin!" : "Copy"}
+            {copied === "summary" ? "Copied!" : "Copy"}
           </button>
         </div>
         <textarea
@@ -55,10 +55,10 @@ export function SummaryEditor({ summaryText, planText }: { summaryText: string; 
             Next Week Plan
           </label>
           <button type="button" onClick={() => copy("plan")} className={button}>
-            {copied === "plan" ? "Tersalin!" : "Copy"}
+            {copied === "plan" ? "Copied!" : "Copy"}
           </button>
         </div>
-        <p className="mt-1 text-sm text-muted">Terisi dari tugas yang belum selesai. Tambahkan rencana lain langsung di sini.</p>
+        <p className="mt-1 text-sm text-muted">Filled from unfinished tasks. Add other plans right here.</p>
         <textarea
           id="plan-text"
           value={plan}
@@ -74,7 +74,7 @@ export function SummaryEditor({ summaryText, planText }: { summaryText: string; 
           onClick={() => copy("all")}
           className="rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
         >
-          {copied === "all" ? "Tersalin!" : "Copy semua"}
+          {copied === "all" ? "Copied!" : "Copy all"}
         </button>
         {edited && (
           <button
@@ -85,10 +85,10 @@ export function SummaryEditor({ summaryText, planText }: { summaryText: string; 
             }}
             className="text-sm text-muted underline underline-offset-4 hover:text-foreground"
           >
-            Reset ke template
+            Reset to template
           </button>
         )}
-        <span className="text-sm text-muted">Hasil edit tidak disimpan; salin dulu sebelum pindah halaman.</span>
+        <span className="text-sm text-muted">Edits are not saved; copy them before leaving the page.</span>
       </div>
     </div>
   );

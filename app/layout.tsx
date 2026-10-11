@@ -10,12 +10,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Personal Workspace — ERP Consultant",
-  description: "Workspace pribadi: Knowledge Base, To-Do, Issue Log, dan Ringkasan Mingguan.",
+  description: "Personal workspace: Knowledge Base, To-Do, Goals, Issue Log, and Weekly Summary.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${inter.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} h-full`}>
       <body className="min-h-full bg-background text-foreground antialiased">
         <SiteHeader />
         {children}

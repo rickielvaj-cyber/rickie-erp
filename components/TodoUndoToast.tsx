@@ -45,7 +45,7 @@ export function TodoUndoToast() {
       className="fixed bottom-6 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-4 rounded-full bg-foreground py-2.5 pl-5 pr-2.5 text-sm text-background shadow-lg"
     >
       <span className="truncate">
-        {error ? `Gagal mengurungkan: ${error}` : `Tugas dihapus: ${deleted.title}`}
+        {error ? `Failed to undo: ${error}` : `Task deleted: ${deleted.title}`}
       </span>
       <button
         type="button"
@@ -53,7 +53,7 @@ export function TodoUndoToast() {
         disabled={pending}
         className="shrink-0 rounded-full border border-background px-3.5 py-1 transition-colors hover:bg-background hover:text-foreground disabled:opacity-50"
       >
-        {pending ? "…" : "Urungkan"}
+        {pending ? "…" : "Undo"}
       </button>
     </div>
   );

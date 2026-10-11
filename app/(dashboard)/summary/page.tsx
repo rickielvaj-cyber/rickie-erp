@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { addDaysISO, formatDateID, isISODate, mondayOfISO, todayISO } from "@/lib/date";
+import { addDaysISO, formatDate, isISODate, mondayOfISO, todayISO } from "@/lib/date";
 import { buildPlanText, buildSummaryText } from "@/lib/summary";
 import { SummaryEditor } from "@/components/SummaryEditor";
 
@@ -73,28 +73,28 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
     <div className="mx-auto max-w-3xl">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight">Ringkasan Mingguan</h1>
+          <h1 className="text-4xl font-semibold tracking-tight">Weekly Summary</h1>
           <p className="mt-1 text-base text-muted">
-            {formatDateID(weekStart)} – {formatDateID(weekEnd)} · Senin–Jumat · {done.length} tugas selesai ·{" "}
-            {issues.length} issue
+            {formatDate(weekStart)} – {formatDate(weekEnd)} · Mon–Fri · {done.length} tasks completed ·{" "}
+            {issues.length} {issues.length === 1 ? "issue" : "issues"}
           </p>
         </div>
-        <nav aria-label="Pilih minggu" className="flex gap-2">
+        <nav aria-label="Select week" className="flex gap-2">
           <Link href={`/summary?week=${addDaysISO(weekStart, -7)}`} className={pill}>
-            ‹ Sebelumnya
+            ‹ Previous
           </Link>
           <Link href="/summary" className={`${pill} ${isCurrentWeek ? "bg-surface font-medium" : ""}`}>
-            Minggu ini
+            This week
           </Link>
           <Link href={`/summary?week=${addDaysISO(weekStart, 7)}`} className={pill}>
-            Berikutnya ›
+            Next ›
           </Link>
         </nav>
       </div>
 
       {fetchError && (
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
-          Gagal memuat data: {fetchError.message}
+          Failed to load data: {fetchError.message}
         </p>
       )}
 
@@ -104,8 +104,8 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
       </div>
 
       <p className="mt-8 text-sm text-muted">
-        Tugas dihitung selesai berdasarkan tanggal dicentang (zona Asia/Jakarta), issue berdasarkan tanggalnya.
-        Yang dicentang atau dicatat di Sabtu–Minggu tidak masuk ringkasan Senin–Jumat.
+        Tasks count by the date they were checked off (Asia/Jakarta time zone); issues count by their own date.
+        Anything checked off or logged on Saturday–Sunday is not included in the Mon–Fri summary.
       </p>
     </div>
   );

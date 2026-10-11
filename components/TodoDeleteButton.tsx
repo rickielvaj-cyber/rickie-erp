@@ -7,7 +7,7 @@ import { deleteTodo } from "@/app/(dashboard)/todos/actions";
 export const TODO_DELETED_EVENT = "todo-deleted";
 
 // Hapus langsung (tanpa dialog konfirmasi); salah klik bisa dibatalkan lewat
-// toast "Urungkan" di TodoUndoToast, yang mendengar event ini.
+// toast "Undo" di TodoUndoToast, yang mendengar event ini.
 export function TodoDeleteButton({
   todo,
   variant = "row",
@@ -32,8 +32,8 @@ export function TodoDeleteButton({
         type="button"
         onClick={onClick}
         disabled={pending}
-        title="Hapus tugas"
-        aria-label={`Hapus tugas: ${todo.title}`}
+        title="Delete task"
+        aria-label={`Delete task: ${todo.title}`}
         className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border border-border text-[13px] leading-none text-muted transition-colors hover:border-foreground hover:bg-background hover:text-danger disabled:opacity-40"
       >
         ×
@@ -46,10 +46,10 @@ export function TodoDeleteButton({
       type="button"
       onClick={onClick}
       disabled={pending}
-      aria-label={`Hapus tugas: ${todo.title}`}
+      aria-label={`Delete task: ${todo.title}`}
       className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-danger disabled:opacity-40"
     >
-      Hapus
+      Delete
     </button>
   );
 }

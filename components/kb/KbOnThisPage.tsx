@@ -19,7 +19,7 @@ export function KbOnThisPage({ headings, defaultOpen }: { headings: KbHeading[];
   return (
     <details open={defaultOpen} className="group rounded-md border border-border bg-surface">
       <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium marker:text-muted">
-        Di halaman ini
+        On this page
       </summary>
       <ul className="max-h-[70vh] space-y-0.5 overflow-y-auto px-3 pb-3 text-sm">
         {headings.map((h) => (

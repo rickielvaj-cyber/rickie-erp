@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/todos", label: "To-Do List" },
   { href: "/goals", label: "Goals" },
   { href: "/issues", label: "Issue Log" },
-  { href: "/summary", label: "Ringkasan Mingguan" },
+  { href: "/summary", label: "Weekly Summary" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -20,7 +20,7 @@ function isActive(pathname: string, href: string) {
 
 function NavLinks({ pathname, className }: { pathname: string; className?: string }) {
   return (
-    <nav aria-label="Menu utama" className={className}>
+    <nav aria-label="Main menu" className={className}>
       {LINKS.map((link) => {
         const active = isActive(pathname, link.href);
         return (
@@ -69,7 +69,7 @@ function UserMenu({ email }: { email: string }) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Menu akun"
+        aria-label="Account menu"
         className="flex items-center gap-1.5 rounded-full p-0.5 pr-2 transition-colors hover:bg-surface"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full border border-foreground text-xs font-medium uppercase">
@@ -86,7 +86,7 @@ function UserMenu({ email }: { email: string }) {
           className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-background p-2 shadow-lg"
         >
           <div className="border-b border-border px-3 pb-2 pt-1">
-            <p className="text-xs text-muted">Masuk sebagai</p>
+            <p className="text-xs text-muted">Signed in as</p>
             <p className="truncate text-sm font-medium" title={email}>
               {email}
             </p>
@@ -99,7 +99,7 @@ function UserMenu({ email }: { email: string }) {
               role="menuitem"
               className="block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface"
             >
-              Export semua data (JSON)
+              Export all data (JSON)
             </a>
             <a
               href="/api/export/issues"
@@ -116,7 +116,7 @@ function UserMenu({ email }: { email: string }) {
               role="menuitem"
               className="w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-surface"
             >
-              Keluar
+              Sign out
             </button>
           </form>
         </div>

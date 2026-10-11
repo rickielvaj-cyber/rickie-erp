@@ -43,7 +43,7 @@ export function EntryEditor({
       const body = await res.json();
 
       if (!res.ok) {
-        setError(body.error ?? "Gagal menyimpan perubahan.");
+        setError(body.error ?? "Failed to save changes.");
         return;
       }
 
@@ -51,7 +51,7 @@ export function EntryEditor({
       setEditing(false);
       router.refresh();
     } catch {
-      setError("Gagal menyimpan perubahan — cek koneksi dan coba lagi.");
+      setError("Failed to save changes — check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -86,7 +86,7 @@ export function EntryEditor({
 
       <div>
         <label htmlFor={`entry-title-${entryId}`} className="block text-sm font-medium">
-          Judul
+          Title
         </label>
         <input
           id={`entry-title-${entryId}`}
@@ -99,7 +99,7 @@ export function EntryEditor({
 
       <div>
         <label htmlFor={`entry-content-${entryId}`} className="block text-sm font-medium">
-          Konten
+          Content
         </label>
         <textarea
           id={`entry-content-${entryId}`}
@@ -124,7 +124,7 @@ export function EntryEditor({
           disabled={saving}
           className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
         >
-          {saving ? "Menyimpan..." : "Simpan"}
+          {saving ? "Saving..." : "Save"}
         </button>
         <button
           type="button"
@@ -132,7 +132,7 @@ export function EntryEditor({
           disabled={saving}
           className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-foreground disabled:opacity-50"
         >
-          Batal
+          Cancel
         </button>
       </div>
     </div>

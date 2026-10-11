@@ -33,30 +33,35 @@ export function mondayOfISO(iso: string): string {
   return addDaysISO(iso, weekday === 0 ? -6 : 1 - weekday);
 }
 
+// en-GB menulis September sebagai "Sept"; kita pakai "Sep" seperti bulan lain yang 3 huruf.
+const shortSep = (text: string) => text.replace("Sept", "Sep");
+
 function formatISO(iso: string, options: Intl.DateTimeFormatOptions): string {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString("id-ID", { timeZone: "UTC", ...options });
+  return shortSep(new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString("en-GB", { timeZone: "UTC", ...options }));
 }
 
-/** "Selasa, 7 Oktober" */
-export const formatLongDayID = (iso: string) => formatISO(iso, { weekday: "long", day: "numeric", month: "long" });
-/** "Sen" */
-export const formatWeekdayShortID = (iso: string) => formatISO(iso, { weekday: "short" });
-/** "7 Okt" */
-export const formatDayMonthID = (iso: string) => formatISO(iso, { day: "numeric", month: "short" });
+/** "Tuesday 7 October" */
+export const formatLongDay = (iso: string) => formatISO(iso, { weekday: "long", day: "numeric", month: "long" });
+/** "Mon" */
+export const formatWeekdayShort = (iso: string) => formatISO(iso, { weekday: "short" });
+/** "7 Oct" */
+export const formatDayMonth = (iso: string) => formatISO(iso, { day: "numeric", month: "short" });
 
-export function formatDateID(isoDate: string | null): string {
+export function formatDate(isoDate: string | null): string {
   if (!isoDate) return "-";
   const date = new Date(`${isoDate}T00:00:00`);
-  return date.toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return shortSep(
+    date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }),
+  );
 }
 
-/** "2026-10" -> "Okt 2026" */
-export function formatMonthYearID(yyyyMm: string): string {
+/** "2026-10" -> "Oct 2026" */
+export function formatMonthYear(yyyyMm: string): string {
   return formatISO(`${yyyyMm}-01`, { month: "short", year: "numeric" });
 }
 

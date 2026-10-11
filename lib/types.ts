@@ -53,6 +53,20 @@ export type IssueLog = {
   resolution: string | null;
   date_resolved: string | null;
   created_at: string;
+  client_id: string | null;
+  /** Kapan terakhir isi enam kolom sheet disalin; null = belum / sudah berubah sejak disalin. */
+  copied_to_sheet_at: string | null;
+};
+
+/** Master klien. `canonical_name` = ejaan persis seperti Customer Name di Sheet1. */
+export type Client = {
+  id: string;
+  user_id: string;
+  canonical_name: string;
+  aliases: string[];
+  verified_in_sheet: boolean;
+  active: boolean;
+  created_at: string;
 };
 
 export type KbEntry = {
@@ -103,9 +117,21 @@ export type Database = {
       };
       issue_log: {
         Row: IssueLog;
-        Insert: Omit<IssueLog, "id" | "created_at" | "user_id" | "module" | "root_cause"> &
-          Partial<Pick<IssueLog, "id" | "created_at" | "user_id" | "module" | "root_cause">>;
+        Insert: Omit<
+          IssueLog,
+          "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "copied_to_sheet_at"
+        > &
+          Partial<
+            Pick<IssueLog, "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "copied_to_sheet_at">
+          >;
         Update: Partial<Omit<IssueLog, "id">>;
+        Relationships: [];
+      };
+      clients: {
+        Row: Client;
+        Insert: Pick<Client, "canonical_name"> &
+          Partial<Pick<Client, "id" | "user_id" | "aliases" | "verified_in_sheet" | "active" | "created_at">>;
+        Update: Partial<Omit<Client, "id">>;
         Relationships: [];
       };
       kb_entries: {
