@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { kindOf } from "@/lib/clients";
 import type { Client } from "@/lib/types";
 import { addClient, setClientActive, setClientVerified, updateClient } from "./actions";
 
@@ -38,8 +39,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         <div>
           <h1 className="text-4xl font-semibold tracking-tight">Clients</h1>
           <p className="mt-1 text-base text-muted">
-            Names here must match <span className="font-medium text-foreground">Customer Name</span> in the Issue Tracker
-            sheet exactly, so per-client KPIs are not split.
+            Clients must match <span className="font-medium text-foreground">Customer Name</span> in the Issue Tracker
+            sheet exactly, and partners must match how you type them in its Client column, so per-client KPIs are not split.
           </p>
         </div>
         <Link
@@ -66,15 +67,13 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
       {unverifiedCount > 0 && (
         <p className="mt-6 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted">
-          {unverifiedCount} {unverifiedCount === 1 ? "client is" : "clients are"} not verified against the sheet yet. Add the
-          name to Sheet1 (or confirm it with Willy), then tick <span className="font-medium text-foreground">Verified</span>.
+          {unverifiedCount} {unverifiedCount === 1 ? "name is" : "names are"} not verified against the sheet yet. Check the exact
+          spelling (for clients: Sheet1, or confirm with Willy), fix it with Edit if needed, then tick{" "}
+          <span className="font-medium text-foreground">Verified</span>.
         </p>
       )}
 
-      <div className="mt-6 flex items-center justify-between text-sm">
-        <span className="text-muted">
-          {clients.length} {clients.length === 1 ? "client" : "clients"}
-        </span>
+      <div className="mt-6 flex items-center justify-end text-sm">
         <Link
           href={showInactive ? "/clients" : "/clients?show=all"}
           className="text-muted underline underline-offset-4 hover:text-foreground"
@@ -83,53 +82,32 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         </Link>
       </div>
 
-      <ul className="mt-3 overflow-hidden rounded-2xl border border-foreground">
-        {clients.map((client) => (
-          <li key={client.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 border-b border-border px-5 py-4 last:border-b-0">
-            <div className="min-w-0 flex-1 basis-60">
-              <p className={`text-base font-medium ${client.active ? "" : "text-muted line-through"}`}>
-                {client.canonical_name}
-              </p>
-              {client.aliases.length > 0 && (
-                <p className="mt-0.5 text-sm text-muted">Also known as: {client.aliases.join(", ")}</p>
+      {(["client", "partner"] as const).map((kind) => {
+        const rows = clients.filter((c) => kindOf(c) === kind);
+        return (
+          <section key={kind} aria-labelledby={`${kind}-heading`} className="mt-3 first-of-type:mt-0">
+            <h2 id={`${kind}-heading`} className="mb-2 mt-6 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
+              {kind === "client" ? "Clients" : "Partners"}
+              <span className="text-sm font-normal text-muted">{rows.length}</span>
+            </h2>
+            <ul className="overflow-hidden rounded-2xl border border-foreground">
+              {rows.map((client) => (
+                <ClientRow
+                  key={client.id}
+                  client={client}
+                  count={issueCount.get(client.id) ?? 0}
+                  showInactive={showInactive}
+                />
+              ))}
+              {rows.length === 0 && (
+                <li className="px-5 py-6 text-center text-base text-muted">
+                  {kind === "client" ? "No clients yet." : "No partners yet."}
+                </li>
               )}
-              <p className="mt-0.5 text-xs text-muted">
-                {issueCount.get(client.id) ?? 0} {(issueCount.get(client.id) ?? 0) === 1 ? "issue" : "issues"}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <form action={setClientVerified.bind(null, client.id, !client.verified_in_sheet)}>
-                <button
-                  type="submit"
-                  title={client.verified_in_sheet ? "Mark as not verified" : "Mark as verified against Sheet1"}
-                  className={`rounded-full border px-3 py-1 transition-colors ${
-                    client.verified_in_sheet
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border text-muted hover:border-foreground hover:text-foreground"
-                  }`}
-                >
-                  {client.verified_in_sheet ? "✓ Verified" : "Not verified"}
-                </button>
-              </form>
-              <Link
-                href={`/clients?edit=${client.id}${showInactive ? "&show=all" : ""}`}
-                className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
-              >
-                Edit
-              </Link>
-              <form action={setClientActive.bind(null, client.id, !client.active)}>
-                <button
-                  type="submit"
-                  className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
-                >
-                  {client.active ? "Deactivate" : "Reactivate"}
-                </button>
-              </form>
-            </div>
-          </li>
-        ))}
-        {clients.length === 0 && <li className="px-5 py-8 text-center text-base text-muted">No clients yet.</li>}
-      </ul>
+            </ul>
+          </section>
+        );
+      })}
 
       {unlinked.size > 0 && (
         <section className="mt-8">
@@ -154,20 +132,75 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   );
 }
 
+function ClientRow({ client, count, showInactive }: { client: Client; count: number; showInactive: boolean }) {
+  return (
+    <li className="flex flex-wrap items-start gap-x-4 gap-y-2 border-b border-border px-5 py-4 last:border-b-0">
+      <div className="min-w-0 flex-1 basis-60">
+        <p className={`text-base font-medium ${client.active ? "" : "text-muted line-through"}`}>{client.canonical_name}</p>
+        {client.aliases.length > 0 && (
+          <p className="mt-0.5 text-sm text-muted">Also known as: {client.aliases.join(", ")}</p>
+        )}
+        <p className="mt-0.5 text-xs text-muted">
+          {count} {count === 1 ? "issue" : "issues"}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <form action={setClientVerified.bind(null, client.id, !client.verified_in_sheet)}>
+          <button
+            type="submit"
+            title={client.verified_in_sheet ? "Mark as not verified" : "Mark as verified against the sheet"}
+            className={`rounded-full border px-3 py-1 transition-colors ${
+              client.verified_in_sheet
+                ? "border-foreground bg-foreground text-background"
+                : "border-border text-muted hover:border-foreground hover:text-foreground"
+            }`}
+          >
+            {client.verified_in_sheet ? "✓ Verified" : "Not verified"}
+          </button>
+        </form>
+        <Link
+          href={`/clients?edit=${client.id}${showInactive ? "&show=all" : ""}`}
+          className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
+        >
+          Edit
+        </Link>
+        <form action={setClientActive.bind(null, client.id, !client.active)}>
+          <button
+            type="submit"
+            className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
+          >
+            {client.active ? "Deactivate" : "Reactivate"}
+          </button>
+        </form>
+      </div>
+    </li>
+  );
+}
+
 function ClientForm({ client, error }: { client: Client | null; error?: string }) {
   const action = client ? updateClient.bind(null, client.id) : addClient;
 
   return (
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 id="add-heading" className="text-xl font-semibold tracking-tight">
-        {client ? "Edit client" : "Add client"}
+        {client ? "Edit" : "Add a client or partner"}
       </h2>
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
+        <label htmlFor="kind" className="block text-sm font-medium">
+          Type
+        </label>
+        <select id="kind" name="kind" defaultValue={client ? kindOf(client) : "client"} className={field}>
+          <option value="client">Client (customer, listed in Sheet1)</option>
+          <option value="partner">Partner (e.g. Weefer, Metrodata)</option>
+        </select>
+      </div>
+
+      <div>
         <label htmlFor="canonical_name" className="block text-sm font-medium">
-          Name (exactly as in Sheet1)
+          Name (exactly as written in the sheet)
         </label>
         <input
           id="canonical_name"
@@ -205,7 +238,7 @@ function ClientForm({ client, error }: { client: Client | null; error?: string }
           type="submit"
           className="rounded-full bg-accent px-6 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
         >
-          {client ? "Save" : "Add client"}
+          {client ? "Save" : "Add"}
         </button>
         {client && (
           <Link
@@ -217,7 +250,7 @@ function ClientForm({ client, error }: { client: Client | null; error?: string }
         )}
       </div>
       {!client && (
-        <p className="text-xs text-muted">New clients start as “not verified” until you confirm the name against the sheet.</p>
+        <p className="text-xs text-muted">New entries start as “not verified” until you confirm the name against the sheet.</p>
       )}
     </form>
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { endOfMonthISO, formatDate, formatMonthYear, isYearMonth, todayISO } from "@/lib/date";
 import { ISSUE_CATEGORIES, ISSUE_MODULE_SUGGESTIONS, countBy } from "@/lib/issues";
+import { kindOf } from "@/lib/clients";
 import { sheetSegmentDG, sheetSegmentKL } from "@/lib/sheet";
 import type { Client, IssueLog } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -398,22 +399,30 @@ function IssueForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label htmlFor="client_id" className="block text-sm font-medium">
-            Client
+            Client / partner
           </label>
           <select id="client_id" name="client_id" defaultValue={issue?.client_id ?? ""} className={field}>
-            <option value="">{legacyName ? `Keep “${legacyName}” (not in list)` : "Select client"}</option>
-            {selectable.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.canonical_name}
-                {c.verified_in_sheet ? "" : " (not verified)"}
-              </option>
-            ))}
+            <option value="">{legacyName ? `Keep “${legacyName}” (not in list)` : "Select client or partner"}</option>
+            {(["client", "partner"] as const).map((kind) => {
+              const group = selectable.filter((c) => kindOf(c) === kind);
+              if (group.length === 0) return null;
+              return (
+                <optgroup key={kind} label={kind === "client" ? "Clients" : "Partners"}>
+                  {group.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.canonical_name}
+                      {c.verified_in_sheet ? "" : " (not verified)"}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
           {legacyName && <input type="hidden" name="legacy_client_name" value={legacyName} />}
           <p className="mt-1 text-xs text-muted">
             Not listed?{" "}
             <Link href="/clients" className="underline underline-offset-2 hover:text-foreground">
-              Add a client
+              Add a client or partner
             </Link>
           </p>
         </div>

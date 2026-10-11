@@ -19,7 +19,8 @@ function readClientFields(formData: FormData) {
         .filter((a) => a && a.toLowerCase() !== name.toLowerCase()),
     ),
   );
-  return { name, aliases };
+  const kind = formData.get("kind") === "partner" ? ("partner" as const) : ("client" as const);
+  return { name, aliases, kind };
 }
 
 function revalidateClientViews() {
@@ -29,16 +30,16 @@ function revalidateClientViews() {
 }
 
 function failure(error: { code?: string; message: string }) {
-  return error.code === "23505" ? "A client with this name already exists." : error.message;
+  return error.code === "23505" ? "A client or partner with this name already exists." : error.message;
 }
 
 export async function addClient(formData: FormData) {
-  const { name, aliases } = readClientFields(formData);
-  if (!name) redirect("/clients?error=" + encodeURIComponent("Client name is required."));
+  const { name, aliases, kind } = readClientFields(formData);
+  if (!name) redirect("/clients?error=" + encodeURIComponent("Name is required."));
 
   const supabase = await createClient();
   // Klien baru dari website belum terbukti ada di Sheet1, jadi mulai sebagai "belum terverifikasi".
-  const { error } = await supabase.from("clients").insert({ canonical_name: name, aliases, verified_in_sheet: false });
+  const { error } = await supabase.from("clients").insert({ canonical_name: name, aliases, kind, verified_in_sheet: false });
   if (error) redirect("/clients?error=" + encodeURIComponent(failure(error)));
 
   revalidateClientViews();
@@ -47,11 +48,11 @@ export async function addClient(formData: FormData) {
 
 export async function updateClient(id: string, formData: FormData) {
   if (!UUID_RE.test(id)) redirect("/clients");
-  const { name, aliases } = readClientFields(formData);
-  if (!name) redirect(`/clients?edit=${id}&error=` + encodeURIComponent("Client name is required."));
+  const { name, aliases, kind } = readClientFields(formData);
+  if (!name) redirect(`/clients?edit=${id}&error=` + encodeURIComponent("Name is required."));
 
   const supabase = await createClient();
-  const { error } = await supabase.from("clients").update({ canonical_name: name, aliases }).eq("id", id);
+  const { error } = await supabase.from("clients").update({ canonical_name: name, aliases, kind }).eq("id", id);
   if (error) redirect(`/clients?edit=${id}&error=` + encodeURIComponent(failure(error)));
 
   // client_name di issue adalah salinan nama kanonik (dipakai Ringkasan Mingguan dan Export CSV);
