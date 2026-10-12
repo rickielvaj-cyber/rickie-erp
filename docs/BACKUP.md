@@ -1,0 +1,115 @@
+# Backup database
+
+Supabase free tier **tidak punya backup otomatis**. Backup di sini dibuat oleh GitHub Actions setiap
+minggu, dienkripsi, dan disimpan di luar Supabase dan Vercel.
+
+## Yang dibackup, dan yang tidak
+
+| Ikut backup | Tidak ikut backup |
+|---|---|
+| Semua tabel aplikasi: to-do, goal, item goal, Issue Log, klien/partner, **225 entri Knowledge Base** | **Akun login** (`auth.users`), lihat langkah restore |
+| Struktur tabel, policy RLS, fungsi, trigger | **File gambar KB** di Storage (±1.200 gambar). Sumbernya tetap file Word asli Rickie; simpan file itu |
+| | Pengaturan project (Auth, domain, dsb.) |
+
+## Cara kerja
+
+- **Kapan:** setiap Senin 03:00 WIB. Bisa juga dijalankan manual (lihat "Uji").
+- **Isi:** `pg_dump` schema `public`, dikompres, lalu dienkripsi AES-256 dengan passphrase.
+- **Di mana:** artifact di tab **Actions** GitHub, disimpan **90 hari** (±12 backup mingguan).
+- **Kenapa wajib terenkripsi:** repo ini **publik**, dan artifact bisa diunduh siapa saja yang login
+  ke GitHub. Tanpa enkripsi, data klien akan terbuka. Passphrase tidak pernah ada di repo.
+- **Kalau gagal:** GitHub mengirim email ke pemilik repo. Jangan diabaikan.
+
+Selain itu, `/api/cron/keep-alive` dipanggil Vercel Cron tiap hari supaya project Supabase tidak
+di-pause karena tidak aktif seminggu.
+
+## Pengaturan satu kali (±10 menit)
+
+### 1. Ambil connection string database
+Supabase Dashboard → **Connect** → tab **Session pooler** → salin URI-nya
+(bentuknya `postgresql://postgres.xxxxx:[PASSWORD]@aws-...pooler.supabase.com:5432/postgres`).
+Ganti `[PASSWORD]` dengan password database. Lupa password? Database → Settings → Reset database password.
+
+> Pakai **Session pooler**, bukan "Direct connection". GitHub Actions hanya IPv4, dan koneksi langsung
+> Supabase hanya IPv6.
+
+### 2. Buat passphrase
+Buat kalimat acak yang **panjang** (≥ 20 karakter), lalu **simpan di password manager**.
+**Kalau passphrase hilang, semua backup tidak bisa dibuka.** Tidak ada cara memulihkannya.
+
+### 3. Simpan keduanya sebagai rahasia di GitHub
+Repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
+
+| Nama | Isi |
+|---|---|
+| `SUPABASE_DB_URL` | connection string dari langkah 1 (sudah berisi password) |
+| `BACKUP_PASSPHRASE` | passphrase dari langkah 2 |
+
+### 4. (Disarankan) Amankan endpoint keep-alive
+Vercel → project → **Settings** → **Environment Variables** → tambah `CRON_SECRET` berisi teks acak
+panjang (Production). Vercel Cron otomatis memakainya. Tanpa ini endpoint tetap tidak berbahaya
+(tidak mengembalikan data), hanya terbuka untuk dipanggil siapa saja.
+
+## Uji (lakukan sekali setelah pengaturan)
+
+1. Repo → tab **Actions** → **Backup database** → **Run workflow**.
+2. Tunggu hijau (±1 menit). Buka run-nya: di bagian **Artifacts** ada `backup-…`.
+3. Log menampilkan jumlah baris per tabel. Pastikan angkanya masuk akal (mis. `kb_entries` 225).
+4. Unduh artifact dan coba buka (langkah "Membuka backup" di bawah) untuk memastikan passphrase benar.
+
+## Membuka backup
+
+Butuh `gpg` (Mac: `brew install gnupg`; Windows: Gpg4win; Linux: sudah ada).
+
+```bash
+# 1. unduh artifact dari tab Actions, ekstrak zip-nya, lalu:
+gpg -d backup-2026-10-12.sql.gz.gpg | gunzip > backup.sql
+# (diminta passphrase)
+```
+
+`backup.sql` berisi seluruh data Rickie dalam teks biasa: **jangan unggah ke mana pun**, hapus setelah dipakai.
+
+## Restore (project baru atau data hilang)
+
+File backup sudah berisi **struktur tabel + policy RLS + fungsi + data**, jadi **tidak perlu menjalankan
+migrasi** lebih dulu (justru akan error "sudah ada"). Akun login tidak ikut backup, jadi data harus
+dihubungkan ke akun **baru**:
+
+1. Buat project Supabase **baru dan kosong**. (Hanya data yang hilang di project lama? Lihat catatan di bawah.)
+2. Daftar/login di situs yang menunjuk ke project baru supaya akun baru terbentuk. Ambil **User UID**-nya:
+   Supabase Dashboard → Authentication → Users.
+3. Cari UID **lama** di file backup. UID pengguna muncul di setiap baris data, jadi dialah UUID yang paling sering:
+   ```bash
+   grep -o "'[0-9a-f]\{8\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{12\}'" backup.sql \
+     | sort | uniq -c | sort -rn | head -3
+   ```
+   Baris teratas = UID lama (angka di depannya jauh lebih besar dari yang lain).
+4. Ganti UID lama dengan yang baru:
+   ```bash
+   sed "s/UID-LAMA/UID-BARU/g" backup.sql > restore.sql
+   ```
+5. Jalankan `restore.sql` di **SQL Editor** (tempel isinya), atau `psql "$SUPABASE_DB_URL" -f restore.sql`.
+6. Buka situs, cek to-do, Goals, Issue Log, Clients, dan KB.
+7. Buat ulang bucket Storage seperti di project lama dan unggah ulang gambar KB dari file Word asli
+   (Storage tidak ikut backup). Pengaturan Auth (mis. matikan sign-up publik) juga harus diulang.
+
+**Hanya isi tabel yang hilang, project lama masih ada?** Jangan jalankan `restore.sql` utuh: ia mencoba
+membuat ulang tabel dan akan error. Ambil hanya baris `INSERT INTO "public"."nama_tabel"` untuk tabel yang
+perlu dipulihkan (dan ganti UID bila akunnya juga berubah).
+
+> Alur ini sudah diuji ujung ke ujung dengan data tiruan: jumlah baris dan isi (termasuk teks
+> multi-baris, tab, dan tanda kutip) identik setelah restore ke database kosong dengan pengguna berbeda,
+> dan policy RLS serta `search_path` fungsi ikut pulih.
+> **Uji restore sungguhan ke project kosong setiap beberapa bulan.** Backup yang tidak pernah
+> dicoba dipulihkan belum bisa dianggap backup.
+
+## Batasan yang perlu diketahui
+
+- **Kehilangan data maksimal ±1 minggu** (sejak backup terakhir). Sebelum perubahan besar (mis. migrasi),
+  jalankan manual lewat **Run workflow**, atau unduh **Export JSON** dari menu akun.
+- GitHub menonaktifkan jadwal otomatis pada repo yang tidak ada aktivitas **60 hari**. Selama repo masih
+  dipakai (commit/merge) ini tidak terjadi. Cek tab Actions kalau ragu.
+- Artifact disimpan 90 hari. Mau lebih lama? Unduh sebulan sekali dan simpan di tempat pribadi
+  (Drive pribadi, terenkripsi tetap aman).
+- `SUPABASE_DB_URL` memakai akun `postgres` yang berhak penuh. Rahasia GitHub tidak bisa dibaca dari
+  repo atau log, tapi siapa pun yang punya akses admin ke repo bisa memakainya. Repo ini hanya milik Rickie.
