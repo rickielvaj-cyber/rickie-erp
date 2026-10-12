@@ -193,8 +193,8 @@ function ClientForm({ client, error }: { client: Client | null; error?: string }
           Type
         </label>
         <select id="kind" name="kind" defaultValue={client ? kindOf(client) : "client"} className={field}>
-          <option value="client">Client (customer, listed in Sheet1)</option>
-          <option value="partner">Partner (e.g. Weefer, Metrodata)</option>
+          <option value="client">Client</option>
+          <option value="partner">Partner</option>
         </select>
       </div>
 

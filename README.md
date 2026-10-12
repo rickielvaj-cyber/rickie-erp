@@ -69,8 +69,9 @@ supabase db push
   trigger), `issue_log.module` + `root_cause`, dan kategori issue dibatasi 10 pilihan (hanya untuk
   data baru; kategori lama tidak diubah).
 
-Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (Supabase
-Dashboard → Database → Backups) sebelum menjalankan `0006`, karena itu yang menyentuh data lama.
+Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (free tier tidak punya backup otomatis; lihat
+[docs/BACKUP.md](docs/BACKUP.md): jalankan workflow *Backup database* secara manual, atau unduh Export JSON)
+sebelum menjalankan `0006`, karena itu yang menyentuh data lama.
 
 ### 3b. Matikan sign-up publik (wajib)
 

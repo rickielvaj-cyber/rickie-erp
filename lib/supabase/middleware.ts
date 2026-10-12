@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Halaman yang bisa dibuka tanpa login. "/" (Home) harus dicocokkan persis —
 // kalau pakai startsWith, semua path ikut jadi publik.
-const PUBLIC_PATHS = ["/login"];
+// /api/cron/: dipanggil Vercel Cron tanpa sesi login (diamankan CRON_SECRET, lihat route-nya).
+const PUBLIC_PATHS = ["/login", "/api/cron/"];
 const PUBLIC_EXACT_PATHS = ["/"];
 
 export async function updateSession(request: NextRequest) {

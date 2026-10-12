@@ -96,18 +96,12 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div>
           <h1 className="text-4xl font-semibold tracking-tight">Issue Log</h1>
           <p className="mt-1 text-base text-muted">Client issue records, replacing the daily sheet.</p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          <Link
-            href="/clients"
-            className="rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
-          >
-            Clients
-          </Link>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <a
             href={exportHref}
             download
@@ -123,6 +117,12 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
               + Add issue
             </Link>
           )}
+          <Link
+            href="/clients"
+            className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:border-foreground hover:text-foreground"
+          >
+            Add new client
+          </Link>
         </div>
       </div>
 
