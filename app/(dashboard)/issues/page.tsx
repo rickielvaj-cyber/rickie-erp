@@ -4,7 +4,7 @@ import { endOfMonthISO, formatDate, formatMonthYear, isYearMonth, todayISO } fro
 import { ISSUE_CATEGORIES, ISSUE_MODULE_SUGGESTIONS, countBy } from "@/lib/issues";
 import { kindOf } from "@/lib/clients";
 import { sheetSegmentDG, sheetSegmentKL } from "@/lib/sheet";
-import type { Client, IssueLog } from "@/lib/types";
+import type { Client, IssueLog, ProjectStatus } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { CopyForSheet } from "@/components/CopyForSheet";
 import { createIssue, deleteIssue, setIssueCopied, updateIssue } from "./actions";
@@ -53,19 +53,26 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   if (monthFrom) query = query.gte("date_resolved", `${monthFrom}-01`);
   if (monthTo) query = query.lte("date_resolved", endOfMonthISO(monthTo));
 
-  const [{ data: allForOptions }, { data: found, error: fetchError }, editResult, clientsResult] = await Promise.all([
+  const [{ data: allForOptions }, { data: found, error: fetchError }, editResult, clientsResult, projectsResult] = await Promise.all([
     supabase.from("issue_log").select("client_id, client_name, module"),
     query
       .order("date_resolved", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
     editId ? supabase.from("issue_log").select("*").eq("id", editId).maybeSingle() : Promise.resolve(null),
     supabase.from("clients").select("*").order("canonical_name", { ascending: true }),
+    supabase.from("projects").select("id, name, client_id, status").order("created_at", { ascending: false }),
   ]);
 
   const issues = found ?? [];
   const editingIssue = editResult?.data ?? null;
   const clients: Client[] = clientsResult.data ?? [];
   const clientById = new Map(clients.map((c) => [c.id, c]));
+  const projectOptions: ProjectOption[] = (projectsResult.data ?? []).map((p) => ({
+    id: p.id,
+    status: p.status,
+    label: `${clientById.get(p.client_id)?.canonical_name ?? "Client"} — ${p.name}`,
+  }));
+  const projectLabel = new Map(projectOptions.map((p) => [p.id, p.label]));
   // Filter: hanya klien yang punya issue; plus pilihan untuk issue lama yang belum tertaut ke daftar.
   const usedClientIds = new Set((allForOptions ?? []).map((r) => r.client_id).filter((v): v is string => Boolean(v)));
   const filterClients = clients.filter((c) => usedClientIds.has(c.id));
@@ -132,6 +139,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             key={editingIssue?.id ?? "new"}
             issue={editingIssue}
             clients={clients}
+            projects={projectOptions}
             modules={moduleSuggestions}
             error={params.error}
           />
@@ -275,6 +283,14 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                       <Detail label="Root cause" value={issue.root_cause} />
                       <Detail label="Resolution" value={issue.resolution} />
                     </dl>
+                    {issue.project_id && projectLabel.get(issue.project_id) && (
+                      <p className="mt-2 text-xs text-muted">
+                        Project:{" "}
+                        <Link href={`/projects/${issue.project_id}`} className="underline underline-offset-2 hover:text-foreground">
+                          {projectLabel.get(issue.project_id)}
+                        </Link>
+                      </p>
+                    )}
                     <div className="mt-3 space-y-2 border-t border-border pt-3">
                       <CopyForSheet
                         dg={sheetSegmentDG(issue, (issue.client_id ? clientById.get(issue.client_id)?.canonical_name : null) ?? issue.client_name)}
@@ -367,14 +383,18 @@ function Detail({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+type ProjectOption = { id: string; label: string; status: ProjectStatus };
+
 function IssueForm({
   issue,
   clients,
+  projects,
   modules,
   error,
 }: {
   issue: IssueLog | null;
   clients: Client[];
+  projects: ProjectOption[];
   modules: string[];
   error?: string;
 }) {
@@ -510,6 +530,22 @@ function IssueForm({
               className={field}
             />
           </div>
+        </div>
+        <div className="mt-3">
+          <label htmlFor="project_id" className="block text-sm font-medium">
+            Project (optional)
+          </label>
+          <select id="project_id" name="project_id" defaultValue={issue?.project_id ?? ""} className={field}>
+            <option value="">No project</option>
+            {projects
+              .filter((p) => p.status !== "done" || p.id === issue?.project_id)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                  {p.status === "done" ? " (done)" : ""}
+                </option>
+              ))}
+          </select>
         </div>
       </fieldset>
 

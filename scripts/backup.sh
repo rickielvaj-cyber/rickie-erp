@@ -39,8 +39,8 @@ fi
 
 # Ringkasan jumlah baris per tabel (hanya angka, tanpa isi data; log workflow publik).
 echo "Jumlah baris di dump:"
-for table in todos goals goal_items issue_log clients kb_entries; do
-  printf '  %-12s %s\n' "$table" "$(grep -c "^INSERT INTO \"public\"\.\"$table\"" "$tmp" || true)"
+for table in todos goals goal_items issue_log clients projects project_phases project_partners kb_entries; do
+  printf '  %-16s %s\n' "$table" "$(grep -c "^INSERT INTO \"public\"\.\"$table\"" "$tmp" || true)"
 done
 
 mkdir -p "$(dirname "$out")"
