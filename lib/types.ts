@@ -64,10 +64,14 @@ export type Client = {
   user_id: string;
   canonical_name: string;
   aliases: string[];
+  /** 'client' = pelanggan (Sheet1); 'partner' = mitra (mis. Weefer, Metrodata). Hanya untuk pengelompokan di website. */
+  kind: ClientKind;
   verified_in_sheet: boolean;
   active: boolean;
   created_at: string;
 };
+
+export type ClientKind = "client" | "partner";
 
 export type KbEntry = {
   id: string;
@@ -130,7 +134,7 @@ export type Database = {
       clients: {
         Row: Client;
         Insert: Pick<Client, "canonical_name"> &
-          Partial<Pick<Client, "id" | "user_id" | "aliases" | "verified_in_sheet" | "active" | "created_at">>;
+          Partial<Pick<Client, "id" | "user_id" | "aliases" | "kind" | "verified_in_sheet" | "active" | "created_at">>;
         Update: Partial<Omit<Client, "id">>;
         Relationships: [];
       };
