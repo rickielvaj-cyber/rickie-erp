@@ -10,6 +10,7 @@ export type Todo = {
   due_date: string | null;
   user_id: string;
   goal_id: string | null;
+  project_id: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -54,6 +55,7 @@ export type IssueLog = {
   date_resolved: string | null;
   created_at: string;
   client_id: string | null;
+  project_id: string | null;
   /** Kapan terakhir isi enam kolom sheet disalin; null = belum / sudah berubah sejak disalin. */
   copied_to_sheet_at: string | null;
 };
@@ -72,6 +74,41 @@ export type Client = {
 };
 
 export type ClientKind = "client" | "partner";
+
+export type ProjectStatus = "planning" | "active" | "on_hold" | "done";
+export type PhaseStatus = "not_started" | "in_progress" | "done";
+
+/** Proyek untuk satu klien. Partner yang terlibat ada di tabel project_partners. */
+export type Project = {
+  id: string;
+  user_id: string;
+  client_id: string;
+  name: string;
+  status: ProjectStatus;
+  start_date: string | null;
+  target_date: string | null;
+  note: string | null;
+  created_at: string;
+};
+
+export type ProjectPhase = {
+  id: string;
+  user_id: string;
+  project_id: string;
+  name: string;
+  status: PhaseStatus;
+  start_date: string | null;
+  target_date: string | null;
+  note: string | null;
+  position: number;
+  created_at: string;
+};
+
+export type ProjectPartner = {
+  user_id: string;
+  project_id: string;
+  partner_id: string;
+};
 
 export type KbEntry = {
   id: string;
@@ -98,8 +135,8 @@ export type Database = {
       todos: {
         Row: Todo;
         // user_id / goal_id / completed_at punya default di database (auth.uid(), null, trigger).
-        Insert: Omit<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "completed_at"> &
-          Partial<Pick<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "completed_at">>;
+        Insert: Omit<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "completed_at"> &
+          Partial<Pick<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "completed_at">>;
         Update: Partial<Omit<Todo, "id">>;
         Relationships: [];
       };
@@ -123,10 +160,13 @@ export type Database = {
         Row: IssueLog;
         Insert: Omit<
           IssueLog,
-          "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "copied_to_sheet_at"
+          "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "project_id" | "copied_to_sheet_at"
         > &
           Partial<
-            Pick<IssueLog, "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "copied_to_sheet_at">
+            Pick<
+              IssueLog,
+              "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "project_id" | "copied_to_sheet_at"
+            >
           >;
         Update: Partial<Omit<IssueLog, "id">>;
         Relationships: [];
@@ -136,6 +176,28 @@ export type Database = {
         Insert: Pick<Client, "canonical_name"> &
           Partial<Pick<Client, "id" | "user_id" | "aliases" | "kind" | "verified_in_sheet" | "active" | "created_at">>;
         Update: Partial<Omit<Client, "id">>;
+        Relationships: [];
+      };
+      projects: {
+        Row: Project;
+        Insert: Pick<Project, "client_id" | "name"> &
+          Partial<Omit<Project, "client_id" | "name" | "id" | "created_at">> &
+          Partial<Pick<Project, "id" | "created_at">>;
+        Update: Partial<Omit<Project, "id">>;
+        Relationships: [];
+      };
+      project_phases: {
+        Row: ProjectPhase;
+        Insert: Pick<ProjectPhase, "project_id" | "name"> &
+          Partial<Omit<ProjectPhase, "project_id" | "name" | "id" | "created_at">> &
+          Partial<Pick<ProjectPhase, "id" | "created_at">>;
+        Update: Partial<Omit<ProjectPhase, "id">>;
+        Relationships: [];
+      };
+      project_partners: {
+        Row: ProjectPartner;
+        Insert: Pick<ProjectPartner, "project_id" | "partner_id"> & Partial<Pick<ProjectPartner, "user_id">>;
+        Update: Partial<ProjectPartner>;
         Relationships: [];
       };
       kb_entries: {

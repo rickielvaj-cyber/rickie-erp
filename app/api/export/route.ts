@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = await createClient();
 
   try {
-    const [todos, goals, goalItems, issues, clients, kbEntries] = await Promise.all([
+    const [todos, goals, goalItems, issues, clients, projects, projectPhases, projectPartners, kbEntries] = await Promise.all([
       fetchAll((from, to) =>
         supabase.from("todos").select("*").order("created_at").order("id").range(from, to),
       ),
@@ -28,6 +28,15 @@ export async function GET() {
       ),
       fetchAll((from, to) =>
         supabase.from("clients").select("*").order("created_at").order("id").range(from, to),
+      ),
+      fetchAll((from, to) =>
+        supabase.from("projects").select("*").order("created_at").order("id").range(from, to),
+      ),
+      fetchAll((from, to) =>
+        supabase.from("project_phases").select("*").order("project_id").order("position").order("id").range(from, to),
+      ),
+      fetchAll((from, to) =>
+        supabase.from("project_partners").select("*").order("project_id").order("partner_id").range(from, to),
       ),
       // Kolom search_vector (indeks pencarian turunan) sengaja tidak ikut.
       fetchAll((from, to) =>
@@ -50,6 +59,9 @@ export async function GET() {
         goal_items: goalItems.length,
         issue_log: issues.length,
         clients: clients.length,
+        projects: projects.length,
+        project_phases: projectPhases.length,
+        project_partners: projectPartners.length,
         kb_entries: kbEntries.length,
       },
       todos,
@@ -57,6 +69,9 @@ export async function GET() {
       goal_items: goalItems,
       issue_log: issues,
       clients,
+      projects,
+      project_phases: projectPhases,
+      project_partners: projectPartners,
       kb_entries: kbEntries,
     };
 

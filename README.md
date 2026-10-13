@@ -3,6 +3,8 @@
 Workspace pribadi (single-user) buat ERP Implementation Consultant (YonSuite/Yonyou).
 
 - **Fase 1**: **To-Do List**, **Goals**, **Issue Log**, **Ringkasan Mingguan**, **Export**.
+- **Fase 3**: **Projects** — proyek per klien dengan fase, partner, dan to-do/issue tertaut
+  (`/projects`).
 - **Fase 2**: **Knowledge Base** — 18 modul (lihat `lib/kb/modules.ts`), tiap modul bisa
   berisi banyak entri, full-text search, edit inline.
 
@@ -68,6 +70,12 @@ supabase db push
 - `0008_todos_goal_issue_fields.sql` — `todos.goal_id` + `completed_at` (terisi otomatis lewat
   trigger), `issue_log.module` + `root_cause`, dan kategori issue dibatasi 10 pilihan (hanya untuk
   data baru; kategori lama tidak diubah).
+- `0009_clients.sql` / `0010_client_kind.sql` — master klien dan partner (nama persis seperti
+  Sheet1), tautan `issue_log.client_id`, jenis `client`/`partner`.
+- `0011_function_search_path.sql` — mengunci `search_path` pada 5 fungsi (Security Advisor).
+- `0012_projects.sql` — **Fase 3**: `projects`, `project_phases`, `project_partners`, serta
+  `todos.project_id` dan `issue_log.project_id` (nullable). **Jalankan sebelum kode Fase 3 live**:
+  form To-Do dan Issue selalu mengirim `project_id`, jadi tanpa kolomnya penyimpanan gagal.
 
 Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (free tier tidak punya backup otomatis; lihat
 [docs/BACKUP.md](docs/BACKUP.md): jalankan workflow *Backup database* secara manual, atau unduh Export JSON)
@@ -156,6 +164,9 @@ app/(dashboard)/          penjaga login untuk halaman-halaman privat di bawahnya
 app/(dashboard)/todos/    modul To-Do List (panel Hari ini + pelacak mingguan, terhubung ke Goals)
 app/(dashboard)/goals/    modul Goals: daftar + detail checklist (grup, urutan, centang)
 app/(dashboard)/issues/   modul Issue Log
+app/(dashboard)/clients/  master klien dan partner
+app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase, partner, to-do, issue)
+docs/BACKUP.md            backup mingguan terenkripsi dan cara restore
 app/(dashboard)/summary/  modul Ringkasan Mingguan (format YonWork, bisa diedit + Copy)
 app/api/export/           Export: JSON semua data (/api/export), CSV issue log (/api/export/issues)
 lib/summary.ts            template teks ringkasan (murni, tanpa AI)

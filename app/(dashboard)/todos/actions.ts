@@ -15,6 +15,7 @@ function readTodoFields(formData: FormData) {
   const priority = String(formData.get("priority") ?? "medium") as TodoPriority;
   const dueDate = String(formData.get("due_date") ?? "").trim();
   const goalId = String(formData.get("goal_id") ?? "").trim();
+  const projectId = String(formData.get("project_id") ?? "").trim();
 
   return {
     title,
@@ -23,6 +24,7 @@ function readTodoFields(formData: FormData) {
     priority,
     due_date: dueDate || null,
     goal_id: UUID_RE.test(goalId) ? goalId : null,
+    project_id: UUID_RE.test(projectId) ? projectId : null,
   };
 }
 
@@ -85,6 +87,7 @@ export async function restoreTodo(todo: Todo) {
     ["low", "medium", "high"].includes(todo.priority) &&
     (todo.due_date === null || isISODate(todo.due_date)) &&
     (todo.goal_id === null || UUID_RE.test(todo.goal_id)) &&
+    (todo.project_id === null || UUID_RE.test(todo.project_id)) &&
     !Number.isNaN(Date.parse(todo.created_at));
   if (!valid) return { error: "Invalid task data." };
 
@@ -97,14 +100,20 @@ export async function restoreTodo(todo: Todo) {
     priority: todo.priority,
     due_date: todo.due_date,
     goal_id: todo.goal_id,
+    project_id: todo.project_id,
     completed_at: todo.completed_at,
     created_at: todo.created_at,
   };
   let { error } = await supabase.from("todos").insert(row);
 
-  // Goal-nya sudah dihapus sejak tugas ini dihapus -> kembalikan tugasnya tanpa goal.
+  // Goal atau proyeknya sudah dihapus sejak tugas ini dihapus -> kembalikan tugasnya tanpa tautan itu.
   if (error?.code === "23503" && row.goal_id) {
     ({ error } = await supabase.from("todos").insert({ ...row, goal_id: null }));
+    if (error?.code === "23503") {
+      ({ error } = await supabase.from("todos").insert({ ...row, goal_id: null, project_id: null }));
+    }
+  } else if (error?.code === "23503" && row.project_id) {
+    ({ error } = await supabase.from("todos").insert({ ...row, project_id: null }));
   }
 
   revalidateTodoViews();

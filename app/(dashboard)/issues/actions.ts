@@ -27,6 +27,7 @@ function readIssueFields(formData: FormData) {
     // Tanggal kosong = hari ini (zona Asia/Jakarta).
     date_resolved: isISODate(date) ? date : todayISO(),
     clientId: text("client_id"),
+    projectId: text("project_id"),
     // Issue lama yang namanya belum cocok dengan daftar klien: teksnya dipertahankan
     // kalau tidak ada klien yang dipilih, supaya menyimpan form tidak menghapus data.
     legacyClientName: text("legacy_client_name"),
@@ -36,6 +37,7 @@ function readIssueFields(formData: FormData) {
 function revalidateIssueViews() {
   revalidatePath("/issues");
   revalidatePath("/clients");
+  revalidatePath("/projects");
   revalidatePath("/summary");
   revalidatePath("/");
 }
@@ -44,6 +46,7 @@ function validate(fields: ReturnType<typeof readIssueFields>): string | null {
   if (!fields.description) return "Description is required.";
   if (fields.categoryInvalid) return "Invalid category.";
   if (fields.clientId && !UUID_RE.test(fields.clientId)) return "Invalid client.";
+  if (fields.projectId && !UUID_RE.test(fields.projectId)) return "Invalid project.";
   return null;
 }
 
@@ -66,11 +69,12 @@ async function resolveClient(
 }
 
 function dbFields(fields: ReturnType<typeof readIssueFields>, client: { client_id: string | null; client_name: string | null }) {
-  const { categoryInvalid, clientId, legacyClientName, ...rest } = fields;
+  const { categoryInvalid, clientId, legacyClientName, projectId, ...rest } = fields;
   void categoryInvalid;
   void clientId;
   void legacyClientName;
-  return { ...rest, client_id: client.client_id, client_name: client.client_name };
+  // Proyek opsional: tautan saja, tidak dipakai untuk sheet (tidak ikut Copy).
+  return { ...rest, client_id: client.client_id, client_name: client.client_name, project_id: projectId || null };
 }
 
 export async function createIssue(formData: FormData) {
