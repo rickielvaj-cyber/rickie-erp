@@ -194,7 +194,7 @@ function NewProjectForm({ clients, error }: { clients: Client[]; error?: string 
           <label htmlFor="name" className="block text-sm font-medium">
             Project name
           </label>
-          <input id="name" name="name" type="text" required placeholder="e.g. Project Nagiya" className={field} />
+          <input id="name" name="name" type="text" required className={field} />
         </div>
         <div>
           <label htmlFor="client_id" className="block text-sm font-medium">
