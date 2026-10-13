@@ -11,6 +11,7 @@ export type Todo = {
   user_id: string;
   goal_id: string | null;
   project_id: string | null;
+  phase_id: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -135,8 +136,8 @@ export type Database = {
       todos: {
         Row: Todo;
         // user_id / goal_id / completed_at punya default di database (auth.uid(), null, trigger).
-        Insert: Omit<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "completed_at"> &
-          Partial<Pick<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "completed_at">>;
+        Insert: Omit<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "phase_id" | "completed_at"> &
+          Partial<Pick<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "phase_id" | "completed_at">>;
         Update: Partial<Omit<Todo, "id">>;
         Relationships: [];
       };

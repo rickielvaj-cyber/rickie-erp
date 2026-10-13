@@ -16,6 +16,7 @@ function readTodoFields(formData: FormData) {
   const dueDate = String(formData.get("due_date") ?? "").trim();
   const goalId = String(formData.get("goal_id") ?? "").trim();
   const projectId = String(formData.get("project_id") ?? "").trim();
+  const phaseId = String(formData.get("phase_id") ?? "").trim();
 
   return {
     title,
@@ -25,7 +26,24 @@ function readTodoFields(formData: FormData) {
     due_date: dueDate || null,
     goal_id: UUID_RE.test(goalId) ? goalId : null,
     project_id: UUID_RE.test(projectId) ? projectId : null,
+    // Fase hanya berarti kalau proyeknya dipilih; kecocokan fase-proyek diperiksa di withValidPhase.
+    phase_id: UUID_RE.test(projectId) && UUID_RE.test(phaseId) ? phaseId : null,
   };
+}
+
+/** Fase yang bukan milik proyek yang dipilih (mis. proyek diganti) dilepas, bukan disimpan. */
+async function withValidPhase<T extends { project_id: string | null; phase_id: string | null }>(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  fields: T,
+): Promise<T> {
+  if (!fields.phase_id || !fields.project_id) return { ...fields, phase_id: null };
+  const { data } = await supabase
+    .from("project_phases")
+    .select("id")
+    .eq("id", fields.phase_id)
+    .eq("project_id", fields.project_id)
+    .maybeSingle();
+  return data ? fields : { ...fields, phase_id: null };
 }
 
 function revalidateTodoViews() {
@@ -42,7 +60,7 @@ export async function createTodo(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("todos").insert(fields);
+  const { error } = await supabase.from("todos").insert(await withValidPhase(supabase, fields));
 
   if (error) {
     redirect("/todos?new=1&error=" + encodeURIComponent(error.message));
@@ -59,7 +77,7 @@ export async function updateTodo(id: string, formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("todos").update(fields).eq("id", id);
+  const { error } = await supabase.from("todos").update(await withValidPhase(supabase, fields)).eq("id", id);
 
   if (error) {
     redirect(`/todos?edit=${id}&error=` + encodeURIComponent(error.message));
@@ -88,6 +106,7 @@ export async function restoreTodo(todo: Todo) {
     (todo.due_date === null || isISODate(todo.due_date)) &&
     (todo.goal_id === null || UUID_RE.test(todo.goal_id)) &&
     (todo.project_id === null || UUID_RE.test(todo.project_id)) &&
+    (todo.phase_id === null || UUID_RE.test(todo.phase_id)) &&
     !Number.isNaN(Date.parse(todo.created_at));
   if (!valid) return { error: "Invalid task data." };
 
@@ -101,19 +120,22 @@ export async function restoreTodo(todo: Todo) {
     due_date: todo.due_date,
     goal_id: todo.goal_id,
     project_id: todo.project_id,
+    phase_id: todo.phase_id,
     completed_at: todo.completed_at,
     created_at: todo.created_at,
   };
   let { error } = await supabase.from("todos").insert(row);
 
-  // Goal atau proyeknya sudah dihapus sejak tugas ini dihapus -> kembalikan tugasnya tanpa tautan itu.
-  if (error?.code === "23503" && row.goal_id) {
-    ({ error } = await supabase.from("todos").insert({ ...row, goal_id: null }));
-    if (error?.code === "23503") {
-      ({ error } = await supabase.from("todos").insert({ ...row, goal_id: null, project_id: null }));
-    }
-  } else if (error?.code === "23503" && row.project_id) {
-    ({ error } = await supabase.from("todos").insert({ ...row, project_id: null }));
+  // Goal, proyek, atau fasenya sudah dihapus sejak tugas ini dihapus -> kembalikan tugasnya tanpa
+  // tautan yang hilang. Dicoba dari yang paling kecil dilepas: fase, lalu goal, lalu proyek.
+  const fallbacks = [
+    { ...row, phase_id: null },
+    { ...row, phase_id: null, goal_id: null },
+    { ...row, phase_id: null, goal_id: null, project_id: null },
+  ];
+  for (const attempt of fallbacks) {
+    if (error?.code !== "23503") break;
+    ({ error } = await supabase.from("todos").insert(attempt));
   }
 
   revalidateTodoViews();
