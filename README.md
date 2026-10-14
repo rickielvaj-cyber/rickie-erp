@@ -60,8 +60,9 @@ Catatan tier gratis (periksa syarat terbaru di [ai.google.dev/terms](https://ai.
   mereka menyarankan tidak mengirim data sensitif. Karena itu **Issue tidak dikirim** (lihat 4b).
 - Kunci dari project yang akun penagihan (billing)-nya aktif dihitung sebagai tier berbayar; buat kunci
   dari project tanpa billing bila ingin tetap gratis.
-- Kuota gratis kecil dan angkanya berubah-ubah (laporan komunitas: ±100 permintaan dan ±30 ribu token per
-  menit). Reindex dirancang bisa berhenti dan dilanjutkan; lihat 4b.
+- Kuota gratis kecil: terkonfirmasi dari galat Google, **100 permintaan per menit** dan tiap teks dihitung satu
+  (angkanya bisa berubah). Reindex menunggu sendiri sesuai petunjuk Google ("retry in …s") selama masih muat
+  dalam batas waktu ±40 detik, dan bila tidak muat ia berhenti dan bisa dilanjutkan; lihat 4b.
 
 ### 3. Jalankan migration
 

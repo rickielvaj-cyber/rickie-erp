@@ -124,7 +124,7 @@ const shouldEmbed = (d: SearchDoc) => EMBEDDED_TYPES.includes(d.sourceType);
  */
 export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: number } = {}): Promise<ReindexResult> {
   const started = Date.now();
-  const budgetMs = opts.budgetMs ?? 45_000;
+  const budgetMs = opts.budgetMs ?? 40_000;
   const docs = await collectDocs(db);
   const existing = await fetchAll((a, b) =>
     db.from("search_index").select("id, source_type, source_id, content_hash").order("id").range(a, b),
@@ -166,7 +166,11 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
     }
     const chunk = toEmbed.slice(i, i + EMBED_BATCH_SIZE);
     try {
-      const vectors = await embedBatch(chunk.map((d) => d.excerpt), "RETRIEVAL_DOCUMENT");
+      // deadline: bila kuota habis, tunggu jeda yang disarankan Google selama masih muat dalam anggaran waktu.
+      const vectors = await embedBatch(chunk.map((d) => d.excerpt), "RETRIEVAL_DOCUMENT", {
+        deadline: started + budgetMs,
+        timeoutMs: 15_000,
+      });
       await save(chunk.map((d, k) => row(d, vectors[k])));
       embedded += chunk.length;
     } catch (error) {
