@@ -49,31 +49,63 @@ async function post(path: string, body: unknown, apiKey: string, timeoutMs: numb
   }
 }
 
-async function failure(response: Response): Promise<EmbeddingError> {
-  let detail = "";
+type ApiError = { status: number; message: string; retryDelayMs: number | null };
+
+/**
+ * Baca galat Gemini. Jeda ulang untuk 429 diambil dari header Retry-After, dari detail RetryInfo
+ * ("retryDelay": "12s"), atau dari kalimat pesannya ("Please retry in 12.67s"); null bila tidak ada.
+ */
+export async function readApiError(response: Response): Promise<ApiError> {
+  let message = "";
+  let retryDelayMs: number | null = null;
   try {
-    detail = ((await response.json()) as { error?: { message?: string } }).error?.message ?? "";
+    const json = (await response.json()) as { error?: { message?: string; details?: { retryDelay?: string }[] } };
+    message = json.error?.message ?? "";
+    const detail = json.error?.details?.find((d) => typeof d.retryDelay === "string")?.retryDelay;
+    const fromDetail = detail ? parseFloat(detail) : NaN;
+    const fromMessage = /retry in ([\d.]+)s/i.exec(message);
+    if (Number.isFinite(fromDetail)) retryDelayMs = fromDetail * 1000;
+    else if (fromMessage) retryDelayMs = parseFloat(fromMessage[1]) * 1000;
   } catch {
     /* body bukan JSON */
   }
-  if (response.status === 429) {
-    return new EmbeddingError(`Gemini free quota reached (error 429). ${detail}`.trim(), true);
-  }
-  const hint =
-    response.status === 400 || response.status === 403
-      ? "Check GEMINI_API_KEY (create one in Google AI Studio)."
-      : response.status === 404
-        ? `Model ${EMBEDDING_MODEL} not found.`
-        : "";
-  return new EmbeddingError(`Gemini error ${response.status}. ${hint} ${detail}`.trim());
+  const header = Number(response.headers.get("retry-after"));
+  if (Number.isFinite(header) && header > 0) retryDelayMs = header * 1000;
+  return { status: response.status, message, retryDelayMs };
 }
 
+function toError(e: ApiError): EmbeddingError {
+  if (e.status === 429) {
+    return new EmbeddingError(`Gemini free quota reached (error 429). ${e.message}`.trim(), true);
+  }
+  const hint =
+    e.status === 400 || e.status === 403
+      ? "Check GEMINI_API_KEY (create one in Google AI Studio)."
+      : e.status === 404
+        ? `Model ${EMBEDDING_MODEL} not found.`
+        : "";
+  return new EmbeddingError(`Gemini error ${e.status}. ${hint} ${e.message}`.trim());
+}
+
+/** Jeda 429 yang dipakai bila Google tidak menyebutkannya, dan batas atasnya. */
+const DEFAULT_RETRY_MS = 15_000;
+const MAX_RETRY_MS = 30_000;
+
 /**
- * Satu permintaan batch (maks. EMBED_BATCH_SIZE teks). 429 dicoba ulang sekali setelah jeda singkat
- * (Retry-After bila ada, dibatasi); jika masih 429, dilempar sebagai rateLimited supaya pemanggil
- * bisa berhenti dengan rapi dan melanjutkan nanti.
+ * Satu permintaan batch (maks. EMBED_BATCH_SIZE teks).
+ *
+ * Kuota gratis dihitung per menit dan tiap teks dalam batch dihitung satu permintaan, jadi 429 itu
+ * normal untuk reindex. Perilaku saat 429:
+ * - tanpa `deadline` (pencarian satu query): satu kali ulang setelah jeda yang disarankan Google, lalu menyerah;
+ * - dengan `deadline` (reindex): menunggu jeda yang disarankan Google lalu mengulang, selama masih
+ *   muat sebelum `deadline`; bila tidak muat, dilempar sebagai rateLimited supaya pemanggil
+ *   berhenti dengan rapi dan melanjutkan nanti.
  */
-export async function embedBatch(texts: string[], taskType: TaskType, opts: { timeoutMs?: number } = {}): Promise<number[][]> {
+export async function embedBatch(
+  texts: string[],
+  taskType: TaskType,
+  opts: { timeoutMs?: number; deadline?: number } = {},
+): Promise<number[][]> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new EmbeddingError("GEMINI_API_KEY is not set.");
   if (texts.length === 0) return [];
@@ -87,21 +119,29 @@ export async function embedBatch(texts: string[], taskType: TaskType, opts: { ti
       outputDimensionality: EMBEDDING_DIMENSIONS,
     })),
   };
+  const path = `/models/${EMBEDDING_MODEL}:batchEmbedContents`;
+  const timeoutMs = opts.timeoutMs ?? 30_000;
 
-  let response = await post(`/models/${EMBEDDING_MODEL}:batchEmbedContents`, body, apiKey, opts.timeoutMs ?? 30_000);
-  if (response.status === 429) {
-    const retryAfter = Number(response.headers.get("retry-after"));
-    await sleep(Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 5_000, 15_000));
-    response = await post(`/models/${EMBEDDING_MODEL}:batchEmbedContents`, body, apiKey, opts.timeoutMs ?? 30_000);
-  }
-  if (!response.ok) throw await failure(response);
+  let retriesLeft = opts.deadline === undefined ? 1 : Infinity;
+  for (;;) {
+    const response = await post(path, body, apiKey, timeoutMs);
+    if (response.ok) {
+      const json = (await response.json()) as { embeddings?: { values?: number[] }[] };
+      const embeddings = json.embeddings ?? [];
+      if (embeddings.length !== texts.length || embeddings.some((e) => e.values?.length !== EMBEDDING_DIMENSIONS)) {
+        throw new EmbeddingError("Unexpected response from Gemini (wrong number or size of embeddings).");
+      }
+      return embeddings.map((e) => normalize(e.values as number[]));
+    }
 
-  const json = (await response.json()) as { embeddings?: { values?: number[] }[] };
-  const embeddings = json.embeddings ?? [];
-  if (embeddings.length !== texts.length || embeddings.some((e) => e.values?.length !== EMBEDDING_DIMENSIONS)) {
-    throw new EmbeddingError("Unexpected response from Gemini (wrong number or size of embeddings).");
+    const error = await readApiError(response);
+    if (error.status !== 429 || retriesLeft <= 0) throw toError(error);
+    // +500 ms: jendela kuota pulih tepat di batas, jangan menabraknya.
+    const wait = Math.min(error.retryDelayMs ?? DEFAULT_RETRY_MS, MAX_RETRY_MS) + 500;
+    if (opts.deadline !== undefined && Date.now() + wait + 2_000 > opts.deadline) throw toError(error);
+    retriesLeft -= 1;
+    await sleep(wait);
   }
-  return embeddings.map((e) => normalize(e.values as number[]));
 }
 
 export async function embedQuery(query: string): Promise<number[]> {

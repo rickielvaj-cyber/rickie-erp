@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { EMBED_BATCH_SIZE, EmbeddingError, embedBatch, embedQuery, normalize } from "./search/gemini";
+import { EMBED_BATCH_SIZE, EmbeddingError, embedBatch, embedQuery, normalize, readApiError } from "./search/gemini";
 import { EMBEDDING_DIMENSIONS } from "./search/text";
 
 type Seen = { url: string; key: string | undefined; body: { requests: Record<string, unknown>[] } };
@@ -106,4 +106,52 @@ test("guards: missing key, oversized batch, empty input", async () => {
   await assert.rejects(embedBatch(Array(EMBED_BATCH_SIZE + 1).fill("x"), "RETRIEVAL_DOCUMENT"), /Too many texts/);
   assert.deepEqual(await embedBatch([], "RETRIEVAL_DOCUMENT"), []);
   delete process.env.GEMINI_API_KEY;
+});
+
+const quota429 = (message: string) => ({ status: 429, body: { error: { message } } });
+
+test("with a deadline, 429 waits for the delay Google suggests and then succeeds", async () => {
+  await withServer(
+    (_s, call) => (call <= 2 ? quota429("You exceeded your current quota. Please retry in 0.2s.") : ok(1)),
+    async (seen) => {
+      const started = Date.now();
+      const out = await embedBatch(["a"], "RETRIEVAL_DOCUMENT", { deadline: Date.now() + 60_000 });
+      assert.equal(out.length, 1);
+      assert.equal(seen.length, 3, "two 429s, then success");
+      assert.ok(Date.now() - started >= 1000, "it really waited (0.2s + margin, twice)");
+    },
+  );
+});
+
+test("with a deadline that cannot fit the suggested wait, it gives up at once as rateLimited", async () => {
+  await withServer(
+    () => quota429("Please retry in 30s."),
+    async (seen) => {
+      const started = Date.now();
+      await assert.rejects(
+        embedBatch(["a"], "RETRIEVAL_DOCUMENT", { deadline: Date.now() + 5_000 }),
+        (e: unknown) => e instanceof EmbeddingError && e.rateLimited,
+      );
+      assert.equal(seen.length, 1, "no pointless wait or retry");
+      assert.ok(Date.now() - started < 2_000);
+    },
+  );
+});
+
+test("readApiError reads the retry delay from RetryInfo, from the message, and from Retry-After (which wins)", async () => {
+  const resp = (body: unknown, headers: Record<string, string> = {}) =>
+    new Response(JSON.stringify(body), { status: 429, headers: { "content-type": "application/json", ...headers } });
+
+  const detail = await readApiError(resp({ error: { message: "quota", details: [{ "@type": "x" }, { retryDelay: "12s" }] } }));
+  assert.equal(detail.retryDelayMs, 12_000);
+
+  const msg = await readApiError(resp({ error: { message: "Quota exceeded for metric … limit: 100 … Please retry in 12.675591601s." } }));
+  assert.ok(Math.abs((msg.retryDelayMs ?? 0) - 12_675.6) < 1);
+
+  const header = await readApiError(resp({ error: { message: "Please retry in 12s" } }, { "retry-after": "3" }));
+  assert.equal(header.retryDelayMs, 3_000);
+
+  const none = await readApiError(resp({ error: { message: "quota" } }));
+  assert.equal(none.retryDelayMs, null);
+  assert.equal((await readApiError(new Response("not json", { status: 500 }))).message, "");
 });
