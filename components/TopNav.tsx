@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions";
+import { SearchBox } from "@/components/SearchBox";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -110,6 +111,13 @@ function UserMenu({ email }: { email: string }) {
             >
               Export issue log (CSV)
             </a>
+            <Link
+              href="/settings"
+              role="menuitem"
+              className="block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface"
+            >
+              Settings
+            </Link>
           </div>
           <form action={logout} className="pt-1">
             <button
@@ -139,7 +147,13 @@ export function TopNav({ email }: { email: string | null }) {
 
         <NavLinks pathname={pathname} className="hidden items-center gap-7 md:flex" />
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-2">
+          {email && (
+            // Suspense: SearchBox membaca ?q= di URL (useSearchParams).
+            <Suspense fallback={null}>
+              <SearchBox />
+            </Suspense>
+          )}
           {email ? (
             <UserMenu email={email} />
           ) : (

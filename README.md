@@ -44,6 +44,18 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 `SUPABASE_SERVICE_ROLE_KEY` dan `SEED_USER_ID` di file yang sama cuma dipakai buat
 seed script di langkah 4 — isi nanti pas butuh, bukan sekarang.
 
+Fase 4 (search) menambah satu variabel:
+
+| Variabel | Untuk apa | Di mana |
+|---|---|---|
+| `OPENAI_API_KEY` | membuat embedding (model `text-embedding-3-small`) untuk indeks dan query | Vercel (Production) **dan** `.env.local` |
+
+Cara mendapatkan `OPENAI_API_KEY`: login di [platform.openai.com](https://platform.openai.com) →
+**Settings → Billing** (isi saldo kecil, mis. US$5; API tidak jalan tanpa saldo) →
+**API keys → Create new secret key** → salin kuncinya (hanya tampil sekali). Biayanya sangat
+kecil: mengindeks ±250 konten diperkirakan di bawah satu sen, dan satu pencarian jauh lebih kecil lagi (cek harga terbaru di halaman pricing OpenAI). Tanpa kunci ini
+website tetap jalan; pencarian hanya mencocokkan kata persis dan tombol Reindex menolak jalan.
+
 ### 3. Jalankan migration
 
 Migration ada di `supabase/migrations/`, urut sesuai nomornya (`0001` → `0005`).
@@ -78,6 +90,9 @@ supabase db push
   form To-Do dan Issue selalu mengirim `project_id`, jadi tanpa kolomnya penyimpanan gagal.
 - `0013_todo_phase.sql` — `todos.phase_id` (nullable): to-do bisa ditautkan ke fase proyek. **Jalankan sebelum
   kodenya live**: form To-Do selalu mengirim `phase_id`.
+- `0014_search_index.sql` — **Fase 4**: ekstensi `pgvector`, tabel `search_index` (indeks HNSW, RLS per
+  pemilik), fungsi `search_semantic` dan `search_keyword`. Tidak mengubah tabel lain. Boleh dijalankan
+  sebelum atau sesudah kode live (kode lama tidak memakainya); search baru berfungsi setelah reindex pertama.
 
 Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (free tier tidak punya backup otomatis; lihat
 [docs/BACKUP.md](docs/BACKUP.md): jalankan workflow *Backup database* secara manual, atau unduh Export JSON)
@@ -113,6 +128,39 @@ npx tsx scripts/seed-kb.ts
 
 Jalankan ini **lokal aja**, jangan pernah di Vercel/CI — `service_role` key bypass RLS,
 jangan sampai ke-commit atau ke-set sebagai env var publik.
+
+### 4b. Search semantik (Fase 4)
+
+Kolom pencarian di menu atas (atau tekan `/`) mencari **semua** konten sekaligus: Knowledge Base,
+Projects, Issues, dan Goals. Hasil digabung dari dua cara: **arti** (embedding OpenAI + kemiripan
+kosinus pgvector) dan **kata persis** (kode akun, nama klien, dsb), lalu dikelompokkan per jenis.
+Tabel sumber hanya dibaca, tidak diubah.
+
+**Reindex pertama kali setelah deploy** (indeks kosong sampai ini dijalankan):
+
+1. Jalankan migrasi `0014_search_index.sql` (langkah 3).
+2. Set `OPENAI_API_KEY` di Vercel → **Settings → Environment Variables** (Production), lalu **Redeploy**.
+3. Login → menu akun (avatar) → **Settings** → tekan **Reindex Search**. Tunggu pesan
+   "Indexed N new or changed …" (±10–30 detik untuk ±250 konten). Angka per jenis di kartu itu harus
+   cocok dengan isi website.
+4. Coba cari sesuatu yang maknanya mirip tapi katanya beda.
+
+Setelah itu:
+
+- **Otomatis harian** (Vercel Cron, 02:30 UTC, `/api/cron/reindex-search`): hanya konten yang berubah
+  (dibandingkan lewat hash isi) yang di-embed ulang, dan baris milik konten yang sudah dihapus dibersihkan.
+  Hari tanpa perubahan tidak memakai OpenAI. Route ini butuh **`CRON_SECRET`** dan
+  **`SUPABASE_SERVICE_ROLE_KEY`** sebagai env var Production di Vercel, karena cron tidak punya sesi login.
+  Service role melewati RLS: simpan hanya di Vercel (terenkripsi), jangan di repo. Tanpa kedua variabel itu
+  cron menjawab 503 dan auto-reindex mati; tombol manual di Settings tetap berfungsi.
+- **Manual**: tombol Reindex Search (ceklis "Re-embed everything" untuk memaksa semuanya ulang), atau dari
+  terminal dengan `.env.local` berisi `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`:
+  `npm run reindex` (tambahkan `-- --force` untuk embed ulang semua).
+- **Privasi**: judul dan potongan isi (maks. ±1.500 karakter per konten, termasuk deskripsi issue dan nama
+  klien) dikirim ke OpenAI untuk dibuatkan embedding. Kebijakan API OpenAI saat ini: data API tidak dipakai
+  melatih model; cek ulang di platform.openai.com bila konten klien sensitif.
+- **Ambang relevansi** (`SEMANTIC_MIN_SIMILARITY` di `lib/search/query.ts`, awal 0,25) membuang hasil arti
+  yang tidak relevan. Kalau hasil terasa terlalu sedikit/banyak setelah dipakai dengan data asli, ubah angka itu.
 
 ### 5. Install dependencies & jalankan
 
@@ -217,5 +265,5 @@ lewat `?week=YYYY-MM-DD`; tugas ditempatkan ke hari lewat kolom `due_date` yang 
 
 ## Yang belum ada
 
-Project tracking client, time block, AI meeting notes, AI work report generator, notes
+Time block, AI meeting notes, AI work report generator, notes
 cepat, pomodoro timer, dan integrasi Notion/Google — semua masuk fase-fase berikutnya.
