@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/keep-alive",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/reindex-search",
+      "schedule": "30 2 * * *"
     }
   ]
 }

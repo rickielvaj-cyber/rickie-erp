@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/*.test.ts"
+    "test": "tsx --test lib/*.test.ts",
+    "reindex": "tsx --env-file=.env.local scripts/reindex-search.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

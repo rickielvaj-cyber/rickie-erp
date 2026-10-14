@@ -121,6 +121,20 @@ export type KbEntry = {
   updated_at: string;
 };
 
+export type SearchIndexRow = {
+  id: string;
+  user_id: string;
+  source_type: "kb_entry" | "project" | "issue" | "goal";
+  source_id: string;
+  title: string;
+  content_excerpt: string;
+  content_hash: string;
+  /** vector(1536) di database; lewat API berupa teks "[...]". */
+  embedding: string;
+  url_path: string;
+  updated_at: string;
+};
+
 export type KbSearchResult = {
   id: string;
   module: string;
@@ -201,6 +215,13 @@ export type Database = {
         Update: Partial<ProjectPartner>;
         Relationships: [];
       };
+      search_index: {
+        Row: SearchIndexRow;
+        Insert: Omit<SearchIndexRow, "id" | "updated_at" | "user_id"> &
+          Partial<Pick<SearchIndexRow, "id" | "updated_at" | "user_id">>;
+        Update: Partial<Omit<SearchIndexRow, "id">>;
+        Relationships: [];
+      };
       kb_entries: {
         Row: KbEntry;
         Insert: Omit<KbEntry, "id" | "created_at" | "updated_at"> &
@@ -211,6 +232,30 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      search_semantic: {
+        Args: { query_embedding: string; match_count?: number };
+        Returns: {
+          id: string;
+          source_type: string;
+          source_id: string;
+          title: string;
+          content_excerpt: string;
+          url_path: string;
+          similarity: number;
+        }[];
+      };
+      search_keyword: {
+        Args: { search_text: string; match_count?: number };
+        Returns: {
+          id: string;
+          source_type: string;
+          source_id: string;
+          title: string;
+          content_excerpt: string;
+          url_path: string;
+          score: number;
+        }[];
+      };
       kb_search: {
         Args: { search_query: string };
         Returns: KbSearchResult[];
