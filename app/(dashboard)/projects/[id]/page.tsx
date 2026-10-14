@@ -67,6 +67,7 @@ export default async function ProjectDetailPage({
     .map((pid) => clientName.get(pid))
     .filter((n): n is string => Boolean(n))
     .sort((a, b) => a.localeCompare(b));
+  const phaseNames = new Map(phases.map((ph) => [ph.id, ph.name]));
   const todos: Todo[] = todosResult.data ?? [];
   const openTodos = todos.filter((t) => t.status !== "done");
   const doneTodos = todos.filter((t) => t.status === "done");
@@ -206,7 +207,7 @@ export default async function ProjectDetailPage({
         ) : (
           <ul className="overflow-hidden rounded-2xl border border-foreground">
             {[...openTodos, ...doneTodos].map((todo) => (
-              <TodoRow key={todo.id} todo={todo} today={today} />
+              <TodoRow key={todo.id} todo={todo} today={today} phaseName={todo.phase_id ? phaseNames.get(todo.phase_id) : undefined} />
             ))}
           </ul>
         )}
@@ -222,6 +223,19 @@ export default async function ProjectDetailPage({
             aria-label="New to-do for this project"
             className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
           />
+          <select
+            name="phase_id"
+            defaultValue=""
+            aria-label="To-do phase"
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
+          >
+            <option value="">No phase</option>
+            {phases.map((ph) => (
+              <option key={ph.id} value={ph.id}>
+                {ph.name}
+              </option>
+            ))}
+          </select>
           <input
             name="due_date"
             type="date"
@@ -350,7 +364,7 @@ function PhaseRow({
   );
 }
 
-function TodoRow({ todo, today }: { todo: Todo; today: string }) {
+function TodoRow({ todo, today, phaseName }: { todo: Todo; today: string; phaseName?: string }) {
   const done = todo.status === "done";
   const overdue = isOverdue(todo.due_date, today, done);
   return (
@@ -375,6 +389,7 @@ function TodoRow({ todo, today }: { todo: Todo; today: string }) {
         <p className={`text-xs ${overdue ? "font-medium text-danger" : "text-muted"}`}>
           {todo.due_date ? `${overdue ? "Overdue · " : ""}${formatDate(todo.due_date)}` : "No date"}
           {todo.status === "in_progress" ? " · In progress" : ""}
+          {phaseName ? ` · ${phaseName}` : ""}
         </p>
       </div>
     </li>

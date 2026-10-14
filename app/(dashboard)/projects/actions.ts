@@ -249,9 +249,21 @@ export async function movePhase(projectId: string, phaseId: string, direction: "
 export async function createTodoForProject(projectId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const date = String(formData.get("due_date") ?? "").trim();
+  const phaseRaw = String(formData.get("phase_id") ?? "").trim();
   if (!title || !UUID_RE.test(projectId)) return;
 
   const supabase = await createClient();
+  // Fase hanya dipakai kalau memang milik proyek ini.
+  let phaseId: string | null = null;
+  if (UUID_RE.test(phaseRaw)) {
+    const { data } = await supabase
+      .from("project_phases")
+      .select("id")
+      .eq("id", phaseRaw)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    phaseId = data?.id ?? null;
+  }
   await supabase.from("todos").insert({
     title,
     description: null,
@@ -259,6 +271,7 @@ export async function createTodoForProject(projectId: string, formData: FormData
     priority: "medium",
     due_date: isISODate(date) ? date : todayISO(),
     project_id: projectId,
+    phase_id: phaseId,
   });
   revalidateProjectViews(projectId);
 }

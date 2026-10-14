@@ -9,7 +9,9 @@ import {
   mondayOfISO,
   todayISO,
 } from "@/lib/date";
-import type { Goal, ProjectStatus, Todo, TodoPriority } from "@/lib/types";
+import { sortPhases } from "@/lib/projects";
+import type { Goal, Todo, TodoPriority } from "@/lib/types";
+import { ProjectPhasePicker, type PickerProject } from "@/components/projects/ProjectPhasePicker";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { TodoUndoToast } from "@/components/TodoUndoToast";
 import { createTodo, createTodoForDay, moveTodoToToday, toggleTodoDone, updateTodo } from "./actions";
@@ -42,7 +44,6 @@ type Show = "all" | "open" | "done";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type GoalOption = Pick<Goal, "id" | "title" | "status">;
-type ProjectOption = { id: string; label: string; status: ProjectStatus };
 
 function buildHref(params: { show?: Show; priority?: string; goal?: string; week?: string }) {
   const q = new URLSearchParams();
@@ -90,7 +91,7 @@ export default async function TodosPage({
   if (goal === "none") todayQuery = todayQuery.is("goal_id", null);
   else if (goal !== "all") todayQuery = todayQuery.eq("goal_id", goal);
 
-  const [todayResult, weekResult, editResult, goalsResult, projectsResult, clientsResult] = await Promise.all([
+  const [todayResult, weekResult, editResult, goalsResult, projectsResult, clientsResult, phasesResult] = await Promise.all([
     todayQuery.order("due_date", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
     supabase
       .from("todos")
@@ -102,6 +103,7 @@ export default async function TodosPage({
     supabase.from("goals").select("id, title, status").order("created_at", { ascending: true }),
     supabase.from("projects").select("id, name, client_id, status").order("created_at", { ascending: false }),
     supabase.from("clients").select("id, canonical_name"),
+    supabase.from("project_phases").select("*"),
   ]);
 
   const todayTodos = todayResult.data ?? [];
@@ -111,14 +113,25 @@ export default async function TodosPage({
   const goalTitles = new Map(goals.map((g) => [g.id, g.title]));
   const activeGoals = goals.filter((g) => g.status === "active");
   const projectRows = projectsResult.data ?? [];
-  const projectTitles = new Map(projectRows.map((p) => [p.id, p.name]));
+  const projectNames = new Map(projectRows.map((p) => [p.id, p.name]));
   const clientNames = new Map((clientsResult.data ?? []).map((c) => [c.id, c.canonical_name]));
-  const projectOptions: ProjectOption[] = projectRows.map((p) => ({
+  const phaseRows = phasesResult.data ?? [];
+  const phaseNames = new Map(phaseRows.map((ph) => [ph.id, ph.name]));
+  const projectOptions: PickerProject[] = projectRows.map((p) => ({
     id: p.id,
-    status: p.status,
+    done: p.status === "done",
     label: `${clientNames.get(p.client_id) ?? "Client"} — ${p.name}`,
+    phases: sortPhases(phaseRows.filter((ph) => ph.project_id === p.id)).map((ph) => ({ id: ph.id, name: ph.name })),
   }));
-  const fetchError = todayResult.error ?? weekResult.error ?? goalsResult.error;
+  // Label "Proyek · Fase" per to-do (kunci = id to-do), dipakai di daftar Hari ini dan pelacak mingguan.
+  const projectTitles = new Map<string, string>();
+  for (const t of [...todayTodos, ...weekTodos]) {
+    const name = t.project_id ? projectNames.get(t.project_id) : undefined;
+    if (!name) continue;
+    const phase = t.phase_id ? phaseNames.get(t.phase_id) : undefined;
+    projectTitles.set(t.id, phase ? `${name} · ${phase}` : name);
+  }
+  const fetchError = todayResult.error ?? weekResult.error ?? goalsResult.error ?? phasesResult.error;
 
   const overdue = todayTodos.filter((t) => t.due_date !== null && t.due_date < today);
   const dueToday = todayTodos.filter((t) => t.due_date === today);
@@ -344,7 +357,7 @@ function DayCard({
             todo={todo}
             week={week}
             goalTitle={goalTitles.get(todo.goal_id ?? "")}
-            projectTitle={projectTitles.get(todo.project_id ?? "")}
+            projectTitle={projectTitles.get(todo.id)}
           />
         ))}
       </ul>
@@ -417,7 +430,7 @@ function TaskGroup({
             key={todo.id}
             todo={todo}
             goalTitle={goalTitles.get(todo.goal_id ?? "")}
-            projectTitle={projectTitles.get(todo.project_id ?? "")}
+            projectTitle={projectTitles.get(todo.id)}
             moveToToday={moveToToday}
           />
         ))}
@@ -514,7 +527,7 @@ function TodoForm({
 }: {
   todo: Todo | null;
   goals: GoalOption[];
-  projects: ProjectOption[];
+  projects: PickerProject[];
   error?: string;
 }) {
   const action = todo ? updateTodo.bind(null, todo.id) : createTodo;
@@ -576,7 +589,7 @@ function TodoForm({
             id="due_date"
             name="due_date"
             type="date"
-            defaultValue={todo?.due_date ?? ""}
+            defaultValue={todo ? (todo.due_date ?? "") : todayISO()}
             className={field}
           />
         </div>
@@ -608,31 +621,7 @@ function TodoForm({
         )}
       </div>
 
-      <div>
-        <label htmlFor="project_id" className="block text-sm font-medium">
-          Project
-        </label>
-        <select id="project_id" name="project_id" defaultValue={todo?.project_id ?? ""} className={field}>
-          <option value="">No project</option>
-          {projects
-            // Proyek yang belum selesai saja untuk dipilih, kecuali proyek yang sudah terpasang di tugas ini.
-            .filter((p) => p.status !== "done" || p.id === todo?.project_id)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-                {p.status === "done" ? " (done)" : ""}
-              </option>
-            ))}
-        </select>
-        {projects.length === 0 && (
-          <p className="mt-1 text-xs text-muted">
-            No projects yet.{" "}
-            <Link href="/projects?new=1" className="underline underline-offset-2 hover:text-foreground">
-              Create project
-            </Link>
-          </p>
-        )}
-      </div>
+      <ProjectPhasePicker projects={projects} projectId={todo?.project_id ?? null} phaseId={todo?.phase_id ?? null} field={field} />
 
       <div className="flex gap-2 pt-1">
         <button

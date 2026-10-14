@@ -76,6 +76,8 @@ supabase db push
 - `0012_projects.sql` — **Fase 3**: `projects`, `project_phases`, `project_partners`, serta
   `todos.project_id` dan `issue_log.project_id` (nullable). **Jalankan sebelum kode Fase 3 live**:
   form To-Do dan Issue selalu mengirim `project_id`, jadi tanpa kolomnya penyimpanan gagal.
+- `0013_todo_phase.sql` — `todos.phase_id` (nullable): to-do bisa ditautkan ke fase proyek. **Jalankan sebelum
+  kodenya live**: form To-Do selalu mengirim `phase_id`.
 
 Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (free tier tidak punya backup otomatis; lihat
 [docs/BACKUP.md](docs/BACKUP.md): jalankan workflow *Backup database* secara manual, atau unduh Export JSON)
