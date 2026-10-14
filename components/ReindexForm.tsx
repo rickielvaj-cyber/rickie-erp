@@ -23,7 +23,7 @@ export function ReindexForm() {
       </div>
       {pending && (
         <p role="status" className="text-sm text-muted">
-          Reading your content and asking OpenAI for embeddings. This can take up to a minute; keep this page open.
+          Reading your content and asking Gemini for embeddings. This can take up to a minute; keep this page open.
         </p>
       )}
       {state && !pending && (

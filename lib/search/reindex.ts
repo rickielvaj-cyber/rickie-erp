@@ -1,21 +1,27 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types";
 import { sortPhases } from "@/lib/projects";
-import { embedTexts } from "./openai";
+import { EMBED_BATCH_SIZE, EmbeddingError, embedBatch } from "./gemini";
 import { buildExcerpt, contentHash, vectorLiteral } from "./text";
-import type { SearchDoc, SearchSourceType } from "./types";
+import { EMBEDDED_TYPES, type SearchDoc, type SearchSourceType } from "./types";
 
 type Db = SupabaseClient<Database>;
 
 export type ReindexResult = {
   /** Jumlah konten sumber yang ditemukan. */
   total: number;
-  /** Di-embed ulang (baru atau berubah). */
+  /** Ditulis ulang ke indeks (baru atau berubah), termasuk yang tanpa vektor. */
+  updated: number;
+  /** Dari `updated`: berapa yang benar-benar dikirim ke penyedia embedding. */
   embedded: number;
-  /** Tidak berubah sejak indeks terakhir, dilewati (tidak memakai OpenAI). */
+  /** Tidak berubah sejak indeks terakhir, dilewati (tidak memakai kuota embedding). */
   unchanged: number;
   /** Baris indeks yatim (sumber sudah dihapus) yang dibersihkan. */
   removed: number;
+  /** Yang masih menunggu karena berhenti lebih awal (waktu atau kuota habis); jalankan lagi untuk melanjutkan. */
+  remaining: number;
+  /** Alasan berhenti lebih awal, bila ada. */
+  stoppedReason?: string;
   tookMs: number;
 };
 
@@ -104,13 +110,21 @@ export async function collectDocs(db: Db): Promise<SearchDoc[]> {
 
 const keyOf = (type: string, id: string) => `${type}:${id}`;
 
+const shouldEmbed = (d: SearchDoc) => EMBEDDED_TYPES.includes(d.sourceType);
+
 /**
- * Samakan `search_index` dengan isi terkini: embed hanya konten baru/berubah (dibandingkan lewat
- * hash), upsert, lalu hapus baris yatim. `force` = embed ulang semuanya.
+ * Samakan `search_index` dengan isi terkini: hanya konten baru/berubah (dibandingkan lewat hash) yang
+ * ditulis ulang, lalu baris yatim dihapus. `force` = tulis ulang semuanya.
+ *
+ * Bisa dilanjutkan: tiap potongan langsung disimpan, dan proses berhenti dengan rapi bila melewati
+ * `budgetMs` atau kuota embedding habis (kuota gratis kecil, jadi indeks pertama bisa butuh beberapa
+ * kali jalan). Menjalankan ulang melanjutkan sisanya karena yang sudah tersimpan hash-nya cocok.
+ *
  * `db` bisa klien dengan sesi pengguna (RLS berlaku) atau service role (script/cron).
  */
-export async function reindexSearch(db: Db, opts: { force?: boolean } = {}): Promise<ReindexResult> {
+export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: number } = {}): Promise<ReindexResult> {
   const started = Date.now();
+  const budgetMs = opts.budgetMs ?? 45_000;
   const docs = await collectDocs(db);
   const existing = await fetchAll((a, b) =>
     db.from("search_index").select("id, source_type, source_id, content_hash").order("id").range(a, b),
@@ -120,41 +134,76 @@ export async function reindexSearch(db: Db, opts: { force?: boolean } = {}): Pro
   const wanted = new Set(docs.map((d) => keyOf(d.sourceType, d.sourceId)));
 
   const stale = docs.filter((d) => opts.force || known.get(keyOf(d.sourceType, d.sourceId))?.content_hash !== contentHash(d));
+  // Yang tanpa vektor ditulis dulu (tanpa kuota); yang perlu embedding menyusul per potongan.
+  const plain = stale.filter((d) => !shouldEmbed(d));
+  const toEmbed = stale.filter(shouldEmbed);
 
-  if (stale.length > 0) {
-    const vectors = await embedTexts(stale.map((d) => d.excerpt));
-    const rows = stale.map((d, i) => ({
-      user_id: d.userId,
-      source_type: d.sourceType,
-      source_id: d.sourceId,
-      title: d.title,
-      content_excerpt: d.excerpt,
-      content_hash: contentHash(d),
-      embedding: vectorLiteral(vectors[i]),
-      url_path: d.urlPath,
-    }));
+  const row = (d: SearchDoc, vector: number[] | null) => ({
+    user_id: d.userId,
+    source_type: d.sourceType,
+    source_id: d.sourceId,
+    title: d.title,
+    content_excerpt: d.excerpt,
+    content_hash: contentHash(d),
+    embedding: vector ? vectorLiteral(vector) : null,
+    url_path: d.urlPath,
+  });
+  const save = async (rows: ReturnType<typeof row>[]) => {
     for (let i = 0; i < rows.length; i += 100) {
       const { error } = await db.from("search_index").upsert(rows.slice(i, i + 100), { onConflict: "user_id,source_type,source_id" });
       if (error) throw new Error(error.message);
     }
+  };
+
+  await save(plain.map((d) => row(d, null)));
+
+  let embedded = 0;
+  let stoppedReason: string | undefined;
+  for (let i = 0; i < toEmbed.length; i += EMBED_BATCH_SIZE) {
+    if (Date.now() - started > budgetMs) {
+      stoppedReason = "Stopped to stay within the time limit.";
+      break;
+    }
+    const chunk = toEmbed.slice(i, i + EMBED_BATCH_SIZE);
+    try {
+      const vectors = await embedBatch(chunk.map((d) => d.excerpt), "RETRIEVAL_DOCUMENT");
+      await save(chunk.map((d, k) => row(d, vectors[k])));
+      embedded += chunk.length;
+    } catch (error) {
+      // Kuota habis setelah ada kemajuan: berhenti dengan rapi. Galat lain (kunci salah, dsb.) atau
+      // kuota habis di potongan pertama dilempar apa adanya supaya tidak tampak "berhasil".
+      if (error instanceof EmbeddingError && error.rateLimited && embedded > 0) {
+        stoppedReason = error.message;
+        break;
+      }
+      throw error;
+    }
   }
 
+  // Baris yatim (sumbernya sudah dihapus) tidak berkaitan dengan potongan yang tertunda, jadi selalu dibersihkan.
   const orphanIds = existing.filter((r) => !wanted.has(keyOf(r.source_type, r.source_id))).map((r) => r.id);
   for (let i = 0; i < orphanIds.length; i += 100) {
     const { error } = await db.from("search_index").delete().in("id", orphanIds.slice(i, i + 100));
     if (error) throw new Error(error.message);
   }
 
+  const remaining = toEmbed.length - embedded;
   return {
     total: docs.length,
-    embedded: stale.length,
+    updated: plain.length + embedded,
+    embedded,
     unchanged: docs.length - stale.length,
     removed: orphanIds.length,
+    remaining,
+    ...(stoppedReason ? { stoppedReason } : {}),
     tookMs: Date.now() - started,
   };
 }
 
 export function describeReindex(r: ReindexResult): string {
   const secs = (r.tookMs / 1000).toFixed(1);
-  return `Indexed ${r.embedded} new or changed, ${r.unchanged} unchanged, ${r.removed} removed (${r.total} items in total, ${secs}s).`;
+  const base = `Indexed ${r.updated} new or changed (${r.embedded} sent for embedding), ${r.unchanged} unchanged, ${r.removed} removed (${r.total} items in total, ${secs}s).`;
+  return r.remaining > 0
+    ? `${base} ${r.remaining} still waiting${r.stoppedReason ? ` — ${r.stoppedReason}` : ""} Press Reindex Search again to continue.`
+    : base;
 }

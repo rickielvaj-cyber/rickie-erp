@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types";
-import { hasOpenAiKey } from "@/lib/search/openai";
+import { hasEmbeddingKey } from "@/lib/search/gemini";
 import { describeReindex, reindexSearch } from "@/lib/search/reindex";
 
 // Dipanggil Vercel Cron setiap hari (vercel.json): hanya konten baru/berubah yang di-embed
-// ulang (dibandingkan lewat hash), jadi hari tanpa perubahan tidak memakai OpenAI sama sekali.
+// ulang (dibandingkan lewat hash), jadi hari tanpa perubahan tidak memakai kuota embedding sama sekali.
+// Kuota gratis kecil: bila habis di tengah jalan, sisanya dilanjutkan pada jalan berikutnya.
 //
 // Tidak ada sesi login di sini, jadi route ini memakai service role (melewati RLS). Karena itu:
 // * wajib CRON_SECRET (kalau kosong, route menolak semua permintaan);
@@ -24,9 +25,9 @@ export async function GET(request: NextRequest) {
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey || !hasOpenAiKey()) {
+  if (!serviceKey || !hasEmbeddingKey()) {
     return NextResponse.json(
-      { ok: false, error: "SUPABASE_SERVICE_ROLE_KEY and OPENAI_API_KEY must both be set." },
+      { ok: false, error: "SUPABASE_SERVICE_ROLE_KEY and GEMINI_API_KEY must both be set." },
       { status: 503 },
     );
   }

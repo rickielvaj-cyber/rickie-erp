@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import type { SearchDoc, SearchHit, SearchSourceType } from "./types";
 
-// Model embedding dan dimensinya harus cocok dengan kolom vector(1536) di migrasi 0014.
-export const EMBEDDING_MODEL = "text-embedding-3-small";
+// Model embedding dan dimensinya harus cocok dengan kolom vector(1536) di migrasi 0014. Gemini mendukung
+// dimensi keluaran 1536 (outputDimensionality), jadi skema tidak perlu berubah.
+export const EMBEDDING_MODEL = "gemini-embedding-001";
 export const EMBEDDING_DIMENSIONS = 1536;
 
 /** Batas panjang teks yang di-embed: cukup untuk menangkap topik, tanpa membawa seluruh isi bab. */

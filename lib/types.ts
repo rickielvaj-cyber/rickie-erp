@@ -129,8 +129,8 @@ export type SearchIndexRow = {
   title: string;
   content_excerpt: string;
   content_hash: string;
-  /** vector(1536) di database; lewat API berupa teks "[...]". */
-  embedding: string;
+  /** vector(1536) di database (lewat API berupa teks "[...]"); null = sengaja tidak di-embed (Issue). */
+  embedding: string | null;
   url_path: string;
   updated_at: string;
 };
