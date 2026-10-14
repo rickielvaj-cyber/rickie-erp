@@ -48,13 +48,20 @@ Fase 4 (search) menambah satu variabel:
 
 | Variabel | Untuk apa | Di mana |
 |---|---|---|
-| `OPENAI_API_KEY` | membuat embedding (model `text-embedding-3-small`) untuk indeks dan query | Vercel (Production) **dan** `.env.local` |
+| `GEMINI_API_KEY` | membuat embedding (model `gemini-embedding-001`, dimensi 1536) untuk indeks dan query | Vercel (Production) **dan** `.env.local` |
 
-Cara mendapatkan `OPENAI_API_KEY`: login di [platform.openai.com](https://platform.openai.com) →
-**Settings → Billing** (isi saldo kecil, mis. US$5; API tidak jalan tanpa saldo) →
-**API keys → Create new secret key** → salin kuncinya (hanya tampil sekali). Biayanya sangat
-kecil: mengindeks ±250 konten diperkirakan di bawah satu sen, dan satu pencarian jauh lebih kecil lagi (cek harga terbaru di halaman pricing OpenAI). Tanpa kunci ini
-website tetap jalan; pencarian hanya mencocokkan kata persis dan tombol Reindex menolak jalan.
+Cara mendapatkan `GEMINI_API_KEY` (gratis, tanpa kartu kredit): buka
+[aistudio.google.com/apikey](https://aistudio.google.com/apikey), login dengan akun Google, **Create API key**,
+salin kuncinya. Tanpa kunci ini website tetap jalan, tapi pencarian terpadu **tidak menemukan apa pun**
+(indeks hanya terisi lewat reindex yang butuh kunci); pencarian di dalam halaman Knowledge Base tetap berfungsi.
+
+Catatan tier gratis (periksa syarat terbaru di [ai.google.dev/terms](https://ai.google.dev/terms)):
+- Google boleh memakai isi yang dikirim untuk memperbaiki produknya dan pengulas manusia boleh membacanya;
+  mereka menyarankan tidak mengirim data sensitif. Karena itu **Issue tidak dikirim** (lihat 4b).
+- Kunci dari project yang akun penagihan (billing)-nya aktif dihitung sebagai tier berbayar; buat kunci
+  dari project tanpa billing bila ingin tetap gratis.
+- Kuota gratis kecil dan angkanya berubah-ubah (laporan komunitas: ±100 permintaan dan ±30 ribu token per
+  menit). Reindex dirancang bisa berhenti dan dilanjutkan; lihat 4b.
 
 ### 3. Jalankan migration
 
@@ -91,8 +98,10 @@ supabase db push
 - `0013_todo_phase.sql` — `todos.phase_id` (nullable): to-do bisa ditautkan ke fase proyek. **Jalankan sebelum
   kodenya live**: form To-Do selalu mengirim `phase_id`.
 - `0014_search_index.sql` — **Fase 4**: ekstensi `pgvector`, tabel `search_index` (indeks HNSW, RLS per
-  pemilik), fungsi `search_semantic` dan `search_keyword`. Tidak mengubah tabel lain. Boleh dijalankan
-  sebelum atau sesudah kode live (kode lama tidak memakainya); search baru berfungsi setelah reindex pertama.
+  pemilik), fungsi `search_semantic` dan `search_keyword`. Tidak mengubah tabel lain.
+- `0015_search_embedding_optional.sql` — kolom `embedding` boleh kosong (Issue masuk indeks tanpa vektor) dan
+  `search_semantic` hanya mengambil baris ber-vektor. **Jalankan sebelum kode Fase 4b live**: reindex menulis
+  baris tanpa vektor untuk Issue, dan tanpa migrasi ini penulisannya gagal.
 
 Jalankan `0006` → `0007` → `0008` berurutan, masing-masing aman diulang. **Backup dulu** (free tier tidak punya backup otomatis; lihat
 [docs/BACKUP.md](docs/BACKUP.md): jalankan workflow *Backup database* secara manual, atau unduh Export JSON)
@@ -132,35 +141,40 @@ jangan sampai ke-commit atau ke-set sebagai env var publik.
 ### 4b. Search semantik (Fase 4)
 
 Kolom pencarian di menu atas (atau tekan `/`) mencari **semua** konten sekaligus: Knowledge Base,
-Projects, Issues, dan Goals. Hasil digabung dari dua cara: **arti** (embedding OpenAI + kemiripan
+Projects, Issues, dan Goals. Hasil digabung dari dua cara: **arti** (embedding Gemini + kemiripan
 kosinus pgvector) dan **kata persis** (kode akun, nama klien, dsb), lalu dikelompokkan per jenis.
 Tabel sumber hanya dibaca, tidak diubah.
 
+**Issue sengaja tidak dikirim ke Google**: deskripsinya memuat nama klien. Issue tetap bisa dicari lewat
+kata persis (indeks menyimpannya tanpa vektor). Daftar jenis yang di-embed ada di `EMBEDDED_TYPES`
+(`lib/search/types.ts`). Catatan: nama klien dan catatan **Projects** ikut terkirim; hapus `project` dari
+daftar itu bila tidak diinginkan.
+
 **Reindex pertama kali setelah deploy** (indeks kosong sampai ini dijalankan):
 
-1. Jalankan migrasi `0014_search_index.sql` (langkah 3).
-2. Set `OPENAI_API_KEY` di Vercel → **Settings → Environment Variables** (Production), lalu **Redeploy**.
-3. Login → menu akun (avatar) → **Settings** → tekan **Reindex Search**. Tunggu pesan
-   "Indexed N new or changed …" (±10–30 detik untuk ±250 konten). Angka per jenis di kartu itu harus
-   cocok dengan isi website.
+1. Jalankan migrasi `0014_search_index.sql` dan `0015_search_embedding_optional.sql` (langkah 3).
+2. Set `GEMINI_API_KEY` di Vercel → **Settings → Environment Variables** (Production), lalu **Redeploy**.
+3. Login → menu akun (avatar) → **Settings** → tekan **Reindex Search**. Pesannya berbentuk
+   "Indexed N new or changed … (M sent for embedding) …". Bila ada kalimat "N still waiting", kuota gratis
+   atau batas waktu tercapai: **tunggu semenit lalu tekan lagi**; yang sudah tersimpan tidak diulang.
+   Angka per jenis di kartu itu harus akhirnya cocok dengan isi website.
 4. Coba cari sesuatu yang maknanya mirip tapi katanya beda.
 
 Setelah itu:
 
 - **Otomatis harian** (Vercel Cron, 02:30 UTC, `/api/cron/reindex-search`): hanya konten yang berubah
   (dibandingkan lewat hash isi) yang di-embed ulang, dan baris milik konten yang sudah dihapus dibersihkan.
-  Hari tanpa perubahan tidak memakai OpenAI. Route ini butuh **`CRON_SECRET`** dan
+  Hari tanpa perubahan tidak memakai kuota. Route ini butuh **`CRON_SECRET`** dan
   **`SUPABASE_SERVICE_ROLE_KEY`** sebagai env var Production di Vercel, karena cron tidak punya sesi login.
   Service role melewati RLS: simpan hanya di Vercel (terenkripsi), jangan di repo. Tanpa kedua variabel itu
   cron menjawab 503 dan auto-reindex mati; tombol manual di Settings tetap berfungsi.
 - **Manual**: tombol Reindex Search (ceklis "Re-embed everything" untuk memaksa semuanya ulang), atau dari
-  terminal dengan `.env.local` berisi `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`:
+  terminal dengan `.env.local` berisi `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`:
   `npm run reindex` (tambahkan `-- --force` untuk embed ulang semua).
-- **Privasi**: judul dan potongan isi (maks. ±1.500 karakter per konten, termasuk deskripsi issue dan nama
-  klien) dikirim ke OpenAI untuk dibuatkan embedding. Kebijakan API OpenAI saat ini: data API tidak dipakai
-  melatih model; cek ulang di platform.openai.com bila konten klien sensitif.
 - **Ambang relevansi** (`SEMANTIC_MIN_SIMILARITY` di `lib/search/query.ts`, awal 0,25) membuang hasil arti
-  yang tidak relevan. Kalau hasil terasa terlalu sedikit/banyak setelah dipakai dengan data asli, ubah angka itu.
+  yang tidak relevan. Nilai itu tebakan awal dan **belum disetel untuk Gemini**;
+  sesuaikan setelah dipakai dengan data asli bila hasil terasa terlalu sedikit/banyak.
+- **Ganti model/penyedia** mengubah isi vektor: jalankan Reindex dengan "Re-embed everything".
 
 ### 5. Install dependencies & jalankan
 

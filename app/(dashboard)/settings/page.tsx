@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/date";
-import { hasOpenAiKey } from "@/lib/search/openai";
+import { hasEmbeddingKey } from "@/lib/search/gemini";
 import { SOURCE_LABEL, SOURCE_TYPES } from "@/lib/search/types";
 import { ReindexForm } from "@/components/ReindexForm";
 
 export const metadata = { title: "Settings" };
-// Reindex memanggil OpenAI untuk ratusan teks; beri waktu lebih dari default.
+// Reindex memanggil layanan embedding untuk ratusan teks; beri waktu lebih dari default.
 export const maxDuration = 60;
 
 export default async function SettingsPage() {
@@ -20,7 +20,7 @@ export default async function SettingsPage() {
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(r.source_type, (counts.get(r.source_type) ?? 0) + 1);
   const last = rows[0]?.updated_at;
-  const keySet = hasOpenAiKey();
+  const keySet = hasEmbeddingKey();
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -31,15 +31,17 @@ export default async function SettingsPage() {
           Search index
         </h2>
         <p className="mt-1 text-sm text-muted">
-          Search finds content by meaning, using embeddings from OpenAI. New or edited content is picked up by a daily
-          job; press the button to update right now, for example after adding many entries.
+          Search finds Knowledge Base entries, projects, and goals by meaning, using Google Gemini embeddings. Issues are
+          indexed for exact-word search only and are never sent to Google, because they contain client names. New or
+          edited content is picked up by a daily job; press the button to update right now. The free embedding quota is
+          small, so the first run may stop early — if it says items are still waiting, press the button again after a
+          minute.
         </p>
 
         {error && <p className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error.message}</p>}
         {!keySet && (
           <p className="mt-4 rounded-xl border border-border bg-background px-4 py-2.5 text-sm">
-            <code>OPENAI_API_KEY</code> is not set on the server, so indexing and meaning-based search are off. See the
-            README.
+            <code>GEMINI_API_KEY</code> is not set on the server, so meaning-based search is off. See the README.
           </p>
         )}
 

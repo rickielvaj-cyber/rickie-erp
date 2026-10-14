@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function GET(request: NextRequest) {
-  // Wajib login: setiap pencarian memakai kuota OpenAI dan membaca data pribadi.
+  // Wajib login: setiap pencarian memakai kuota embedding dan membaca data pribadi.
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

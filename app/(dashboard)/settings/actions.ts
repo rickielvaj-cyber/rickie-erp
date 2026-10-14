@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
-import { hasOpenAiKey } from "@/lib/search/openai";
+import { hasEmbeddingKey } from "@/lib/search/gemini";
 import { describeReindex, reindexSearch } from "@/lib/search/reindex";
 
 export type ReindexState = { ok: boolean; message: string } | null;
@@ -12,7 +12,7 @@ export type ReindexState = { ok: boolean; message: string } | null;
 export async function reindexSearchAction(_prev: ReindexState, formData: FormData): Promise<ReindexState> {
   const user = await getAuthUser();
   if (!user) return { ok: false, message: "Please sign in again." };
-  if (!hasOpenAiKey()) return { ok: false, message: "OPENAI_API_KEY is not set on the server (see README)." };
+  if (!hasEmbeddingKey()) return { ok: false, message: "GEMINI_API_KEY is not set on the server (see README)." };
 
   try {
     const supabase = await createClient();

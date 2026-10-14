@@ -49,7 +49,7 @@ function Group({ type, hits }: { type: (typeof SOURCE_TYPES)[number]; hits: Sear
 }
 
 /**
- * Memanggil /api/search; menampilkan kerangka pemuatan selama menunggu (OpenAI + database).
+ * Memanggil /api/search; menampilkan kerangka pemuatan selama menunggu (embedding service + database).
  * Pemanggil memberi key={query}, jadi query baru = komponen baru dengan state "loading".
  */
 export function SearchResults({ query }: { query: string }) {

@@ -8,6 +8,14 @@ export const SOURCE_LABEL: Record<SearchSourceType, string> = {
   goal: "Goals",
 };
 
+/**
+ * Jenis konten yang dikirim ke penyedia embedding (Google). Issue SENGAJA tidak ikut: deskripsinya memuat
+ * nama klien dan tier gratis Gemini boleh memakai isi yang dikirim untuk memperbaiki produk Google.
+ * Issue tetap masuk indeks tanpa vektor, jadi dicari lewat kata persis. Untuk mengikutkannya, tambahkan
+ * "issue" di sini lalu jalankan Reindex dengan "Re-embed everything".
+ */
+export const EMBEDDED_TYPES: readonly SearchSourceType[] = ["kb_entry", "project", "goal"];
+
 /** Satu konten yang akan diindeks (belum ber-embedding). */
 export type SearchDoc = {
   userId: string;
