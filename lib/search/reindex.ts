@@ -209,8 +209,10 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
   }
 
   // Hub dokumen (rata-rata kemiripan ke dokumen lain) dipakai pencarian untuk membuang dokumen yang dekat
-  // ke query apa pun. Dihitung ulang bila isi vektor berubah; gagal di sini tidak membatalkan reindex.
-  if (embedded > 0 || orphanIds.length > 0 || opts.force) {
+  // ke query apa pun. SELALU dihitung ulang, bukan hanya saat ada vektor baru: setelah migrasi yang
+  // menambah kolom `hub`, reindex pertama tidak mengubah vektor apa pun tapi hub tetap harus terisi.
+  // Biayanya sepersekian detik untuk ratusan baris. Gagal di sini tidak membatalkan reindex.
+  {
     const { error } = await db.rpc("search_refresh_hub");
     if (error) note = `Search ranking data could not be refreshed (${error.message}); results may include irrelevant entries until the next reindex.`;
   }
