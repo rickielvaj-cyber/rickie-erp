@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SOURCE_LABEL, SOURCE_TYPES, type SearchHit, type SearchResponse } from "@/lib/search/types";
+import { groupHits } from "@/lib/search/text";
+import { SOURCE_LABEL, type SearchHit, type SearchResponse, type SearchSourceType } from "@/lib/search/types";
 
 type State =
   | { status: "loading" }
@@ -28,7 +29,7 @@ function Skeleton() {
   );
 }
 
-function Group({ type, hits }: { type: (typeof SOURCE_TYPES)[number]; hits: SearchHit[] }) {
+function Group({ type, hits }: { type: SearchSourceType; hits: SearchHit[] }) {
   return (
     <section aria-labelledby={`group-${type}`}>
       <h2 id={`group-${type}`} className="mb-3 text-sm font-medium text-muted">
@@ -40,6 +41,11 @@ function Group({ type, hits }: { type: (typeof SOURCE_TYPES)[number]; hits: Sear
             <Link href={hit.urlPath} className="block px-5 py-4 transition-colors hover:bg-surface">
               <p className="text-lg">{hit.title}</p>
               {hit.snippet && <p className="mt-1 text-sm text-muted">{hit.snippet}</p>}
+              {hit.debug && (
+                <p className="mt-1 font-mono text-xs text-muted">
+                  similarity {hit.debug.similarity.toFixed(3)} · z {hit.debug.z.toFixed(2)}
+                </p>
+              )}
             </Link>
           </li>
         ))}
@@ -52,12 +58,12 @@ function Group({ type, hits }: { type: (typeof SOURCE_TYPES)[number]; hits: Sear
  * Memanggil /api/search; menampilkan kerangka pemuatan selama menunggu (embedding service + database).
  * Pemanggil memberi key={query}, jadi query baru = komponen baru dengan state "loading".
  */
-export function SearchResults({ query }: { query: string }) {
+export function SearchResults({ query, debug = false }: { query: string; debug?: boolean }) {
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
+    fetch(`/api/search?q=${encodeURIComponent(query)}${debug ? "&debug=1" : ""}`, { signal: controller.signal })
       .then(async (response) => {
         const json = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error((json as { error?: string }).error ?? "Search failed.");
@@ -68,7 +74,7 @@ export function SearchResults({ query }: { query: string }) {
         setState({ status: "error", message: error instanceof Error ? error.message : "Search failed." });
       });
     return () => controller.abort();
-  }, [query]);
+  }, [query, debug]);
 
   if (state.status === "loading") return <Skeleton />;
   if (state.status === "error") {
@@ -92,10 +98,9 @@ export function SearchResults({ query }: { query: string }) {
           <p className="text-sm text-muted">
             {results.length} {results.length === 1 ? "result" : "results"}
           </p>
-          {SOURCE_TYPES.map((type) => {
-            const hits = results.filter((r) => r.sourceType === type);
-            return hits.length > 0 ? <Group key={type} type={type} hits={hits} /> : null;
-          })}
+          {groupHits(results).map(({ type, hits }) => (
+            <Group key={type} type={type} hits={hits} />
+          ))}
         </>
       )}
     </div>

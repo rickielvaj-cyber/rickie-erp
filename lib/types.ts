@@ -124,13 +124,15 @@ export type KbEntry = {
 export type SearchIndexRow = {
   id: string;
   user_id: string;
-  source_type: "kb_entry" | "project" | "issue" | "goal";
+  source_type: "kb_entry" | "project" | "issue" | "goal" | "client";
   source_id: string;
   title: string;
   content_excerpt: string;
   content_hash: string;
-  /** vector(1536) di database (lewat API berupa teks "[...]"); null = sengaja tidak di-embed (Issue). */
+  /** vector(1536) di database (lewat API berupa teks "[...]"); null = sengaja tidak di-embed (Issue, klien). */
   embedding: string | null;
+  /** Rata-rata kemiripan dokumen ini ke dokumen lain (dihitung search_refresh_hub); null sebelum reindex. */
+  hub: number | null;
   url_path: string;
   updated_at: string;
 };
@@ -217,8 +219,8 @@ export type Database = {
       };
       search_index: {
         Row: SearchIndexRow;
-        Insert: Omit<SearchIndexRow, "id" | "updated_at" | "user_id"> &
-          Partial<Pick<SearchIndexRow, "id" | "updated_at" | "user_id">>;
+        Insert: Omit<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub"> &
+          Partial<Pick<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub">>;
         Update: Partial<Omit<SearchIndexRow, "id">>;
         Relationships: [];
       };
@@ -241,8 +243,18 @@ export type Database = {
           title: string;
           content_excerpt: string;
           url_path: string;
+          /** Kemiripan kosinus mentah. */
           similarity: number;
+          /** Kemiripan dikurangi hub dokumen; dasar urutan dan z-score. */
+          adjusted: number;
+          /** Rata-rata dan simpangan baku `adjusted` SELURUH baris ber-vektor untuk query ini. */
+          mean_adj: number;
+          sd_adj: number | null;
         }[];
+      };
+      search_refresh_hub: {
+        Args: Record<string, never>;
+        Returns: number;
       };
       search_keyword: {
         Args: { search_text: string; match_count?: number };

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types";
+import { kindOf } from "@/lib/clients";
 import { sortPhases } from "@/lib/projects";
 import { EMBED_BATCH_SIZE, EmbeddingError, embedBatch } from "./gemini";
 import { buildExcerpt, contentHash, vectorLiteral } from "./text";
@@ -22,6 +23,8 @@ export type ReindexResult = {
   remaining: number;
   /** Alasan berhenti lebih awal, bila ada. */
   stoppedReason?: string;
+  /** Catatan non-fatal (mis. data peringkat gagal diperbarui); reindex tetap dianggap berhasil. */
+  note?: string;
   tookMs: number;
 };
 
@@ -48,7 +51,7 @@ export async function collectDocs(db: Db): Promise<SearchDoc[]> {
     fetchAll((a, b) => db.from("projects").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("project_phases").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("project_partners").select("*").order("project_id").range(a, b)),
-    fetchAll((a, b) => db.from("clients").select("id, canonical_name").order("id").range(a, b)),
+    fetchAll((a, b) => db.from("clients").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("issue_log").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("goals").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("goal_items").select("goal_id, title, group_name, note").order("id").range(a, b)),
@@ -58,6 +61,19 @@ export async function collectDocs(db: Db): Promise<SearchDoc[]> {
   const docs: SearchDoc[] = [];
   const push = (userId: string, sourceType: SearchSourceType, sourceId: string, title: string, body: string, urlPath: string) =>
     docs.push({ userId, sourceType, sourceId, title, excerpt: buildExcerpt(title, body), urlPath });
+
+  // Klien dan partner: hanya kata persis (EMBEDDED_TYPES tidak memuat "client"), supaya mencari nama
+  // langsung menemukan orangnya tanpa mengirim nama klien ke penyedia embedding.
+  for (const c of clients) {
+    const body = [
+      `${kindOf(c) === "partner" ? "Partner" : "Client"}.`,
+      c.aliases.length ? `Also written as: ${c.aliases.join(", ")}.` : "",
+      c.active ? "" : "Inactive.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    push(c.user_id, "client", c.id, c.canonical_name, body, `/clients?edit=${c.id}&show=all`);
+  }
 
   for (const e of kb) {
     push(e.user_id, "kb_entry", e.id, e.title, e.content, `/knowledge-base/${e.module}/${e.id}`);
@@ -159,6 +175,7 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
 
   let embedded = 0;
   let stoppedReason: string | undefined;
+  let note: string | undefined;
   for (let i = 0; i < toEmbed.length; i += EMBED_BATCH_SIZE) {
     if (Date.now() - started > budgetMs) {
       stoppedReason = "Stopped to stay within the time limit.";
@@ -191,6 +208,13 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
     if (error) throw new Error(error.message);
   }
 
+  // Hub dokumen (rata-rata kemiripan ke dokumen lain) dipakai pencarian untuk membuang dokumen yang dekat
+  // ke query apa pun. Dihitung ulang bila isi vektor berubah; gagal di sini tidak membatalkan reindex.
+  if (embedded > 0 || orphanIds.length > 0 || opts.force) {
+    const { error } = await db.rpc("search_refresh_hub");
+    if (error) note = `Search ranking data could not be refreshed (${error.message}); results may include irrelevant entries until the next reindex.`;
+  }
+
   const remaining = toEmbed.length - embedded;
   return {
     total: docs.length,
@@ -200,6 +224,7 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
     removed: orphanIds.length,
     remaining,
     ...(stoppedReason ? { stoppedReason } : {}),
+    ...(note ? { note } : {}),
     tookMs: Date.now() - started,
   };
 }
@@ -207,7 +232,9 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
 export function describeReindex(r: ReindexResult): string {
   const secs = (r.tookMs / 1000).toFixed(1);
   const base = `Indexed ${r.updated} new or changed (${r.embedded} sent for embedding), ${r.unchanged} unchanged, ${r.removed} removed (${r.total} items in total, ${secs}s).`;
-  return r.remaining > 0
-    ? `${base} ${r.remaining} still waiting${r.stoppedReason ? ` — ${r.stoppedReason}` : ""} Press Reindex Search again to continue.`
-    : base;
+  const text =
+    r.remaining > 0
+      ? `${base} ${r.remaining} still waiting${r.stoppedReason ? ` — ${r.stoppedReason}` : ""} Press Reindex Search again to continue.`
+      : base;
+  return r.note ? `${text} ${r.note}` : text;
 }
