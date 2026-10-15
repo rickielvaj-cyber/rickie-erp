@@ -234,7 +234,7 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      search_semantic: {
+      search_semantic_v2: {
         Args: { query_embedding: string; match_count?: number };
         Returns: {
           id: string;

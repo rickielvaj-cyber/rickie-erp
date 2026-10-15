@@ -24,7 +24,7 @@ export async function searchAll(db: Db, query: string, opts: { debug?: boolean }
     }
     try {
       const vector = await embedQuery(query);
-      const { data, error } = await db.rpc("search_semantic", {
+      const { data, error } = await db.rpc("search_semantic_v2", {
         query_embedding: vectorLiteral(vector),
         match_count: TOP_N,
       });

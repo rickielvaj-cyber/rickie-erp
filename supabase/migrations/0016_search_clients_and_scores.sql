@@ -7,15 +7,17 @@
 --
 -- Perbaikan:
 -- 1. `hub` = rata-rata kemiripan sebuah dokumen ke dokumen lain (dihitung ulang oleh search_refresh_hub()
---    di akhir reindex). search_semantic mengurangi hub dari skor ("adjusted"), lalu mengembalikan rata-rata
+--    di akhir reindex). search_semantic_v2 mengurangi hub dari skor ("adjusted"), lalu mengembalikan rata-rata
 --    dan simpangan baku skor tersesuaikan SELURUH baris untuk query itu; aplikasi menilai tiap hasil
 --    sebagai z-score dan hanya menerima yang benar-benar mencolok.
 -- 2. Jenis hasil baru 'client' (klien dan partner). Mereka masuk indeks TANPA vektor (nama klien tidak
 --    dikirim ke penyedia embedding) dan ditemukan lewat kata persis, jadi mencari "Edot" langsung
 --    menampilkan partner Edot.
 --
--- Tidak mengubah data selain kolom baru `hub` (kosong sampai reindex). Fungsi lama di-DROP lalu dibuat
--- ulang karena tipe kembaliannya berubah; izin execute diatur ulang di bawah. Aman dijalankan berulang.
+-- Tidak mengubah data selain kolom baru `hub` (kosong sampai reindex). Tipe kembalian search_semantic berubah,
+-- yang di Postgres butuh DROP; `drop function` itu menggantung berulang lewat jalur penerapan ke produksi, jadi
+-- fungsi baru dibuat dengan nama lain (search_semantic_v2) dan yang lama dibiarkan tanpa dipakai. Izin execute
+-- diatur di bawah. Aman dijalankan berulang.
 
 alter table public.search_index drop constraint if exists search_index_source_type_check;
 alter table public.search_index
@@ -46,9 +48,7 @@ as $$
   select count(*)::integer from u;
 $$;
 
-drop function if exists public.search_semantic(extensions.vector, integer);
-
-create function public.search_semantic(
+create or replace function public.search_semantic_v2(
   query_embedding extensions.vector(1536),
   match_count integer default 15
 )
@@ -90,5 +90,8 @@ $$;
 
 revoke execute on function public.search_refresh_hub() from public, anon;
 grant execute on function public.search_refresh_hub() to authenticated;
-revoke execute on function public.search_semantic(extensions.vector, integer) from public, anon;
-grant execute on function public.search_semantic(extensions.vector, integer) to authenticated;
+revoke execute on function public.search_semantic_v2(extensions.vector, integer) from public, anon;
+grant execute on function public.search_semantic_v2(extensions.vector, integer) to authenticated;
+
+-- search_semantic (versi lama, tanpa koreksi hub) tidak lagi dipakai aplikasi. Boleh dihapus kapan saja dengan:
+--   drop function public.search_semantic(extensions.vector, integer);
