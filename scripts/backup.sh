@@ -18,15 +18,19 @@ trap 'rm -f "$tmp"' EXIT
 
 # --column-inserts: INSERT dengan nama kolom, tahan terhadap perbedaan urutan kolom saat restore.
 # --no-owner/--no-privileges: restore dijalankan sebagai pemilik project baru.
+# --exclude-table-data=search_index: isinya (vektor pencarian) hampir separuh ukuran dump dan bisa dibuat
+# ulang kapan saja lewat Settings > Reindex Search; strukturnya tetap ikut. Karena strukturnya memakai tipe
+# vector, restore butuh ekstensi pgvector aktif lebih dulu (lihat docs/BACKUP.md).
 pg_dump "$SUPABASE_DB_URL" \
   --schema=public --no-owner --no-privileges --column-inserts --quote-all-identifiers \
+  --exclude-table-data='public.search_index' \
   --file="$tmp"
 
 # Project Supabase baru sudah punya skema public; baris ini akan membuat restore berhenti dengan error.
 sed -i '/^CREATE SCHEMA "public";$/d' "$tmp"
 
 # Pemeriksaan kewarasan: dump yang kosong atau terpotong jangan sampai dianggap backup.
-for table in todos goals goal_items issue_log clients kb_entries; do
+for table in todos goals goal_items issue_log clients projects project_phases project_partners kb_entries search_index; do
   if ! grep -q "^CREATE TABLE \"public\"\.\"$table\"" "$tmp"; then
     echo "GAGAL: tabel $table tidak ada di dump" >&2
     exit 1
@@ -42,6 +46,7 @@ echo "Jumlah baris di dump:"
 for table in todos goals goal_items issue_log clients projects project_phases project_partners kb_entries; do
   printf '  %-16s %s\n' "$table" "$(grep -c "^INSERT INTO \"public\"\.\"$table\"" "$tmp" || true)"
 done
+echo "  search_index     (data tidak ikut; dibuat ulang lewat Reindex Search)"
 
 mkdir -p "$(dirname "$out")"
 # Passphrase lewat file descriptor, bukan argumen perintah (tidak muncul di daftar proses).

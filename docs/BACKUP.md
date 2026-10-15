@@ -7,8 +7,9 @@ minggu, dienkripsi, dan disimpan di luar Supabase dan Vercel.
 
 | Ikut backup | Tidak ikut backup |
 |---|---|
-| Semua tabel aplikasi: to-do, goal, item goal, Issue Log, klien/partner, **225 entri Knowledge Base** | **Akun login** (`auth.users`), lihat langkah restore |
-| Struktur tabel, policy RLS, fungsi, trigger | **File gambar KB** di Storage (±1.200 gambar). Sumbernya tetap file Word asli Rickie; simpan file itu |
+| Semua tabel aplikasi: to-do, goal, item goal, Issue Log, klien/partner, proyek, **225 entri Knowledge Base** | **Akun login** (`auth.users`), lihat langkah restore |
+| Struktur tabel, policy RLS, fungsi, trigger | **Isi indeks pencarian** (`search_index`, hanya strukturnya). Bisa dibuat ulang lewat Settings → Reindex Search |
+|  | **File gambar KB** di Storage (±1.200 gambar). Sumbernya tetap file Word asli Rickie; simpan file itu |
 | | Pengaturan project (Auth, domain, dsb.) |
 
 ## Cara kerja
@@ -75,7 +76,7 @@ File backup sudah berisi **struktur tabel + policy RLS + fungsi + data**, jadi *
 migrasi** lebih dulu (justru akan error "sudah ada"). Akun login tidak ikut backup, jadi data harus
 dihubungkan ke akun **baru**:
 
-1. Buat project Supabase **baru dan kosong**. (Hanya data yang hilang di project lama? Lihat catatan di bawah.)
+1. Buat project Supabase **baru dan kosong**, lalu aktifkan ekstensi **pgvector**: Dashboard → Database → Extensions → cari `vector` → aktifkan (skema `extensions`, bawaan). **Wajib sebelum restore**: tabel `search_index` memakai tipe `vector`, dan tanpa ekstensi restore berhenti dengan error `type extensions.vector does not exist`. (Hanya data yang hilang di project lama? Lihat catatan di bawah.)
 2. Daftar/login di situs yang menunjuk ke project baru supaya akun baru terbentuk. Ambil **User UID**-nya:
    Supabase Dashboard → Authentication → Users.
 3. Cari UID **lama** di file backup. UID pengguna muncul di setiap baris data, jadi dialah UUID yang paling sering:
@@ -89,7 +90,7 @@ dihubungkan ke akun **baru**:
    sed "s/UID-LAMA/UID-BARU/g" backup.sql > restore.sql
    ```
 5. Jalankan `restore.sql` di **SQL Editor** (tempel isinya), atau `psql "$SUPABASE_DB_URL" -f restore.sql`.
-6. Buka situs, cek to-do, Goals, Issue Log, Clients, dan KB.
+6. Buka situs, cek to-do, Goals, Issue Log, Clients, dan KB. Isi Search belum ada (indeks pencarian tidak ikut backup): buka **Settings → Reindex Search**; kalau ada pesan "N still waiting" tekan lagi setelah semenit, lalu tunggu kartu jumlahnya cocok.
 7. Buat ulang bucket Storage seperti di project lama dan unggah ulang gambar KB dari file Word asli
    (Storage tidak ikut backup). Pengaturan Auth (mis. matikan sign-up publik) juga harus diulang.
 
@@ -97,9 +98,10 @@ dihubungkan ke akun **baru**:
 membuat ulang tabel dan akan error. Ambil hanya baris `INSERT INTO "public"."nama_tabel"` untuk tabel yang
 perlu dipulihkan (dan ganti UID bila akunnya juga berubah).
 
-> Alur ini sudah diuji ujung ke ujung dengan data tiruan: jumlah baris dan isi (termasuk teks
-> multi-baris, tab, dan tanda kutip) identik setelah restore ke database kosong dengan pengguna berbeda,
-> dan policy RLS serta `search_path` fungsi ikut pulih.
+> Alur ini sudah diuji ujung ke ujung dengan data tiruan (semua migrasi 0001–0016): jumlah baris dan isi
+> (termasuk teks multi-baris, tab, dan tanda kutip) identik setelah restore ke database kosong dengan pengguna
+> berbeda, 0 galat, dan policy RLS, `search_path` fungsi, serta fungsi pencarian ikut pulih. Tanpa pgvector
+> aktif lebih dulu, restore gagal di tipe `vector` (diuji juga).
 > **Uji restore sungguhan ke project kosong setiap beberapa bulan.** Backup yang tidak pernah
 > dicoba dipulihkan belum bisa dianggap backup.
 
