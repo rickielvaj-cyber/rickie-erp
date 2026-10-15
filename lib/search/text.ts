@@ -71,30 +71,69 @@ type Ranked = {
   title: string;
   content_excerpt: string;
   url_path: string;
+  /** Hanya untuk hasil arti: kemiripan mentah dan z-score (dari skor tersesuaikan hub) terhadap seluruh indeks. */
+  similarity?: number;
+  z?: number;
 };
 
+type SemanticRow = Ranked & { similarity: number; adjusted: number; mean_adj: number; sd_adj: number | null };
+
+/**
+ * Z-score minimum agar hasil arti dianggap relevan. Terukur di indeks produksi: kemiripan Gemini antar-teks
+ * satu topik (ERP) mengumpul rapat (rata-rata ±0,73, sd ±0,04) dan sebagian dokumen adalah "hub" yang dekat
+ * ke query APA PUN, jadi ambang absolut tidak berguna. Yang dinilai: seberapa mencolok sebuah hasil dibanding
+ * SELURUH indeks untuk query yang sama, setelah hub dokumen dikurangkan (search_semantic). Dari ±230 teks,
+ * hasil kebetulan tertinggi secara teori sekitar 2,8 sd dan pada uji dengan embedding tiruan 3,5–3,6, jadi 4
+ * dipakai sebagai awal yang konservatif (lebih baik melewatkan hasil samar daripada menampilkan yang tidak
+ * nyambung; pencarian kata persis tetap jalan). BELUM disetel dengan data Gemini asli: lihat
+ * /search?q=...&debug=1 untuk melihat similarity dan z tiap hasil.
+ */
+export const SEMANTIC_MIN_Z = 4;
+
+/** Beri z-score tiap baris dan buang yang tidak mencolok. Tanpa sebaran yang berarti (sd kosong/≈0) tidak ada hasil arti. */
+export function pickSemantic(rows: SemanticRow[], minZ = SEMANTIC_MIN_Z): (Ranked & { z: number })[] {
+  return rows
+    .filter((r) => r.sd_adj !== null && r.sd_adj > 1e-6)
+    .map((r) => ({ ...r, z: (r.adjusted - r.mean_adj) / (r.sd_adj as number) }))
+    .filter((r) => r.z >= minZ);
+}
+
 const RRF_K = 60;
+const EXACT_TITLE_BONUS = 1;
 
 /**
  * Gabungkan dua daftar berperingkat (arti + kata kunci) dengan Reciprocal Rank Fusion:
  * skor = jumlah 1/(60 + peringkat). Hasil yang muncul di kedua daftar naik ke atas,
  * duplikat digabung. Tidak perlu menyamakan skala skor kedua pencarian.
  */
-export function mergeRanked(semantic: Ranked[], keyword: Ranked[], limit = 30): SearchHit[] {
+export function mergeRanked(
+  semantic: Ranked[],
+  keyword: Ranked[],
+  limit = 30,
+  opts: { debug?: boolean; query?: string } = {},
+): SearchHit[] {
   const merged = new Map<string, { row: Ranked; score: number; sem: boolean; kw: boolean }>();
   const add = (rows: Ranked[], kind: "sem" | "kw") => {
     rows.forEach((row, index) => {
       const entry = merged.get(row.id) ?? { row, score: 0, sem: false, kw: false };
       entry.score += 1 / (RRF_K + index + 1);
-      if (kind === "sem") entry.sem = true;
-      else entry.kw = true;
+      if (kind === "sem") {
+        entry.sem = true;
+        entry.row = { ...entry.row, similarity: row.similarity, z: row.z };
+      } else entry.kw = true;
       merged.set(row.id, entry);
     });
   };
   add(semantic, "sem");
   add(keyword, "kw");
 
+  // Judul yang persis sama dengan query (mis. mencari "Edot" -> partner Edot) selalu di atas: nilai RRF
+  // maksimum ±0,033, jadi bonus ini mengalahkan hasil yang kebetulan muncul di kedua pencarian.
+  const q = opts.query?.trim().toLowerCase();
+  const bonus = (title: string) => (q && title.trim().toLowerCase() === q ? EXACT_TITLE_BONUS : 0);
+
   return Array.from(merged.values())
+    .map((m) => ({ ...m, score: m.score + bonus(m.row.title) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(({ row, sem, kw }) => ({
@@ -104,5 +143,16 @@ export function mergeRanked(semantic: Ranked[], keyword: Ranked[], limit = 30): 
       snippet: snippetOf(row.title, row.content_excerpt),
       urlPath: row.url_path,
       match: sem && kw ? "both" : sem ? "semantic" : "keyword",
+      ...(opts.debug && row.similarity !== undefined && row.z !== undefined ? { debug: { similarity: row.similarity, z: row.z } } : {}),
     }));
+}
+
+/**
+ * Kelompokkan hasil per jenis, urutan kelompok mengikuti hasil terbaiknya (hasil sudah terurut skor):
+ * mencari nama klien menaruh "Clients & Partners" di atas, mencari topik menaruh Knowledge Base di atas.
+ */
+export function groupHits(hits: SearchHit[]): { type: SearchSourceType; hits: SearchHit[] }[] {
+  const groups = new Map<SearchSourceType, SearchHit[]>();
+  for (const hit of hits) groups.set(hit.sourceType, [...(groups.get(hit.sourceType) ?? []), hit]);
+  return Array.from(groups, ([type, list]) => ({ type, hits: list }));
 }

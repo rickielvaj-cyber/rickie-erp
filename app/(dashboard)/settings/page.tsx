@@ -31,8 +31,8 @@ export default async function SettingsPage() {
           Search index
         </h2>
         <p className="mt-1 text-sm text-muted">
-          Search finds Knowledge Base entries, projects, and goals by meaning, using Google Gemini embeddings. Issues are
-          indexed for exact-word search only and are never sent to Google, because they contain client names. New or
+          Search finds Knowledge Base entries, projects, and goals by meaning, using Google Gemini embeddings. Issues, clients,
+          and partners are indexed for exact-word search only and are never sent to Google, because they contain client names. New or
           edited content is picked up by a daily job; press the button to update right now. The free embedding quota is
           small, so the first run may stop early — if it says items are still waiting, press the button again after a
           minute.
@@ -45,7 +45,7 @@ export default async function SettingsPage() {
           </p>
         )}
 
-        <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {SOURCE_TYPES.map((type) => (
             <div key={type} className="rounded-2xl border border-border bg-background px-4 py-3">
               <dt className="text-xs text-muted">{SOURCE_LABEL[type]}</dt>

@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    return NextResponse.json(await searchAll(supabase, query));
+    // ?debug=1 menyertakan skor mentah hasil arti (similarity dan z) supaya ambang bisa disetel.
+    return NextResponse.json(await searchAll(supabase, query, { debug: request.nextUrl.searchParams.get("debug") === "1" }));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Search failed." },

@@ -3,15 +3,15 @@ import { normalizeQuery } from "@/lib/search/text";
 
 export const metadata = { title: "Search" };
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const { q } = await searchParams;
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; debug?: string }> }) {
+  const { q, debug } = await searchParams;
   const query = normalizeQuery(q);
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-4xl font-semibold tracking-tight">Search</h1>
       <p className="mt-1 text-base text-muted">
-        Finds Knowledge Base entries, projects, issues, and goals — by meaning, not only exact words.
+        Finds clients and partners, projects, issues, goals, and Knowledge Base entries — by meaning, not only exact words.
       </p>
 
       {/* GET biasa: bekerja juga di layar sempit, tempat kolom di menu atas disembunyikan. */}
@@ -36,7 +36,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
       <div className="mt-8">
         {query ? (
-          <SearchResults key={query} query={query} />
+          <SearchResults key={`${query}|${debug}`} query={query} debug={debug === "1"} />
         ) : q ? (
           <p className="text-sm text-muted">Type at least 2 characters.</p>
         ) : null}

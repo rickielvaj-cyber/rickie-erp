@@ -100,6 +100,9 @@ supabase db push
   kodenya live**: form To-Do selalu mengirim `phase_id`.
 - `0014_search_index.sql` — **Fase 4**: ekstensi `pgvector`, tabel `search_index` (indeks HNSW, RLS per
   pemilik), fungsi `search_semantic` dan `search_keyword`. Tidak mengubah tabel lain.
+- `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
+  `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
+  fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
 - `0015_search_embedding_optional.sql` — kolom `embedding` boleh kosong (Issue masuk indeks tanpa vektor) dan
   `search_semantic` hanya mengambil baris ber-vektor. **Jalankan sebelum kode Fase 4b live**: reindex menulis
   baris tanpa vektor untuk Issue, dan tanpa migrasi ini penulisannya gagal.
@@ -172,9 +175,17 @@ Setelah itu:
 - **Manual**: tombol Reindex Search (ceklis "Re-embed everything" untuk memaksa semuanya ulang), atau dari
   terminal dengan `.env.local` berisi `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`:
   `npm run reindex` (tambahkan `-- --force` untuk embed ulang semua).
-- **Ambang relevansi** (`SEMANTIC_MIN_SIMILARITY` di `lib/search/query.ts`, awal 0,25) membuang hasil arti
-  yang tidak relevan. Nilai itu tebakan awal dan **belum disetel untuk Gemini**;
-  sesuaikan setelah dipakai dengan data asli bila hasil terasa terlalu sedikit/banyak.
+- **Relevansi hasil arti** (`SEMANTIC_MIN_Z` di `lib/search/text.ts`, awal 4). Terukur di indeks produksi:
+  kemiripan antar-dokumen rata-rata 0,73 (sd 0,04) dan sebagian dokumen adalah "hub" yang dekat ke query
+  apa pun, jadi ambang skor tetap tidak bisa membedakan relevan dari "sama-sama topik ERP". Yang dilakukan:
+  skor tiap dokumen dikurangi hub-nya (rata-rata kemiripannya ke dokumen lain, dihitung ulang di akhir
+  reindex oleh `search_refresh_hub()`), lalu sebuah hasil hanya dipakai bila skornya mencolok (z-score)
+  dibanding seluruh indeks untuk query itu. **Nilai 4 belum disetel dengan data Gemini asli.** Untuk
+  menyetelnya, buka `/search?q=kata+yang+dicari&debug=1`: tiap hasil arti menampilkan `similarity` dan `z`.
+  Bandingkan query yang relevan dan yang ngawur, lalu ubah angkanya bila hasil terlalu sedikit/banyak.
+- **Clients & Partners** ikut dicari (nama persis seperti di halaman Clients). Mereka masuk indeks tanpa
+  vektor, jadi dicari hanya lewat kata persis dan tidak dikirim ke Google. Judul yang sama persis dengan query
+  (mis. "Edot") selalu di urutan teratas, dan urutan kelompok hasil mengikuti hasil terbaiknya.
 - **Ganti model/penyedia** mengubah isi vektor: jalankan Reindex dengan "Re-embed everything".
 
 ### 5. Install dependencies & jalankan
