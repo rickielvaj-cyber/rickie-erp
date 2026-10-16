@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildChunks,
   buildExcerpt,
+  CHUNK_MAX_CHARS,
+  MAX_CHUNKS_PER_DOC,
   contentHash,
   EXCERPT_MAX_CHARS,
   groupHits,
@@ -41,6 +44,37 @@ test("buildExcerpt starts with the title and never exceeds the limit", () => {
   assert.equal(buildExcerpt("Hanya judul", ""), "Hanya judul");
 });
 
+test("buildChunks: short content is one chunk identical to buildExcerpt (old hashes stay valid)", () => {
+  assert.deepEqual(buildChunks("Judul", "isi **pendek**"), [buildExcerpt("Judul", "isi **pendek**")]);
+  assert.deepEqual(buildChunks("Hanya judul", ""), ["Hanya judul"]);
+});
+
+test("buildChunks splits long content on word boundaries, every chunk starts with the title and fits the limit", () => {
+  const words = Array.from({ length: 1500 }, (_, i) => `kata${i}`);
+  const chunks = buildChunks("Judul Panjang", words.join(" "));
+  assert.ok(chunks.length > 1 && chunks.length <= MAX_CHUNKS_PER_DOC);
+  for (const c of chunks) {
+    assert.ok(c.startsWith("Judul Panjang. "));
+    assert.ok(c.length <= CHUNK_MAX_CHARS);
+    // Tidak memotong di tengah kata: tiap token adalah kata utuh dari sumber.
+    for (const w of c.slice("Judul Panjang. ".length).split(" ")) assert.match(w, /^kata\d+$/);
+  }
+  // Seluruh kata sampai akhir (bila tidak terkena batas) muncul, dan potongan berurutan tumpang tindih.
+  const first = chunks[0].split(" ").pop() as string;
+  assert.ok(chunks[1].includes(first), "consecutive chunks overlap");
+});
+
+test("buildChunks caps the number of chunks", () => {
+  const chunks = buildChunks("T", "kata ".repeat(20000));
+  assert.equal(chunks.length, MAX_CHUNKS_PER_DOC);
+});
+
+test("buildChunks handles Chinese text without spaces", () => {
+  const chunks = buildChunks("费用报销", "报销流程".repeat(1000));
+  assert.ok(chunks.length > 1);
+  for (const c of chunks) assert.ok(c.length <= CHUNK_MAX_CHARS);
+});
+
 test("contentHash changes with title, excerpt or url, and is stable otherwise", () => {
   const base = { title: "T", excerpt: "T. isi", urlPath: "/a" };
   assert.equal(contentHash(base), contentHash({ ...base }));
@@ -70,6 +104,14 @@ const row = (id: string, type = "kb_entry") => ({
   title: `Title ${id}`,
   content_excerpt: `Title ${id}. body ${id}`,
   url_path: `/p/${id}`,
+});
+
+test("mergeRanked returns one result per source even when different chunks matched", () => {
+  const a = { ...row("c1"), source_id: "S1" };
+  const b = { ...row("c2"), source_id: "S1" };
+  const out = mergeRanked([a], [b, { ...row("c3"), source_id: "S2" }]);
+  assert.deepEqual(out.map((r) => r.id).sort(), ["kb_entry:S1", "kb_entry:S2"]);
+  assert.equal(out.find((r) => r.id === "kb_entry:S1")?.match, "both");
 });
 
 test("mergeRanked puts results found by both searches first, de-duplicates and labels the match", () => {

@@ -3,13 +3,13 @@ import type { Database } from "@/lib/types";
 import { kindOf } from "@/lib/clients";
 import { sortPhases } from "@/lib/projects";
 import { EMBED_BATCH_SIZE, EmbeddingError, embedBatch } from "./gemini";
-import { buildExcerpt, contentHash, vectorLiteral } from "./text";
+import { buildChunks, contentHash, vectorLiteral } from "./text";
 import { EMBEDDED_TYPES, type SearchDoc, type SearchSourceType } from "./types";
 
 type Db = SupabaseClient<Database>;
 
 export type ReindexResult = {
-  /** Jumlah konten sumber yang ditemukan. */
+  /** Jumlah baris indeks (potongan teks) yang seharusnya ada; konten panjang dipecah jadi beberapa. */
   total: number;
   /** Ditulis ulang ke indeks (baru atau berubah), termasuk yang tanpa vektor. */
   updated: number;
@@ -60,7 +60,9 @@ export async function collectDocs(db: Db): Promise<SearchDoc[]> {
   const clientName = new Map(clients.map((c) => [c.id, c.canonical_name]));
   const docs: SearchDoc[] = [];
   const push = (userId: string, sourceType: SearchSourceType, sourceId: string, title: string, body: string, urlPath: string) =>
-    docs.push({ userId, sourceType, sourceId, title, excerpt: buildExcerpt(title, body), urlPath });
+    buildChunks(title, body).forEach((excerpt, chunkIndex) =>
+      docs.push({ userId, sourceType, sourceId, chunkIndex, title, excerpt, urlPath }),
+    );
 
   // Klien dan partner: hanya kata persis (EMBEDDED_TYPES tidak memuat "client"), supaya mencari nama
   // langsung menemukan orangnya tanpa mengirim nama klien ke penyedia embedding.
@@ -124,7 +126,7 @@ export async function collectDocs(db: Db): Promise<SearchDoc[]> {
   return docs;
 }
 
-const keyOf = (type: string, id: string) => `${type}:${id}`;
+const keyOf = (type: string, id: string, chunk: number) => `${type}:${id}:${chunk}`;
 
 const shouldEmbed = (d: SearchDoc) => EMBEDDED_TYPES.includes(d.sourceType);
 
@@ -143,13 +145,13 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
   const budgetMs = opts.budgetMs ?? 40_000;
   const docs = await collectDocs(db);
   const existing = await fetchAll((a, b) =>
-    db.from("search_index").select("id, source_type, source_id, content_hash").order("id").range(a, b),
+    db.from("search_index").select("id, source_type, source_id, chunk_index, content_hash").order("id").range(a, b),
   );
 
-  const known = new Map(existing.map((r) => [keyOf(r.source_type, r.source_id), r]));
-  const wanted = new Set(docs.map((d) => keyOf(d.sourceType, d.sourceId)));
+  const known = new Map(existing.map((r) => [keyOf(r.source_type, r.source_id, r.chunk_index), r]));
+  const wanted = new Set(docs.map((d) => keyOf(d.sourceType, d.sourceId, d.chunkIndex)));
 
-  const stale = docs.filter((d) => opts.force || known.get(keyOf(d.sourceType, d.sourceId))?.content_hash !== contentHash(d));
+  const stale = docs.filter((d) => opts.force || known.get(keyOf(d.sourceType, d.sourceId, d.chunkIndex))?.content_hash !== contentHash(d));
   // Yang tanpa vektor ditulis dulu (tanpa kuota); yang perlu embedding menyusul per potongan.
   const plain = stale.filter((d) => !shouldEmbed(d));
   const toEmbed = stale.filter(shouldEmbed);
@@ -158,6 +160,7 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
     user_id: d.userId,
     source_type: d.sourceType,
     source_id: d.sourceId,
+    chunk_index: d.chunkIndex,
     title: d.title,
     content_excerpt: d.excerpt,
     content_hash: contentHash(d),
@@ -166,7 +169,7 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
   });
   const save = async (rows: ReturnType<typeof row>[]) => {
     for (let i = 0; i < rows.length; i += 100) {
-      const { error } = await db.from("search_index").upsert(rows.slice(i, i + 100), { onConflict: "user_id,source_type,source_id" });
+      const { error } = await db.from("search_index").upsert(rows.slice(i, i + 100), { onConflict: "user_id,source_type,source_id,chunk_index" });
       if (error) throw new Error(error.message);
     }
   };
@@ -202,7 +205,7 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
   }
 
   // Baris yatim (sumbernya sudah dihapus) tidak berkaitan dengan potongan yang tertunda, jadi selalu dibersihkan.
-  const orphanIds = existing.filter((r) => !wanted.has(keyOf(r.source_type, r.source_id))).map((r) => r.id);
+  const orphanIds = existing.filter((r) => !wanted.has(keyOf(r.source_type, r.source_id, r.chunk_index))).map((r) => r.id);
   for (let i = 0; i < orphanIds.length; i += 100) {
     const { error } = await db.from("search_index").delete().in("id", orphanIds.slice(i, i + 100));
     if (error) throw new Error(error.message);
@@ -233,7 +236,7 @@ export async function reindexSearch(db: Db, opts: { force?: boolean; budgetMs?: 
 
 export function describeReindex(r: ReindexResult): string {
   const secs = (r.tookMs / 1000).toFixed(1);
-  const base = `Indexed ${r.updated} new or changed (${r.embedded} sent for embedding), ${r.unchanged} unchanged, ${r.removed} removed (${r.total} items in total, ${secs}s).`;
+  const base = `Indexed ${r.updated} new or changed (${r.embedded} sent for embedding), ${r.unchanged} unchanged, ${r.removed} removed (${r.total} text chunks in total, ${secs}s).`;
   const text =
     r.remaining > 0
       ? `${base} ${r.remaining} still waiting${r.stoppedReason ? ` — ${r.stoppedReason}` : ""} Press Reindex Search again to continue.`

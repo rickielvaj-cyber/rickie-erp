@@ -35,6 +35,43 @@ export function truncate(text: string, max: number): string {
   return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
+/** Panjang satu potongan (±400 token; jauh di bawah batas 2.048 token per teks pada Gemini), tumpang tindih, dan batas potongan per entri. */
+export const CHUNK_MAX_CHARS = EXCERPT_MAX_CHARS;
+export const CHUNK_OVERLAP_CHARS = 150;
+export const MAX_CHUNKS_PER_DOC = 8;
+
+/**
+ * Pecah judul + isi menjadi satu atau beberapa teks yang di-embed. Konten yang muat dalam satu potongan
+ * menghasilkan teks yang sama dengan buildExcerpt (hash lama tetap cocok, tidak perlu embed ulang). Konten panjang
+ * dipecah di batas kata dengan sedikit tumpang tindih; tiap potongan diawali judul supaya konteksnya tetap ada.
+ * Maksimal MAX_CHUNKS_PER_DOC potongan (±12.000 karakter pertama).
+ */
+export function buildChunks(title: string, body: string): string[] {
+  const head = title.trim();
+  const text = plainText(body);
+  const full = text ? `${head}. ${text}` : head;
+  if (full.length <= CHUNK_MAX_CHARS) return [full];
+
+  const prefix = `${head}. `;
+  const size = Math.max(CHUNK_MAX_CHARS - prefix.length, 600);
+  const chunks: string[] = [];
+  let pos = 0;
+  while (pos < text.length && chunks.length < MAX_CHUNKS_PER_DOC) {
+    let end = Math.min(pos + size, text.length);
+    if (end < text.length) {
+      const space = text.lastIndexOf(" ", end);
+      if (space > pos + size * 0.6) end = space;
+    }
+    const piece = text.slice(pos, end).trim();
+    if (piece) chunks.push(prefix + piece);
+    if (end >= text.length) break;
+    pos = Math.max(end - CHUNK_OVERLAP_CHARS, pos + 1);
+    const space = text.indexOf(" ", pos);
+    if (space !== -1 && space < end) pos = space + 1;
+  }
+  return chunks.length ? chunks : [full.slice(0, CHUNK_MAX_CHARS)];
+}
+
 /** Gabungkan judul + isi menjadi teks yang di-embed, dipotong wajar. */
 export function buildExcerpt(title: string, body: string): string {
   const head = title.trim();
@@ -67,6 +104,8 @@ export function snippetOf(title: string, excerpt: string): string {
 
 type Ranked = {
   id: string;
+  /** Satu konten bisa punya beberapa baris indeks (potongan); hasil digabung per konten lewat (source_type, source_id). */
+  source_id?: string;
   source_type: string;
   title: string;
   content_excerpt: string;
@@ -98,6 +137,8 @@ export function pickSemantic(rows: SemanticRow[], minZ = SEMANTIC_MIN_Z): (Ranke
     .filter((r) => r.z >= minZ);
 }
 
+const keyOf = (row: Ranked) => (row.source_id ? `${row.source_type}:${row.source_id}` : row.id);
+
 const RRF_K = 60;
 const EXACT_TITLE_BONUS = 1;
 
@@ -115,13 +156,13 @@ export function mergeRanked(
   const merged = new Map<string, { row: Ranked; score: number; sem: boolean; kw: boolean }>();
   const add = (rows: Ranked[], kind: "sem" | "kw") => {
     rows.forEach((row, index) => {
-      const entry = merged.get(row.id) ?? { row, score: 0, sem: false, kw: false };
+      const entry = merged.get(keyOf(row)) ?? { row, score: 0, sem: false, kw: false };
       entry.score += 1 / (RRF_K + index + 1);
       if (kind === "sem") {
         entry.sem = true;
         entry.row = { ...entry.row, similarity: row.similarity, z: row.z };
       } else entry.kw = true;
-      merged.set(row.id, entry);
+      merged.set(keyOf(row), entry);
     });
   };
   add(semantic, "sem");
@@ -137,7 +178,7 @@ export function mergeRanked(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(({ row, sem, kw }) => ({
-      id: row.id,
+      id: keyOf(row),
       sourceType: row.source_type as SearchSourceType,
       title: row.title,
       snippet: snippetOf(row.title, row.content_excerpt),

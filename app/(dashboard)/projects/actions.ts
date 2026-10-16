@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { syncSearchAfterWrite } from "@/lib/search/sync";
 import { isISODate, todayISO } from "@/lib/date";
 import { isPhaseStatus, isProjectStatus, STANDARD_PHASES } from "@/lib/projects";
 import type { PhaseStatus } from "@/lib/types";
@@ -12,6 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 function revalidateProjectViews(projectId?: string) {
+  syncSearchAfterWrite();
   revalidatePath("/projects");
   if (projectId) revalidatePath(`/projects/${projectId}`);
   revalidatePath("/todos");

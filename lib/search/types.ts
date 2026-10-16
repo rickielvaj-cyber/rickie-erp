@@ -22,8 +22,10 @@ export type SearchDoc = {
   userId: string;
   sourceType: SearchSourceType;
   sourceId: string;
+  /** Urutan potongan untuk konten panjang (0 = potongan pertama / satu-satunya). */
+  chunkIndex: number;
   title: string;
-  /** Judul + ringkasan isi (dipotong); persis teks yang di-embed. */
+  /** Judul + potongan isi; persis teks yang di-embed. */
   excerpt: string;
   urlPath: string;
 };
