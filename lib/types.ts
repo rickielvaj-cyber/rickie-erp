@@ -126,6 +126,8 @@ export type SearchIndexRow = {
   user_id: string;
   source_type: "kb_entry" | "project" | "issue" | "goal" | "client";
   source_id: string;
+  /** Konten panjang dipecah jadi beberapa baris; 0 = potongan pertama. */
+  chunk_index: number;
   title: string;
   content_excerpt: string;
   content_hash: string;
@@ -219,8 +221,8 @@ export type Database = {
       };
       search_index: {
         Row: SearchIndexRow;
-        Insert: Omit<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub"> &
-          Partial<Pick<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub">>;
+        Insert: Omit<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub" | "chunk_index"> &
+          Partial<Pick<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub" | "chunk_index">>;
         Update: Partial<Omit<SearchIndexRow, "id">>;
         Relationships: [];
       };

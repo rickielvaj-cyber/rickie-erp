@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { syncSearchAfterWrite } from "@/lib/search/sync";
 import { isISODate, todayISO } from "@/lib/date";
 import { defaultIssueTitle, isIssueCategory } from "@/lib/issues";
 
@@ -35,6 +36,7 @@ function readIssueFields(formData: FormData) {
 }
 
 function revalidateIssueViews() {
+  syncSearchAfterWrite();
   revalidatePath("/issues");
   revalidatePath("/clients");
   revalidatePath("/projects");

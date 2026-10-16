@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { syncSearchAfterWrite } from "@/lib/search/sync";
 import { isISODate, todayISO } from "@/lib/date";
 import type { GoalStatus, GoalType } from "@/lib/types";
 
@@ -24,6 +25,7 @@ function readItemFields(formData: FormData) {
 
 // Goal tampil di daftar, detail, dan dropdown/filter To-Do.
 function revalidateGoalViews(goalId?: string) {
+  syncSearchAfterWrite();
   revalidatePath("/goals");
   if (goalId) revalidatePath(`/goals/${goalId}`);
   revalidatePath("/todos");

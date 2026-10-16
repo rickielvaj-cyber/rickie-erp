@@ -12,13 +12,15 @@ export default async function SettingsPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("search_index")
-    .select("source_type, updated_at")
+    .select("source_type, source_id, updated_at")
     .order("updated_at", { ascending: false })
     .range(0, 4999);
 
   const rows = data ?? [];
-  const counts = new Map<string, number>();
-  for (const r of rows) counts.set(r.source_type, (counts.get(r.source_type) ?? 0) + 1);
+  // Konten panjang punya beberapa baris (potongan); hitung per konten.
+  const seen = new Map<string, Set<string>>();
+  for (const r of rows) seen.set(r.source_type, (seen.get(r.source_type) ?? new Set()).add(r.source_id));
+  const counts = new Map(Array.from(seen, ([type, ids]) => [type, ids.size]));
   const last = rows[0]?.updated_at;
   const keySet = hasEmbeddingKey();
 
@@ -33,7 +35,7 @@ export default async function SettingsPage() {
         <p className="mt-1 text-sm text-muted">
           Search finds Knowledge Base entries, projects, and goals by meaning, using Google Gemini embeddings. Issues, clients,
           and partners are indexed for exact-word search only and are never sent to Google, because they contain client names. New or
-          edited content is picked up by a daily job; press the button to update right now. The free embedding quota is
+          edited content is indexed right after you save it; a daily job and the button below catch up anything that was missed. The free embedding quota is
           small, so the first run may stop early — if it says items are still waiting, press the button again after a
           minute.
         </p>

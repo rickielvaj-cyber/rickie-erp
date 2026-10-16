@@ -103,6 +103,13 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0017_search_chunks.sql` — **konten panjang dipecah** jadi beberapa potongan di `search_index` (kolom
+  `chunk_index`, unique baru, hub tidak menghitung potongan dari konten yang sama), dan kedua fungsi pencarian
+  mengembalikan satu hasil per konten. Pencarian kata kunci juga cocok bila semua kata ada (tidak harus
+  bersebelahan), jadi berguna untuk teks Mandarin. Baris lama otomatis jadi potongan 0 dan tidak perlu embed ulang
+  bila isinya muat satu potongan. **Jalankan sebelum kode ini live**: reindex menulis `chunk_index`. Dijalankan
+  per bagian (kolom → unique baru → unique lama dihapus → fungsi); tiap bagian aman diulang kecuali
+  `add constraint` (cek dulu bahwa `search_index_user_source_chunk_key` belum ada).
 - `0015_search_embedding_optional.sql` — kolom `embedding` boleh kosong (Issue masuk indeks tanpa vektor) dan
   `search_semantic` hanya mengambil baris ber-vektor. **Jalankan sebelum kode Fase 4b live**: reindex menulis
   baris tanpa vektor untuk Issue, dan tanpa migrasi ini penulisannya gagal.
@@ -172,6 +179,14 @@ Setelah itu:
   **`SUPABASE_SERVICE_ROLE_KEY`** sebagai env var Production di Vercel, karena cron tidak punya sesi login.
   Service role melewati RLS: simpan hanya di Vercel (terenkripsi), jangan di repo. Tanpa kedua variabel itu
   cron menjawab 503 dan auto-reindex mati; tombol manual di Settings tetap berfungsi.
+- **Langsung setelah menyimpan**: mengubah entri KB, proyek (termasuk fase/partner), goal (termasuk item), issue
+  atau klien memicu pembaruan indeks di latar belakang (setelah respons terkirim, jadi menyimpan tidak jadi
+  lambat). Hanya konten yang berubah yang di-embed. Kalau kuota Gemini habis atau jaringan gagal, penyimpanan
+  tetap berhasil dan sisanya diselesaikan cron harian atau tombol di Settings.
+- **Konten panjang** dipecah jadi potongan ±1.500 karakter (dengan tumpang tindih 150 karakter, maksimal 8
+  potongan per konten, tiap potongan diawali judul). Satu konten tetap tampil sebagai satu hasil. Kuota
+  gratis Gemini (±100 teks/menit, 1.000/hari) berarti reindex awal setelah migrasi ini bisa butuh beberapa kali
+  tekan tombol.
 - **Manual**: tombol Reindex Search (ceklis "Re-embed everything" untuk memaksa semuanya ulang), atau dari
   terminal dengan `.env.local` berisi `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`:
   `npm run reindex` (tambahkan `-- --force` untuk embed ulang semua).

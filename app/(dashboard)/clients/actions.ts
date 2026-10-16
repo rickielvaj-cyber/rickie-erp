@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { syncSearchAfterWrite } from "@/lib/search/sync";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,6 +25,7 @@ function readClientFields(formData: FormData) {
 }
 
 function revalidateClientViews() {
+  syncSearchAfterWrite();
   revalidatePath("/clients");
   revalidatePath("/issues");
   revalidatePath("/summary");
