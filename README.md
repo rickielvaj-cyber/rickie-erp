@@ -190,14 +190,16 @@ Setelah itu:
 - **Manual**: tombol Reindex Search (ceklis "Re-embed everything" untuk memaksa semuanya ulang), atau dari
   terminal dengan `.env.local` berisi `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`:
   `npm run reindex` (tambahkan `-- --force` untuk embed ulang semua).
-- **Relevansi hasil arti** (`SEMANTIC_MIN_Z` di `lib/search/text.ts`, awal 4). Terukur di indeks produksi:
-  kemiripan antar-dokumen rata-rata 0,73 (sd 0,04) dan sebagian dokumen adalah "hub" yang dekat ke query
-  apa pun, jadi ambang skor tetap tidak bisa membedakan relevan dari "sama-sama topik ERP". Yang dilakukan:
-  skor tiap dokumen dikurangi hub-nya (rata-rata kemiripannya ke dokumen lain, dihitung ulang di akhir
-  reindex oleh `search_refresh_hub()`), lalu sebuah hasil hanya dipakai bila skornya mencolok (z-score)
-  dibanding seluruh indeks untuk query itu. **Nilai 4 belum disetel dengan data Gemini asli.** Untuk
-  menyetelnya, buka `/search?q=kata+yang+dicari&debug=1`: tiap hasil arti menampilkan `similarity` dan `z`.
-  Bandingkan query yang relevan dan yang ngawur, lalu ubah angkanya bila hasil terlalu sedikit/banyak.
+- **Relevansi hasil arti** (`SEMANTIC_MIN_Z` = 3 dan `SEMANTIC_MIN_SIMILARITY` = 0,61 di `lib/search/text.ts`).
+  Sebuah hasil arti diterima hanya bila lolos DUA syarat. (1) Kemiripan mentah >= 0,61: query yang relevan
+  memberi 0,63–0,73, ketikan acak hanya 0,52–0,58. (2) Z-score >= 3 terhadap seluruh indeks, setelah skor
+  tiap dokumen dikurangi hub-nya (rata-rata kemiripannya ke dokumen lain, dihitung ulang di akhir reindex
+  oleh `search_refresh_hub()`); ini membuang dokumen yang hanya "sama-sama topik ERP" (indeks rapat: rata-rata
+  antar-dokumen 0,73). Z saja tidak cukup: ketikan acak membuat sebaran skor sangat sempit sehingga selisih
+  kecil tampak mencolok (z 6,3 untuk goal yang kemiripannya hanya 0,55). Angka ini disetel dari tiga query nyata
+  (`how to set up fixed asset`, `费用报销`, `asdfgh qwerty zxcv`), jadi masih awal. Untuk menyetelnya, buka
+  `/search?q=kata+yang+dicari&debug=1`: kotak "Debug" menampilkan 8 kandidat teratas dengan similarity dan z
+  sebelum disaring (✓ = diterima). Bandingkan query yang relevan dan yang ngawur, lalu ubah kedua angka itu.
 - **Clients & Partners** ikut dicari (nama persis seperti di halaman Clients). Mereka masuk indeks tanpa
   vektor, jadi dicari hanya lewat kata persis dan tidak dikirim ke Google. Judul yang sama persis dengan query
   (mis. "Edot") selalu di urutan teratas, dan urutan kelompok hasil mengikuti hasil terbaiknya.
