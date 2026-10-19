@@ -43,9 +43,25 @@ export type SearchHit = {
   debug?: { similarity: number; z: number };
 };
 
+/** Hanya ?debug=1: kandidat hasil arti teratas SEBELUM disaring ambang, supaya terlihat kenapa sebuah query kosong atau ngawur. */
+export type SearchCandidate = {
+  sourceType: SearchSourceType;
+  title: string;
+  similarity: number;
+  /** Kemiripan setelah dikurangi hub dokumen. */
+  adjusted: number;
+  z: number;
+  /** true = lolos ambang dan dipakai sebagai hasil arti. */
+  accepted: boolean;
+};
+
 export type SearchResponse = {
   query: string;
   results: SearchHit[];
+  /** Hanya ?debug=1. */
+  candidates?: SearchCandidate[];
+  /** Hanya ?debug=1: ambang z yang dipakai dan statistik indeks untuk query ini. */
+  stats?: { minZ: number; meanAdjusted: number; sdAdjusted: number | null };
   /** Pesan non-fatal untuk ditampilkan (mis. pencarian arti nonaktif, indeks kosong). */
   warning?: string;
 };

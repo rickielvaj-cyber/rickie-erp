@@ -85,7 +85,7 @@ export function SearchResults({ query, debug = false }: { query: string; debug?:
     );
   }
 
-  const { results, warning } = state.data;
+  const { results, warning, candidates, stats } = state.data;
   return (
     <div className="space-y-8">
       {warning && <p className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-muted">{warning}</p>}
@@ -102,6 +102,22 @@ export function SearchResults({ query, debug = false }: { query: string; debug?:
             <Group key={type} type={type} hits={hits} />
           ))}
         </>
+      )}
+      {candidates && stats && (
+        <section aria-label="Debug: semantic candidates" className="rounded-2xl border border-dashed border-border p-4">
+          <h2 className="text-sm font-medium">Debug · top semantic candidates (before the cut-off)</h2>
+          <p className="mt-1 font-mono text-xs text-muted">
+            accepted when z ≥ {stats.minZ} · index mean {stats.meanAdjusted.toFixed(3)} · sd {stats.sdAdjusted?.toFixed(4) ?? "n/a"}
+          </p>
+          <ul className="mt-3 space-y-1 font-mono text-xs">
+            {candidates.map((c, i) => (
+              <li key={i} className={c.accepted ? "" : "text-muted"}>
+                {c.accepted ? "✓" : "✗"} z {c.z.toFixed(2)} · sim {c.similarity.toFixed(3)} · adj {c.adjusted.toFixed(3)} · {c.sourceType} ·{" "}
+                {c.title}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

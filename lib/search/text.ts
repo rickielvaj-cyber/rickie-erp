@@ -115,7 +115,7 @@ type Ranked = {
   z?: number;
 };
 
-type SemanticRow = Ranked & { similarity: number; adjusted: number; mean_adj: number; sd_adj: number | null };
+export type SemanticRow = Ranked & { similarity: number; adjusted: number; mean_adj: number; sd_adj: number | null };
 
 /**
  * Z-score minimum agar hasil arti dianggap relevan. Terukur di indeks produksi: kemiripan Gemini antar-teks
@@ -128,6 +128,11 @@ type SemanticRow = Ranked & { similarity: number; adjusted: number; mean_adj: nu
  * /search?q=...&debug=1 untuk melihat similarity dan z tiap hasil.
  */
 export const SEMANTIC_MIN_Z = 4;
+
+/** Z-score satu baris (null bila sebaran tidak berarti). */
+export function zOf(row: SemanticRow): number | null {
+  return row.sd_adj !== null && row.sd_adj > 1e-6 ? (row.adjusted - row.mean_adj) / row.sd_adj : null;
+}
 
 /** Beri z-score tiap baris dan buang yang tidak mencolok. Tanpa sebaran yang berarti (sd kosong/≈0) tidak ada hasil arti. */
 export function pickSemantic(rows: SemanticRow[], minZ = SEMANTIC_MIN_Z): (Ranked & { z: number })[] {
