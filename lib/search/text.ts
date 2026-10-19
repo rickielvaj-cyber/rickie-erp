@@ -118,28 +118,42 @@ type Ranked = {
 export type SemanticRow = Ranked & { similarity: number; adjusted: number; mean_adj: number; sd_adj: number | null };
 
 /**
- * Z-score minimum agar hasil arti dianggap relevan. Terukur di indeks produksi: kemiripan Gemini antar-teks
- * satu topik (ERP) mengumpul rapat (rata-rata ±0,73, sd ±0,04) dan sebagian dokumen adalah "hub" yang dekat
- * ke query APA PUN, jadi ambang absolut tidak berguna. Yang dinilai: seberapa mencolok sebuah hasil dibanding
- * SELURUH indeks untuk query yang sama, setelah hub dokumen dikurangkan (search_semantic). Dari ±230 teks,
- * hasil kebetulan tertinggi secara teori sekitar 2,8 sd dan pada uji dengan embedding tiruan 3,5–3,6, jadi 4
- * dipakai sebagai awal yang konservatif (lebih baik melewatkan hasil samar daripada menampilkan yang tidak
- * nyambung; pencarian kata persis tetap jalan). BELUM disetel dengan data Gemini asli: lihat
- * /search?q=...&debug=1 untuk melihat similarity dan z tiap hasil.
+ * Hasil arti diterima bila LOLOS DUA syarat (disetel dengan angka asli dari /search?debug=1 di produksi):
+ *
+ * 1. kemiripan mentah >= SEMANTIC_MIN_SIMILARITY. Query yang relevan memberi kemiripan 0,63-0,73 ("how to set up
+ *    fixed asset" 0,67-0,72; "费用报销" 0,63-0,67), sedangkan ketikan acak ("asdfgh qwerty zxcv") hanya 0,52-0,58.
+ *    Z-score saja tidak bisa memisahkan keduanya: ketikan acak membuat seluruh indeks sama-sama jauh (sd cuma
+ *    0,017 berbanding 0,03-0,04), sehingga selisih kecil tampak mencolok (z sampai 6,3 untuk goal "Project Nagiya").
+ * 2. z-score >= SEMANTIC_MIN_Z: seberapa mencolok hasil dibanding SELURUH indeks untuk query itu setelah hub
+ *    dokumen dikurangkan. Ini membuang "satu topik ERP yang sama-sama mirip" (indeks ini rapat: rata-rata antar-dokumen
+ *    0,73). Query relevan yang diuji punya z 2,9-4,1 untuk hasil terbaiknya, jadi 3 dipilih (4 melewatkan
+ *    semua hasil "fixed asset").
+ *
+ * Disetel dari TIGA query nyata; tetap awal yang konservatif. Lihat /search?q=...&debug=1 untuk menyetel ulang.
  */
-export const SEMANTIC_MIN_Z = 4;
+export const SEMANTIC_MIN_Z = 3;
+export const SEMANTIC_MIN_SIMILARITY = 0.61;
 
 /** Z-score satu baris (null bila sebaran tidak berarti). */
 export function zOf(row: SemanticRow): number | null {
   return row.sd_adj !== null && row.sd_adj > 1e-6 ? (row.adjusted - row.mean_adj) / row.sd_adj : null;
 }
 
-/** Beri z-score tiap baris dan buang yang tidak mencolok. Tanpa sebaran yang berarti (sd kosong/≈0) tidak ada hasil arti. */
-export function pickSemantic(rows: SemanticRow[], minZ = SEMANTIC_MIN_Z): (Ranked & { z: number })[] {
+/** Apakah satu hasil arti lolos kedua syarat. */
+export function isRelevantSemantic(row: SemanticRow, minZ = SEMANTIC_MIN_Z, minSimilarity = SEMANTIC_MIN_SIMILARITY): boolean {
+  const z = zOf(row);
+  return z !== null && z >= minZ && row.similarity >= minSimilarity;
+}
+
+/** Beri z-score tiap baris dan buang yang tidak relevan. Tanpa sebaran yang berarti (sd kosong/≈0) tidak ada hasil arti. */
+export function pickSemantic(
+  rows: SemanticRow[],
+  minZ = SEMANTIC_MIN_Z,
+  minSimilarity = SEMANTIC_MIN_SIMILARITY,
+): (Ranked & { z: number })[] {
   return rows
-    .filter((r) => r.sd_adj !== null && r.sd_adj > 1e-6)
-    .map((r) => ({ ...r, z: (r.adjusted - r.mean_adj) / (r.sd_adj as number) }))
-    .filter((r) => r.z >= minZ);
+    .filter((r) => isRelevantSemantic(r, minZ, minSimilarity))
+    .map((r) => ({ ...r, z: zOf(r) as number }));
 }
 
 const keyOf = (row: Ranked) => (row.source_id ? `${row.source_type}:${row.source_id}` : row.id);

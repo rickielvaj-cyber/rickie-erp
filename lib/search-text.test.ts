@@ -158,6 +158,24 @@ test("pickSemantic returns nothing when there is no usable spread (empty index, 
   assert.deepEqual(pickSemantic([sem("a", 0.9, 0.9, 0)]), []);
 });
 
+test("pickSemantic uses the raw similarity floor too: real production numbers for a gibberish and a relevant query", () => {
+  // asdfgh qwerty zxcv: tiny spread (sd 0.017) makes z huge (6.29) although raw similarity is only 0.546.
+  const gibberish = [
+    { ...sem("g1", 0.546, -0.204, 0.017), adjusted: -0.098 },
+    { ...sem("g2", 0.525, -0.204, 0.017), adjusted: -0.123 },
+    { ...sem("g3", 0.546, -0.204, 0.017), adjusted: -0.134 },
+  ];
+  assert.ok(gibberish.every((r) => (r.adjusted - r.mean_adj) / r.sd_adj > 4), "z alone would accept all of them");
+  assert.deepEqual(pickSemantic(gibberish), []);
+  // how to set up fixed asset: best hit z 3.87, 7 of 8 pass z >= 3 with similarity 0.67-0.72.
+  const relevant = [
+    { ...sem("fa1", 0.716, -0.168, 0.0357), adjusted: -0.03 },
+    { ...sem("fa2", 0.696, -0.168, 0.0357), adjusted: -0.05 },
+    { ...sem("fa3", 0.67, -0.168, 0.0357), adjusted: -0.065 },
+  ];
+  assert.deepEqual(pickSemantic(relevant).map((r) => r.id), ["fa1", "fa2"], "fa3 has z 2.89 < 3");
+});
+
 test("a gibberish-like query (all scores within noise) yields no semantic hits", () => {
   const noise = Array.from({ length: 15 }, (_, i) => sem(String(i), 0.74 + i * 0.001));
   assert.deepEqual(pickSemantic(noise), []);

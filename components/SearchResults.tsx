@@ -107,7 +107,7 @@ export function SearchResults({ query, debug = false }: { query: string; debug?:
         <section aria-label="Debug: semantic candidates" className="rounded-2xl border border-dashed border-border p-4">
           <h2 className="text-sm font-medium">Debug · top semantic candidates (before the cut-off)</h2>
           <p className="mt-1 font-mono text-xs text-muted">
-            accepted when z ≥ {stats.minZ} · index mean {stats.meanAdjusted.toFixed(3)} · sd {stats.sdAdjusted?.toFixed(4) ?? "n/a"}
+            accepted when z ≥ {stats.minZ} and sim ≥ {stats.minSimilarity} · index mean {stats.meanAdjusted.toFixed(3)} · sd {stats.sdAdjusted?.toFixed(4) ?? "n/a"}
           </p>
           <ul className="mt-3 space-y-1 font-mono text-xs">
             {candidates.map((c, i) => (

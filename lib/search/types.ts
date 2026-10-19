@@ -51,7 +51,7 @@ export type SearchCandidate = {
   /** Kemiripan setelah dikurangi hub dokumen. */
   adjusted: number;
   z: number;
-  /** true = lolos ambang dan dipakai sebagai hasil arti. */
+  /** true = lolos kedua ambang (z dan kemiripan mentah) dan dipakai sebagai hasil arti. */
   accepted: boolean;
 };
 
@@ -61,7 +61,7 @@ export type SearchResponse = {
   /** Hanya ?debug=1. */
   candidates?: SearchCandidate[];
   /** Hanya ?debug=1: ambang z yang dipakai dan statistik indeks untuk query ini. */
-  stats?: { minZ: number; meanAdjusted: number; sdAdjusted: number | null };
+  stats?: { minZ: number; minSimilarity: number; meanAdjusted: number; sdAdjusted: number | null };
   /** Pesan non-fatal untuk ditampilkan (mis. pencarian arti nonaktif, indeks kosong). */
   warning?: string;
 };

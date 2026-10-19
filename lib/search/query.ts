@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types";
 import { EmbeddingError, embedQuery, hasEmbeddingKey } from "./gemini";
-import { mergeRanked, pickSemantic, SEMANTIC_MIN_Z, vectorLiteral, zOf, type SemanticRow } from "./text";
+import { isRelevantSemantic, mergeRanked, pickSemantic, SEMANTIC_MIN_SIMILARITY, SEMANTIC_MIN_Z, vectorLiteral, zOf, type SemanticRow } from "./text";
 import type { SearchCandidate, SearchResponse, SearchSourceType } from "./types";
 
 type Db = SupabaseClient<Database>;
@@ -63,10 +63,10 @@ export async function searchAll(db: Db, query: string, opts: { debug?: boolean }
               similarity: r.similarity,
               adjusted: r.adjusted,
               z,
-              accepted: z >= SEMANTIC_MIN_Z,
+              accepted: isRelevantSemantic(r),
             };
           }),
-          stats: { minZ: SEMANTIC_MIN_Z, meanAdjusted: rawSemantic[0].mean_adj, sdAdjusted: rawSemantic[0].sd_adj },
+          stats: { minZ: SEMANTIC_MIN_Z, minSimilarity: SEMANTIC_MIN_SIMILARITY, meanAdjusted: rawSemantic[0].mean_adj, sdAdjusted: rawSemantic[0].sd_adj },
         }
       : {};
 
