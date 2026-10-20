@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { CalendarSection, CalendarSkeleton } from "@/components/CalendarSection";
+import { formatScheduled } from "@/lib/google/layout";
 import {
   addDaysISO,
   formatDayMonth,
@@ -41,6 +42,7 @@ type SearchParams = {
   edit?: string;
   error?: string;
   calendar?: string;
+  block?: string;
 };
 
 type Show = "all" | "open" | "done";
@@ -142,8 +144,25 @@ export default async function TodosPage({
   const dueToday = todayTodos.filter((t) => t.due_date === today);
   const undated = todayTodos.filter((t) => t.due_date === null);
 
-  // Judul to-do yang belum selesai minggu ini: saran judul saat membuat blok waktu.
-  const openTitles = Array.from(new Set(weekTodos.filter((t) => t.status !== "done").map((t) => t.title))).slice(0, 40);
+  // Untuk bagian Calendar: to-do terbuka yang belum tertaut (pilihan "Link to a to-do"), judul to-do yang sudah tertaut,
+  // dan to-do yang dituju tombol "Block time" (?block=<id>) supaya dialognya langsung terbuka.
+  const seenTodos = new Map<string, Todo>();
+  for (const t of [...todayTodos, ...weekTodos]) seenTodos.set(t.id, t);
+  const linkable = Array.from(seenTodos.values())
+    .filter((t) => t.status !== "done" && !t.calendar_event_id)
+    .slice(0, 50)
+    .map((t) => ({ id: t.id, title: t.title, date: t.due_date }));
+  const linkedTitles = Object.fromEntries(
+    Array.from(seenTodos.values())
+      .filter((t) => t.calendar_event_id)
+      .map((t) => [t.calendar_event_id as string, t.title]),
+  );
+  let prefill: { todoId: string; title: string; date: string } | null = null;
+  if (UUID_RE.test(params.block ?? "")) {
+    const { data: target } = await supabase.from("todos").select("id, title, due_date, status, calendar_event_id").eq("id", params.block!).maybeSingle();
+    if (target && target.status !== "done" && !target.calendar_event_id) prefill = { todoId: target.id, title: target.title, date: target.due_date ?? today };
+  }
+  const calendarCloseHref = `${buildHref({ show, priority, goal, week: weekParam ?? undefined })}#calendar`;
   const weekDays = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
   const weekDone = weekTodos.filter((t) => t.status === "done").length;
 
@@ -326,7 +345,12 @@ export default async function TodosPage({
 
       {authUser && (
         <Suspense fallback={<CalendarSkeleton />}>
-          <CalendarSection userId={authUser.id} weekStart={weekStart} today={today} notice={params.calendar} suggestions={openTitles} />
+          <CalendarSection userId={authUser.id} weekStart={weekStart} today={today} notice={params.calendar}
+            linkable={linkable}
+            linkedTitles={linkedTitles}
+            prefill={prefill}
+            closeHref={calendarCloseHref}
+          />
         </Suspense>
       )}
 
@@ -474,6 +498,11 @@ function TodoRow({
         <p className={`text-lg ${done ? "text-muted line-through" : ""}`}>{todo.title}</p>
         {todo.description && <p className="mt-0.5 truncate text-sm text-muted">{todo.description}</p>}
         {todo.status === "in_progress" && <p className="mt-0.5 text-xs text-muted">In progress</p>}
+        {todo.calendar_event_id && (
+          <p className="mt-0.5 text-xs text-muted">
+            Blocked in calendar{formatScheduled(todo.scheduled_start, todo.scheduled_end) ? ` · ${formatScheduled(todo.scheduled_start, todo.scheduled_end)}` : ""}
+          </p>
+        )}
         {goalTitle && <p className="mt-0.5 truncate text-xs text-muted">Goal: {goalTitle}</p>}
         {projectTitle && <p className="mt-0.5 truncate text-xs text-muted">Project: {projectTitle}</p>}
       </div>
@@ -490,6 +519,14 @@ function TodoRow({
         )}
         <PriorityPill priority={todo.priority} />
         <div className="flex shrink-0 items-center gap-1 text-sm">
+          {!done && !todo.calendar_event_id && (
+            <Link
+              href={`/todos?block=${todo.id}#calendar`}
+              className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
+            >
+              Block time
+            </Link>
+          )}
           <Link
             href={`/todos?edit=${todo.id}`}
             className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
@@ -529,7 +566,20 @@ function WeekTask({
       >
         {todo.priority === "high" && !done && <span aria-label="High priority">! </span>}
         {todo.title}
+        {todo.calendar_event_id && formatScheduled(todo.scheduled_start, todo.scheduled_end) && (
+          <span className="block text-xs font-normal text-muted">{formatScheduled(todo.scheduled_start, todo.scheduled_end)}</span>
+        )}
       </Link>
+      {!done && !todo.calendar_event_id && (
+        <Link
+          href={week ? `/todos?block=${todo.id}&week=${week}#calendar` : `/todos?block=${todo.id}#calendar`}
+          aria-label={`Block time for ${todo.title}`}
+          title="Block time in the calendar"
+          className="shrink-0 rounded px-1 text-xs text-muted hover:bg-surface hover:text-foreground"
+        >
+          +time
+        </Link>
+      )}
       <TodoDeleteButton todo={todo} variant="week" />
     </li>
   );
@@ -601,13 +651,21 @@ function TodoForm({
           <label htmlFor="due_date" className="block text-sm font-medium">
             Date
           </label>
-          <input
-            id="due_date"
-            name="due_date"
-            type="date"
-            defaultValue={todo ? (todo.due_date ?? "") : todayISO()}
-            className={field}
-          />
+          {todo?.calendar_event_id ? (
+            <p id="due_date" className="mt-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-base">
+              {todo.due_date ? formatDayMonth(todo.due_date) : "—"}
+              {formatScheduled(todo.scheduled_start, todo.scheduled_end) ? ` · ${formatScheduled(todo.scheduled_start, todo.scheduled_end)}` : ""}
+              <span className="mt-0.5 block text-xs text-muted">Set by its calendar block. Move the block in the Calendar section to change the date.</span>
+            </p>
+          ) : (
+            <input
+              id="due_date"
+              name="due_date"
+              type="date"
+              defaultValue={todo ? (todo.due_date ?? "") : todayISO()}
+              className={field}
+            />
+          )}
         </div>
       </div>
 

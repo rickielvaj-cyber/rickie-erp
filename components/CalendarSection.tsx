@@ -1,7 +1,10 @@
 import { addDaysISO, formatDayMonth } from "@/lib/date";
 import { listWeekEvents } from "@/lib/google/calendar";
 import { layoutWeek, visibleHours, type DayLayout } from "@/lib/google/layout";
-import { CalendarGrid } from "@/components/CalendarGrid";
+import { CalendarGrid, type LinkOption, type Prefill } from "@/components/CalendarGrid";
+import { RefreshOnMount } from "@/components/RefreshOnMount";
+import { createClient } from "@/lib/supabase/server";
+import { syncLinkedTodos } from "@/lib/google/sync-todos";
 import { GoogleAuthError, googleConfigured } from "@/lib/google/oauth";
 import { getAccessToken, isConnected } from "@/lib/google/store";
 import { disconnectGoogleCalendar } from "@/app/(dashboard)/todos/calendar-actions";
@@ -45,7 +48,7 @@ type CalendarState =
   | { kind: "disconnected" }
   | { kind: "reconnect" }
   | { kind: "error"; message: string }
-  | { kind: "ready"; days: DayLayout[] };
+  | { kind: "ready"; days: DayLayout[]; changed: number };
 
 /** Semua pemanggilan jaringan/database ada di sini (dengan try/catch); JSX dirender di luar. */
 async function loadState(userId: string, weekStart: string): Promise<CalendarState> {
@@ -54,7 +57,10 @@ async function loadState(userId: string, weekStart: string): Promise<CalendarSta
     if (!(await isConnected(userId))) return { kind: "disconnected" };
     const token = await getAccessToken(userId);
     if (!token) return { kind: "reconnect" };
-    return { kind: "ready", days: layoutWeek(await listWeekEvents(token, weekStart), weekStart) };
+    const events = await listWeekEvents(token, weekStart);
+    // To-do yang tertaut mengikuti acaranya (digeser/dihapus di Google). Gagal di sini tidak menggagalkan tampilan kalender.
+    const changed = await syncLinkedTodos(await createClient(), token, events).catch(() => 0);
+    return { kind: "ready", days: layoutWeek(events, weekStart), changed };
   } catch (error) {
     if (error instanceof GoogleAuthError && error.reconnect) return { kind: "reconnect" };
     return { kind: "error", message: error instanceof Error ? error.message : "unknown error" };
@@ -71,13 +77,19 @@ export async function CalendarSection({
   weekStart,
   today,
   notice,
-  suggestions = [],
+  linkable = [],
+  linkedTitles = {},
+  prefill = null,
+  closeHref,
 }: {
   userId: string;
   weekStart: string;
   today: string;
   notice?: string;
-  suggestions?: string[];
+  linkable?: LinkOption[];
+  linkedTitles?: Record<string, string>;
+  prefill?: Prefill | null;
+  closeHref: string;
 }) {
   const state = await loadState(userId, weekStart);
 
@@ -134,7 +146,18 @@ export async function CalendarSection({
           </button>
         </form>
       </div>
-      <CalendarGrid days={state.days} today={today} startHour={hourRange.start} endHour={hourRange.end} suggestions={suggestions} />
+      <CalendarGrid
+        key={prefill?.todoId ?? "none"}
+        days={state.days}
+        today={today}
+        startHour={hourRange.start}
+        endHour={hourRange.end}
+        linkable={linkable}
+        linkedTitles={linkedTitles}
+        prefill={prefill}
+        closeHref={closeHref}
+      />
+      {state.changed > 0 && <RefreshOnMount />}
     </Shell>
   );
 }

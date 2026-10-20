@@ -93,3 +93,18 @@ export async function updateEvent(accessToken: string, eventId: string, input: B
 export async function deleteEvent(accessToken: string, eventId: string): Promise<void> {
   await write(accessToken, "DELETE", `/${encodeURIComponent(eventId)}`);
 }
+
+/**
+ * Satu acara menurut id. null = sudah tidak ada (dihapus/dibatalkan di Google); lemparan galat untuk kegagalan lain
+ * (jaringan, izin) supaya pemanggil tidak keliru menganggap acaranya hilang.
+ */
+export async function getEvent(accessToken: string, eventId: string): Promise<CalendarEvent | null> {
+  const response = await fetch(`${API()}/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+    headers: { authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(10_000),
+    cache: "no-store",
+  });
+  if (response.status === 404 || response.status === 410) return null;
+  if (!response.ok) throw new CalendarApiError(`Google Calendar request failed (${response.status}).`);
+  return normalizeEvent((await response.json()) as RawEvent);
+}

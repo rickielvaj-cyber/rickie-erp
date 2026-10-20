@@ -77,7 +77,13 @@ export async function updateTodo(id: string, formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("todos").update(await withValidPhase(supabase, fields)).eq("id", id);
+  // To-do yang tertaut ke blok kalender: tanggalnya mengikuti blok (geser bloknya untuk mengubah tanggal), jadi isian
+  // tanggal dari form diabaikan di server (formulir menampilkannya hanya-baca).
+  const { data: current } = await supabase.from("todos").select("calendar_event_id").eq("id", id).maybeSingle();
+  const valid = await withValidPhase(supabase, fields);
+  const update: Partial<typeof valid> = { ...valid };
+  if (current?.calendar_event_id) delete update.due_date;
+  const { error } = await supabase.from("todos").update(update).eq("id", id);
 
   if (error) {
     redirect(`/todos?edit=${id}&error=` + encodeURIComponent(error.message));
