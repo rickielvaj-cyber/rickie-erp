@@ -301,12 +301,15 @@ export default async function TodosPage({
           </nav>
         </div>
 
-        {/* Senin–Jumat = 5 kolom lebar; Sabtu + Minggu ditumpuk di satu kolom supaya kolom kerja tidak sempit. */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {weekDays.slice(0, 5).map((day) => (
-            <DayCard key={day} day={day} today={today} todos={weekTodos} week={weekParam ?? undefined} goalTitles={goalTitles} projectTitles={projectTitles} />
-          ))}
-          <div className="flex flex-col gap-3">
+        {/* Senin–Jumat = 5 kolom (lebar ±215px di 1152px, ±260px di layar sangat lebar); Sabtu dan Minggu di baris sendiri
+            di bawahnya supaya kolom kerja tidak sempit. Di layar sangat lebar bagian ini sedikit keluar dari lebar halaman. */}
+        <div className="2xl:-mx-20">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {weekDays.slice(0, 5).map((day) => (
+              <DayCard key={day} day={day} today={today} todos={weekTodos} week={weekParam ?? undefined} goalTitles={goalTitles} projectTitles={projectTitles} />
+            ))}
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {weekDays.slice(5).map((day) => (
               <DayCard key={day} day={day} today={today} todos={weekTodos} week={weekParam ?? undefined} goalTitles={goalTitles} projectTitles={projectTitles} compact />
             ))}
@@ -341,7 +344,7 @@ function DayCard({
   return (
     <div
       aria-label={`${formatLongDay(day)}${isToday ? " (today)" : ""}`}
-      className={`flex flex-col gap-3 rounded-2xl p-3.5 ${compact ? "min-h-[10.5rem] flex-1" : "min-h-[22rem]"} ${
+      className={`flex flex-col gap-3 rounded-2xl p-3.5 ${compact ? "min-h-[9rem]" : "min-h-[26rem]"} ${
         isToday ? "border-2 border-foreground bg-surface" : "border border-border"
       }`}
     >
