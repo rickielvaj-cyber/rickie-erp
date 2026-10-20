@@ -103,6 +103,8 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0018_google_connections.sql` — tabel `google_connections` untuk token Google Calendar (RLS aktif tanpa policy: hanya
+  service role). Hanya menambah satu tabel; aman diulang. **Jalankan sebelum memakai Connect Google Calendar.**
 - `0017_search_chunks.sql` — **konten panjang dipecah** jadi beberapa potongan di `search_index` (kolom
   `chunk_index`, unique baru, hub tidak menghitung potongan dari konten yang sama), dan kedua fungsi pencarian
   mengembalikan satu hasil per konten. Pencarian kata kunci juga cocok bila semua kata ada (tidak harus
@@ -204,6 +206,27 @@ Setelah itu:
   vektor, jadi dicari hanya lewat kata persis dan tidak dikirim ke Google. Judul yang sama persis dengan query
   (mis. "Edot") selalu di urutan teratas, dan urutan kelompok hasil mengikuti hasil terbaiknya.
 - **Ganti model/penyedia** mengubah isi vektor: jalankan Reindex dengan "Re-embed everything".
+
+### 4c. Google Calendar (To-Do → Calendar)
+
+Menampilkan kalender Google minggu terpilih di bawah To-Do (langkah berikutnya: time blocking dua arah). Gratis.
+
+1. **Google Cloud Console** → proyek baru → *APIs & Services → Library* → **Google Calendar API → Enable**.
+2. *OAuth consent screen*: tipe **External**, isi nama aplikasi dan email. Di **Test users** tambahkan email Google Anda. Setelah
+   semuanya jalan, ubah *Publishing status* ke **In production** supaya login tidak kedaluwarsa tiap 7 hari (aplikasi
+   pribadi tidak perlu verifikasi Google; hanya muncul peringatan "belum diverifikasi" yang bisa dilewati).
+3. *Credentials → Create credentials → OAuth client ID → Web application*. **Authorized redirect URI**:
+   `https://<domain-produksi>/api/google/callback`.
+4. Di **Vercel → Settings → Environment Variables (Production)**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, dan
+   `GOOGLE_TOKEN_SECRET` (hasil `openssl rand -base64 32`; tandai Sensitive). `SUPABASE_SERVICE_ROLE_KEY` juga wajib
+   (sudah ada bila cron reindex dipakai). Redeploy.
+5. Jalankan migrasi `0018_google_connections.sql` di Supabase, lalu buka **To-Do → Calendar → Connect Google Calendar**.
+
+Keamanan: izin yang diminta hanya `calendar.events` (baca/tulis acara, bukan email atau file). Refresh token disimpan
+**terenkripsi** (AES-256-GCM, kunci `GOOGLE_TOKEN_SECRET` hanya di server) di tabel `google_connections`, yang tidak bisa
+dibaca dari browser (RLS aktif tanpa policy; hanya service role). Acara kalender **tidak disimpan** di database dan tidak
+dikirim ke penyedia embedding; diambil langsung dari Google saat halaman dibuka. Tombol **Disconnect** mencabut akses di
+Google dan menghapus token. Backup sengaja tidak menyertakan isi tabel ini.
 
 ### 5. Install dependencies & jalankan
 
