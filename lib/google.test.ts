@@ -321,3 +321,64 @@ test("createEvent, updateEvent and deleteEvent call Google with the right method
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+// ---- to-do <-> acara ----
+import { planReconcile, type LinkedTodo } from "./google/reconcile";
+import { formatScheduled } from "./google/layout";
+import { getEvent } from "./google/calendar";
+
+const linkedTodo = (o: Partial<LinkedTodo> = {}): LinkedTodo => ({
+  id: "t1",
+  due_date: "2026-10-21",
+  calendar_event_id: "ev1",
+  scheduled_start: "2026-10-21T06:00:00+00:00",
+  scheduled_end: "2026-10-21T07:30:00+00:00",
+  ...o,
+});
+const ev = (start: string, end: string, allDay = false): CalendarEvent => ({ id: "ev1", title: "x", allDay, start, end });
+
+test("planReconcile leaves an unchanged link alone (same instants in different formats)", () => {
+  const plan = planReconcile([linkedTodo()], new Map([["ev1", ev("2026-10-21T13:00:00+07:00", "2026-10-21T14:30:00+07:00")]]));
+  assert.deepEqual(plan, []);
+});
+
+test("planReconcile follows an event that moved to another day or time in Google", () => {
+  const plan = planReconcile([linkedTodo()], new Map([["ev1", ev("2026-10-22T10:00:00+07:00", "2026-10-22T11:00:00+07:00")]]));
+  assert.deepEqual(plan, [{ id: "t1", kind: "sync", due_date: "2026-10-22", scheduled_start: "2026-10-22T03:00:00.000Z", scheduled_end: "2026-10-22T04:00:00.000Z" }]);
+  const late = planReconcile([linkedTodo()], new Map([["ev1", ev("2026-10-21T23:30:00+07:00", "2026-10-22T00:30:00+07:00")]]));
+  assert.equal((late[0] as { due_date: string }).due_date, "2026-10-21", "the date is the WIB date of the start");
+});
+
+test("planReconcile unlinks when the event was deleted, but not when Google could not be reached", () => {
+  assert.deepEqual(planReconcile([linkedTodo()], new Map([["ev1", null]])), [{ id: "t1", kind: "unlink" }]);
+  assert.deepEqual(planReconcile([linkedTodo()], new Map()), [], "unknown = leave the link");
+});
+
+test("planReconcile turns an event that became all-day into a date without times", () => {
+  const plan = planReconcile([linkedTodo()], new Map([["ev1", ev("2026-10-23", "2026-10-24", true)]]));
+  assert.deepEqual(plan, [{ id: "t1", kind: "sync", due_date: "2026-10-23", scheduled_start: null, scheduled_end: null }]);
+});
+
+test("formatScheduled shows WIB times and tolerates missing values", () => {
+  assert.equal(formatScheduled("2026-10-21T06:00:00+00:00", "2026-10-21T07:30:00+00:00"), "13:00–14:30");
+  assert.equal(formatScheduled(null, "2026-10-21T07:30:00Z"), null);
+  assert.equal(formatScheduled("nope", "nope"), null);
+});
+
+test("getEvent returns null for a deleted event (404/410) and throws for other failures", async () => {
+  const server: Server = createServer((req, res) => {
+    const status = req.url?.includes("/gone") ? 404 : req.url?.includes("/boom") ? 500 : 200;
+    res.writeHead(status, { "content-type": "application/json" });
+    res.end(JSON.stringify(status === 200 ? { id: "ev1", summary: "Hi", start: { dateTime: "2026-10-21T13:00:00+07:00" }, end: { dateTime: "2026-10-21T14:00:00+07:00" } } : {}));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  process.env.GOOGLE_CALENDAR_API = `http://127.0.0.1:${(server.address() as AddressInfo).port}/calendar/v3`;
+  try {
+    assert.equal((await getEvent("AT", "ev1"))?.title, "Hi");
+    assert.equal(await getEvent("AT", "gone"), null);
+    await assert.rejects(getEvent("AT", "boom"), CalendarApiError);
+  } finally {
+    delete process.env.GOOGLE_CALENDAR_API;
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

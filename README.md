@@ -103,6 +103,9 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0019_todo_calendar_link.sql` — kolom `todos.calendar_event_id`, `scheduled_start`, `scheduled_end` (semua nullable) dan satu indeks
+  unik parsial: tautan to-do ke blok Google Calendar ("Block time"). To-do lama tidak berubah; RLS tidak berubah. **Jalankan
+  sebelum kode ini live** (kode membaca kolom itu di halaman To-Do). Aman diulang.
 - `0018_google_connections.sql` — tabel `google_connections` untuk token Google Calendar (RLS aktif tanpa policy: hanya
   service role). Hanya menambah satu tabel; aman diulang. **Jalankan sebelum memakai Connect Google Calendar.**
 - `0017_search_chunks.sql` — **konten panjang dipecah** jadi beberapa potongan di `search_index` (kolom
@@ -213,7 +216,15 @@ Menampilkan kalender Google minggu terpilih di bawah To-Do, dengan **time blocki
 untuk membuat blok (kelipatan 15 menit; satu klik = 30 menit), klik blok untuk mengubah atau menghapusnya, atau tombol
 **+ New block**. Semuanya langsung ditulis ke kalender utama Google Anda, dan perubahan yang dibuat di Google (mis. dari ponsel)
 tampil saat halaman dibuka lagi. Acara seharian dan acara yang melewati tengah malam ditampilkan tetapi diubah di Google
-Calendar. Mengubah atau menghapus acara berulang hanya memengaruhi kejadian yang dipilih. Penulisan memakai
+Calendar. Mengubah atau menghapus acara berulang hanya memengaruhi kejadian yang dipilih.
+
+**Menggeser dan tautan to-do.** Seret blok untuk memindahkannya (ke hari lain juga), tarik tepi bawahnya untuk mengubah
+durasi (mouse; di layar sentuh ketuk blok lalu ubah di dialog). Tombol **Block time** (atau "+time" di kartu minggu) pada
+sebuah to-do membuat blok dengan judul to-do itu dan menautkannya: to-do mencatat acara Google-nya dan menampilkan jamnya.
+Tautan berlaku dua arah, dengan **acara sebagai sumber kebenaran untuk tanggal dan jam**: menggeser blok di situs atau di
+Google (mis. dari ponsel) membuat tanggal dan jam to-do ikut saat bagian Calendar dibuka; tanggal to-do yang tertaut tidak
+bisa diubah dari form (geser bloknya); acara yang dihapus di Google melepas tautannya (to-do tetap ada); menghapus blok di
+situs juga melepas tautan. Menghapus to-do atau menandainya selesai tidak menghapus acaranya. Penulisan memakai
 `sendUpdates=none`, jadi peserta acara tidak dikirimi email. Gratis.
 
 1. **Google Cloud Console** → proyek baru → *APIs & Services → Library* → **Google Calendar API → Enable**.

@@ -12,6 +12,11 @@ export type Todo = {
   goal_id: string | null;
   project_id: string | null;
   phase_id: string | null;
+  /** Acara Google Calendar yang tertaut ("Block time"); null = tidak ada. */
+  calendar_event_id: string | null;
+  /** Jam blok terakhir yang diketahui (UTC); hanya terisi bila calendar_event_id terisi. */
+  scheduled_start: string | null;
+  scheduled_end: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -163,8 +168,16 @@ export type Database = {
       todos: {
         Row: Todo;
         // user_id / goal_id / completed_at punya default di database (auth.uid(), null, trigger).
-        Insert: Omit<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "phase_id" | "completed_at"> &
-          Partial<Pick<Todo, "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "phase_id" | "completed_at">>;
+        Insert: Omit<
+          Todo,
+          "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "phase_id" | "completed_at" | "calendar_event_id" | "scheduled_start" | "scheduled_end"
+        > &
+          Partial<
+            Pick<
+              Todo,
+              "id" | "created_at" | "updated_at" | "user_id" | "goal_id" | "project_id" | "phase_id" | "completed_at" | "calendar_event_id" | "scheduled_start" | "scheduled_end"
+            >
+          >;
         Update: Partial<Omit<Todo, "id">>;
         Relationships: [];
       };

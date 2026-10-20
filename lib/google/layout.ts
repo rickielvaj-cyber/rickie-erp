@@ -91,3 +91,13 @@ export function visibleHours(days: DayLayout[], defaults = { start: 7, end: 20 }
   }
   return { start: Math.max(0, start), end: Math.min(24, end) };
 }
+
+/** "09:00–10:30" (WIB) dari dua instan ISO; null bila salah satunya kosong atau tidak valid. */
+export function formatScheduled(start: string | null, end: string | null): string | null {
+  if (!start || !end || Number.isNaN(Date.parse(start)) || Number.isNaN(Date.parse(end))) return null;
+  const hhmm = (iso: string) => {
+    const { minutes } = toWib(iso);
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  };
+  return `${hhmm(start)}–${hhmm(end)}`;
+}
