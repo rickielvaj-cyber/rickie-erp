@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isISODate } from "@/lib/date";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { getAccessToken } from "@/lib/google/store";
+import { getEvent, rescheduleEvent } from "@/lib/google/calendar";
+import { toWib } from "@/lib/google/layout";
 import type { Todo, TodoPriority, TodoStatus } from "@/lib/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -188,4 +192,75 @@ export async function moveTodoToToday(id: string, today: string) {
   await supabase.from("todos").update({ due_date: today }).eq("id", id).neq("status", "done");
 
   revalidateTodoViews();
+}
+
+// ---- Seret di papan mingguan ---------------------------------------------------------------------
+
+export type PlaceResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Taruh `todoId` di hari `date` pada urutan `orderedIds` (id semua to-do hari itu, dari atas ke bawah). Dipakai saat
+ * memindahkan ke hari lain DAN saat mengubah urutan dalam satu hari. Urutan disimpan sebagai sort_order 1..n.
+ *
+ * To-do yang tertaut ke blok kalender ikut memindahkan blok Google-nya ke hari itu (jam sama), karena acara adalah sumber
+ * kebenaran tanggal. Itu dikerjakan DULU: bila Google menolak, tidak ada yang berubah. (Bila penulisan database gagal setelah
+ * itu, tanggal to-do disamakan lagi dengan acaranya saat bagian Calendar dibuka.)
+ */
+export async function placeTodo(todoId: unknown, date: unknown, orderedIds: unknown): Promise<PlaceResult> {
+  if (typeof todoId !== "string" || !UUID_RE.test(todoId)) return { ok: false, error: "Unknown to-do." };
+  if (typeof date !== "string" || !isISODate(date)) return { ok: false, error: "Invalid date." };
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0 || orderedIds.length > 200) return { ok: false, error: "Invalid order." };
+  const ids = orderedIds as unknown[];
+  if (!ids.every((id): id is string => typeof id === "string" && UUID_RE.test(id)) || new Set(ids).size !== ids.length || !ids.includes(todoId)) {
+    return { ok: false, error: "Invalid order." };
+  }
+  const order = ids as string[];
+
+  const user = await getAuthUser();
+  if (!user) return { ok: false, error: "Your session has expired. Log in again." };
+  const supabase = await createClient();
+  const { data: todo, error: readError } = await supabase
+    .from("todos")
+    .select("id, due_date, calendar_event_id")
+    .eq("id", todoId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: readError.message };
+  if (!todo) return { ok: false, error: "That to-do no longer exists." };
+
+  let patch: Partial<Omit<Todo, "id">> = { due_date: date };
+  if (todo.calendar_event_id && todo.due_date !== date) {
+    try {
+      const token = await getAccessToken(user.id);
+      if (!token) return { ok: false, error: "This to-do is linked to a calendar block, but Google Calendar is not connected." };
+      const event = await getEvent(token, todo.calendar_event_id);
+      if (event === null) {
+        patch = { due_date: date, calendar_event_id: null, scheduled_start: null, scheduled_end: null }; // acaranya sudah dihapus di Google
+      } else {
+        const start = event.allDay ? null : toWib(event.start);
+        const end = event.allDay ? null : toWib(event.end);
+        if (!start || !end || start.date !== end.date) {
+          return { ok: false, error: "Its calendar block is an all-day or multi-day event. Move it in Google Calendar." };
+        }
+        await rescheduleEvent(token, todo.calendar_event_id, date, start.minutes, end.minutes);
+        const iso = (minutes: number) => new Date(`${date}T${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}:00+07:00`).toISOString();
+        patch = { due_date: date, scheduled_start: iso(start.minutes), scheduled_end: iso(end.minutes) };
+      }
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Could not move the calendar block." };
+    }
+  }
+
+  const results = await Promise.all(
+    order.map((id, index) =>
+      supabase
+        .from("todos")
+        .update(id === todoId ? { ...patch, sort_order: index + 1 } : { sort_order: index + 1 })
+        .eq("id", id),
+    ),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { ok: false, error: failed.error.message };
+
+  revalidateTodoViews();
+  return { ok: true };
 }
