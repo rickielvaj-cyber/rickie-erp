@@ -1,5 +1,8 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { CalendarSection, CalendarSkeleton } from "@/components/CalendarSection";
 import {
   addDaysISO,
   formatDayMonth,
@@ -37,6 +40,7 @@ type SearchParams = {
   new?: string;
   edit?: string;
   error?: string;
+  calendar?: string;
 };
 
 type Show = "all" | "open" | "done";
@@ -75,6 +79,7 @@ export default async function TodosPage({
   const isCurrentWeek = weekStart === mondayOfISO(today);
 
   const supabase = await createClient();
+  const authUser = await getAuthUser();
 
   // Panel "Hari ini": tugas jatuh tempo hari ini + yang terlewat/belum bertanggal
   // selama belum selesai (biar nggak hilang dari pandangan). Filter berlaku di
@@ -316,6 +321,12 @@ export default async function TodosPage({
           </div>
         </div>
       </section>
+
+      {authUser && (
+        <Suspense fallback={<CalendarSkeleton />}>
+          <CalendarSection userId={authUser.id} weekStart={weekStart} today={today} notice={params.calendar} />
+        </Suspense>
+      )}
 
       <TodoUndoToast />
     </div>

@@ -139,6 +139,15 @@ export type SearchIndexRow = {
   updated_at: string;
 };
 
+export type GoogleConnectionRow = {
+  user_id: string;
+  /** Refresh token Google, terenkripsi AES-256-GCM (lib/google/crypto.ts). Hanya service role yang bisa membacanya. */
+  refresh_token_enc: string;
+  scope: string;
+  connected_at: string;
+  updated_at: string;
+};
+
 export type KbSearchResult = {
   id: string;
   module: string;
@@ -224,6 +233,13 @@ export type Database = {
         Insert: Omit<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub" | "chunk_index"> &
           Partial<Pick<SearchIndexRow, "id" | "updated_at" | "user_id" | "hub" | "chunk_index">>;
         Update: Partial<Omit<SearchIndexRow, "id">>;
+        Relationships: [];
+      };
+      google_connections: {
+        Row: GoogleConnectionRow;
+        Insert: Pick<GoogleConnectionRow, "user_id" | "refresh_token_enc"> &
+          Partial<Pick<GoogleConnectionRow, "scope" | "connected_at" | "updated_at">>;
+        Update: Partial<GoogleConnectionRow>;
         Relationships: [];
       };
       kb_entries: {

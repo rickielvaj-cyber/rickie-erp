@@ -8,7 +8,7 @@ minggu, dienkripsi, dan disimpan di luar Supabase dan Vercel.
 | Ikut backup | Tidak ikut backup |
 |---|---|
 | Semua tabel aplikasi: to-do, goal, item goal, Issue Log, klien/partner, proyek, **225 entri Knowledge Base** | **Akun login** (`auth.users`), lihat langkah restore |
-| Struktur tabel, policy RLS, fungsi, trigger | **Isi indeks pencarian** (`search_index`, hanya strukturnya). Bisa dibuat ulang lewat Settings → Reindex Search |
+| Struktur tabel, policy RLS, fungsi, trigger | **Isi indeks pencarian** (`search_index`, hanya strukturnya). Bisa dibuat ulang lewat Settings → Reindex Search. **Token Google Calendar** (`google_connections`, hanya strukturnya): setelah restore klik "Connect Google Calendar" lagi |
 |  | **File gambar KB** di Storage (±1.200 gambar). Sumbernya tetap file Word asli Rickie; simpan file itu |
 | | Pengaturan project (Auth, domain, dsb.) |
 

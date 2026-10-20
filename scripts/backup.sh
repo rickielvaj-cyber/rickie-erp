@@ -21,9 +21,12 @@ trap 'rm -f "$tmp"' EXIT
 # --exclude-table-data=search_index: isinya (vektor pencarian) hampir separuh ukuran dump dan bisa dibuat
 # ulang kapan saja lewat Settings > Reindex Search; strukturnya tetap ikut. Karena strukturnya memakai tipe
 # vector, restore butuh ekstensi pgvector aktif lebih dulu (lihat docs/BACKUP.md).
+# --exclude-table-data=google_connections: berisi token akses Google (terenkripsi). Tidak perlu ada di backup;
+# setelah restore cukup klik "Connect Google Calendar" lagi.
 pg_dump "$SUPABASE_DB_URL" \
   --schema=public --no-owner --no-privileges --column-inserts --quote-all-identifiers \
   --exclude-table-data='public.search_index' \
+  --exclude-table-data='public.google_connections' \
   --file="$tmp"
 
 # Project Supabase baru sudah punya skema public; baris ini akan membuat restore berhenti dengan error.
