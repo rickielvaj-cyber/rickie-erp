@@ -142,6 +142,8 @@ export default async function TodosPage({
   const dueToday = todayTodos.filter((t) => t.due_date === today);
   const undated = todayTodos.filter((t) => t.due_date === null);
 
+  // Judul to-do yang belum selesai minggu ini: saran judul saat membuat blok waktu.
+  const openTitles = Array.from(new Set(weekTodos.filter((t) => t.status !== "done").map((t) => t.title))).slice(0, 40);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
   const weekDone = weekTodos.filter((t) => t.status === "done").length;
 
@@ -324,7 +326,7 @@ export default async function TodosPage({
 
       {authUser && (
         <Suspense fallback={<CalendarSkeleton />}>
-          <CalendarSection userId={authUser.id} weekStart={weekStart} today={today} notice={params.calendar} />
+          <CalendarSection userId={authUser.id} weekStart={weekStart} today={today} notice={params.calendar} suggestions={openTitles} />
         </Suspense>
       )}
 

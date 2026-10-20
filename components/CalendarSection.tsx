@@ -1,11 +1,10 @@
-import { addDaysISO, formatDayMonth, formatWeekdayShort } from "@/lib/date";
+import { addDaysISO, formatDayMonth } from "@/lib/date";
 import { listWeekEvents } from "@/lib/google/calendar";
-import { layoutWeek, visibleHours, type DayLayout, type TimedBlock } from "@/lib/google/layout";
+import { layoutWeek, visibleHours, type DayLayout } from "@/lib/google/layout";
+import { CalendarGrid } from "@/components/CalendarGrid";
 import { GoogleAuthError, googleConfigured } from "@/lib/google/oauth";
 import { getAccessToken, isConnected } from "@/lib/google/store";
 import { disconnectGoogleCalendar } from "@/app/(dashboard)/todos/calendar-actions";
-
-const HOUR_REM = 3; // tinggi satu jam di grid
 
 const NOTICE: Record<string, string> = {
   connected: "Google Calendar connected.",
@@ -41,94 +40,6 @@ function ConnectButton({ label }: { label: string }) {
   );
 }
 
-function EventBlock({ block, startHour }: { block: TimedBlock; startHour: number }) {
-  const top = ((block.startMin - startHour * 60) / 60) * HOUR_REM;
-  const height = ((block.endMin - block.startMin) / 60) * HOUR_REM;
-  const time = `${String(Math.floor(block.startMin / 60)).padStart(2, "0")}:${String(block.startMin % 60).padStart(2, "0")}`;
-  const className =
-    "absolute overflow-hidden rounded-md border border-foreground bg-background px-1.5 py-0.5 text-xs leading-tight hover:bg-surface";
-  const style = {
-    top: `${top}rem`,
-    height: `${Math.max(height, 0.9)}rem`,
-    left: `calc(${(block.lane / block.lanes) * 100}% + 1px)`,
-    width: `calc(${100 / block.lanes}% - 2px)`,
-  };
-  const body = (
-    <>
-      <span className="font-medium">{block.event.title}</span> <span className="text-muted">{time}</span>
-    </>
-  );
-  return block.event.link ? (
-    <a href={block.event.link} target="_blank" rel="noopener noreferrer" className={className} style={style} title={block.event.title}>
-      {body}
-    </a>
-  ) : (
-    <div className={className} style={style} title={block.event.title}>
-      {body}
-    </div>
-  );
-}
-
-function WeekGrid({ days, today }: { days: DayLayout[]; today: string }) {
-  const { start, end } = visibleHours(days);
-  const hours = Array.from({ length: end - start }, (_, i) => start + i);
-  const hasAllDay = days.some((d) => d.allDay.length > 0);
-  const cols = "grid grid-cols-[3rem_repeat(7,minmax(7rem,1fr))]";
-
-  return (
-    <div className="overflow-x-auto rounded-2xl border border-foreground">
-      <div className="min-w-[56rem]">
-        <div className={`${cols} border-b border-border`}>
-          <div />
-          {days.map((d) => (
-            <div key={d.date} className={`border-l border-border px-2 py-2 text-center ${d.date === today ? "bg-surface font-medium" : ""}`}>
-              <span className="text-sm">{formatWeekdayShort(d.date)}</span> <span className="text-xs text-muted">{formatDayMonth(d.date)}</span>
-            </div>
-          ))}
-        </div>
-        {hasAllDay && (
-          <div className={`${cols} border-b border-border`}>
-            <div className="px-1 py-1 text-right text-[10px] text-muted">all day</div>
-            {days.map((d) => (
-              <div key={d.date} className="flex flex-col gap-0.5 border-l border-border p-1">
-                {d.allDay.map((e) => (
-                  <span key={e.id + d.date} className="truncate rounded bg-surface px-1.5 py-0.5 text-xs" title={e.title}>
-                    {e.title}
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-        <div className={cols}>
-          <div>
-            {hours.map((h) => (
-              <div key={h} style={{ height: `${HOUR_REM}rem` }} className="pr-1 text-right text-[10px] text-muted">
-                <span className="relative -top-1.5">{String(h).padStart(2, "0")}:00</span>
-              </div>
-            ))}
-          </div>
-          {days.map((d) => (
-            <div key={d.date} className={`relative border-l border-border ${d.date === today ? "bg-surface/60" : ""}`} style={{ height: `${hours.length * HOUR_REM}rem` }}>
-              {hours.map((h, i) => (
-                <div key={h} className="absolute inset-x-0 border-t border-border/70" style={{ top: `${i * HOUR_REM}rem` }} />
-              ))}
-              {d.blocks.map((b) => (
-                <EventBlock key={b.event.id + b.startMin} block={b} startHour={start} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Kalender Google minggu yang dipilih (sama dengan minggu To-Do), hanya-baca di langkah ini. Acara diambil langsung
- * dari Google tiap halaman dibuka dan tidak disimpan. Kegagalan (belum diatur, token dicabut, Google error) tampil
- * sebagai pesan di bagian ini; sisa halaman To-Do tidak terpengaruh.
- */
 type CalendarState =
   | { kind: "unconfigured" }
   | { kind: "disconnected" }
@@ -151,11 +62,23 @@ async function loadState(userId: string, weekStart: string): Promise<CalendarSta
 }
 
 /**
- * Kalender Google minggu yang dipilih (sama dengan minggu To-Do), hanya-baca di langkah ini. Acara diambil langsung
- * dari Google tiap halaman dibuka dan tidak disimpan. Kegagalan (belum diatur, token dicabut, Google error) tampil
+ * Kalender Google minggu yang dipilih (sama dengan minggu To-Do) dengan time blocking (klik/seret untuk membuat, klik
+ * blok untuk mengubah atau menghapus; lihat CalendarGrid). Acara diambil langsung dari Google tiap halaman dibuka dan tidak disimpan. Kegagalan (belum diatur, token dicabut, Google error) tampil
  * sebagai pesan di bagian ini; sisa halaman To-Do tidak terpengaruh.
  */
-export async function CalendarSection({ userId, weekStart, today, notice }: { userId: string; weekStart: string; today: string; notice?: string }) {
+export async function CalendarSection({
+  userId,
+  weekStart,
+  today,
+  notice,
+  suggestions = [],
+}: {
+  userId: string;
+  weekStart: string;
+  today: string;
+  notice?: string;
+  suggestions?: string[];
+}) {
   const state = await loadState(userId, weekStart);
 
   if (state.kind === "unconfigured") {
@@ -197,6 +120,7 @@ export async function CalendarSection({ userId, weekStart, today, notice }: { us
     );
   }
 
+  const hourRange = visibleHours(state.days);
   const count = state.days.reduce((n, d) => n + d.allDay.length + d.blocks.length, 0);
   return (
     <Shell notice={notice}>
@@ -210,7 +134,7 @@ export async function CalendarSection({ userId, weekStart, today, notice }: { us
           </button>
         </form>
       </div>
-      <WeekGrid days={state.days} today={today} />
+      <CalendarGrid days={state.days} today={today} startHour={hourRange.start} endHour={hourRange.end} suggestions={suggestions} />
     </Shell>
   );
 }
