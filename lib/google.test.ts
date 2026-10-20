@@ -210,3 +210,114 @@ test("listWeekEvents turns a Google error into a CalendarApiError with the statu
     },
   );
 });
+
+// ---- time blocking ----
+import { dragRange, isEventId, minutesToTime, parseBlockInput, slotFromOffset, snapMinutes, timeToMinutes, wibIso } from "./google/block";
+import { createEvent, deleteEvent, updateEvent } from "./google/calendar";
+
+test("time helpers convert and validate HH:MM", () => {
+  assert.equal(minutesToTime(9 * 60 + 5), "09:05");
+  assert.equal(minutesToTime(24 * 60), "23:59", "24:00 is clamped (a time input has no 24:00)");
+  assert.equal(minutesToTime(-5), "00:00");
+  assert.equal(timeToMinutes("09:30"), 570);
+  assert.equal(timeToMinutes("24:00"), null);
+  assert.equal(timeToMinutes("9:30"), null);
+  assert.equal(timeToMinutes("12:60"), null);
+  assert.equal(snapMinutes(547), 540);
+  assert.equal(snapMinutes(548), 555);
+});
+
+test("slotFromOffset maps pointer position to snapped minutes inside the visible hours", () => {
+  // 13 visible hours (07-20) in 624px: 48px per hour.
+  assert.equal(slotFromOffset(0, 624, 7, 20), 7 * 60);
+  assert.equal(slotFromOffset(48, 624, 7, 20), 8 * 60);
+  assert.equal(slotFromOffset(48 * 2 + 12, 624, 7, 20), 9 * 60 + 15, "snaps to 15 minutes");
+  assert.equal(slotFromOffset(10_000, 624, 7, 20), 23 * 60 + 59, "clamped to the end of the day");
+  assert.equal(slotFromOffset(-50, 624, 7, 20), 6 * 60, "slightly above the grid snaps to the nearest slot, still inside the day");
+});
+
+test("dragRange orders the points, treats a click as a 30-minute block and keeps a minimum length", () => {
+  assert.deepEqual(dragRange(600, 600), { startMin: 600, endMin: 630 });
+  assert.deepEqual(dragRange(660, 600), { startMin: 600, endMin: 660 }, "dragging upwards");
+  assert.deepEqual(dragRange(600, 615), { startMin: 600, endMin: 615 });
+  const late = dragRange(24 * 60 - 1, 24 * 60 - 1);
+  assert.ok(late.endMin > late.startMin && late.endMin <= 24 * 60 - 1);
+});
+
+test("wibIso builds a +07:00 timestamp", () => {
+  assert.equal(wibIso("2026-10-20", 9 * 60 + 15), "2026-10-20T09:15:00+07:00");
+});
+
+test("parseBlockInput accepts a good block and rejects bad ones with a clear message", () => {
+  const ok = parseBlockInput({ title: "  UAT   prep ", date: "2026-10-20", start: "09:00", end: "10:30" });
+  assert.deepEqual(ok, { ok: true, value: { title: "UAT prep", date: "2026-10-20", startMin: 540, endMin: 630 } });
+  const bad = (o: object) => {
+    const r = parseBlockInput(o);
+    return r.ok ? "ok" : r.error;
+  };
+  const base = { title: "x", date: "2026-10-20", start: "09:00", end: "10:00" };
+  assert.match(bad({ ...base, title: "   " }), /title/i);
+  assert.match(bad({ ...base, title: "x".repeat(201) }), /too long/i);
+  assert.match(bad({ ...base, date: "2026-02-31" }), /date/i);
+  assert.match(bad({ ...base, start: "25:00" }), /time/i);
+  assert.match(bad({ ...base, end: "09:00" }), /after/i);
+  assert.match(bad({ ...base, end: "08:00" }), /after/i);
+  assert.match(bad(null as unknown as object), /title/i);
+  assert.match(bad({ ...base, title: 5 }), /title/i);
+});
+
+test("isEventId only accepts Google event id characters", () => {
+  assert.ok(isEventId("abc123_20261020T020000Z"));
+  assert.ok(!isEventId("../etc"));
+  assert.ok(!isEventId("a/b"));
+  assert.ok(!isEventId(""));
+  assert.ok(!isEventId(42));
+});
+
+test("createEvent, updateEvent and deleteEvent call Google with the right method, body and no attendee emails", async () => {
+  const calls: { method: string; url: string; auth?: string; body: unknown }[] = [];
+  const server: Server = createServer((req, res) => {
+    let raw = "";
+    req.on("data", (c) => (raw += c));
+    req.on("end", () => {
+      calls.push({ method: req.method ?? "", url: req.url ?? "", auth: req.headers.authorization, body: raw ? JSON.parse(raw) : null });
+      if (req.url?.includes("/gone")) {
+        res.writeHead(404, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: { message: "Not Found" } }));
+      }
+      if (req.method === "DELETE") {
+        res.writeHead(204);
+        return res.end();
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ id: "ev1", summary: "UAT prep", start: { dateTime: "2026-10-20T09:00:00+07:00" }, end: { dateTime: "2026-10-20T10:30:00+07:00" } }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  process.env.GOOGLE_CALENDAR_API = `http://127.0.0.1:${(server.address() as AddressInfo).port}/calendar/v3`;
+  try {
+    const input = { title: "UAT prep", date: "2026-10-20", startMin: 540, endMin: 630 };
+    const created = await createEvent("AT", input);
+    assert.equal(created?.id, "ev1");
+    await updateEvent("AT", "ev1", input);
+    await deleteEvent("AT", "ev1");
+    await assert.rejects(deleteEvent("AT", "gone"), (e) => e instanceof CalendarApiError && /no longer exists/.test(e.message));
+
+    const [post, patch, del] = calls;
+    assert.equal(post.method, "POST");
+    assert.equal(post.url, "/calendar/v3/calendars/primary/events?sendUpdates=none");
+    assert.equal(post.auth, "Bearer AT");
+    assert.deepEqual(post.body, {
+      summary: "UAT prep",
+      start: { dateTime: "2026-10-20T09:00:00+07:00", timeZone: "Asia/Jakarta" },
+      end: { dateTime: "2026-10-20T10:30:00+07:00", timeZone: "Asia/Jakarta" },
+    });
+    assert.equal(patch.method, "PATCH");
+    assert.equal(patch.url, "/calendar/v3/calendars/primary/events/ev1?sendUpdates=none");
+    assert.equal(del.method, "DELETE");
+    assert.equal(del.url, "/calendar/v3/calendars/primary/events/ev1?sendUpdates=none");
+  } finally {
+    delete process.env.GOOGLE_CALENDAR_API;
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
