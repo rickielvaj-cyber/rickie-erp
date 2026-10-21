@@ -214,7 +214,8 @@ Setelah itu:
 
 ### 4c. Google Calendar (To-Do → Calendar)
 
-Menampilkan kalender Google minggu terpilih di bawah To-Do, dengan **time blocking**: klik atau seret di slot kosong
+Menampilkan kalender Google minggu terpilih di bawah To-Do (grid **24 jam penuh**, 00:00–24:00, dalam area yang bisa digulir;
+saat dibuka tampil mulai 07:00, atau satu jam sebelum acara paling awal minggu itu; header hari tetap terlihat saat menggulir), dengan **time blocking**: klik atau seret di slot kosong
 untuk membuat blok (kelipatan 15 menit; satu klik = 30 menit), klik blok untuk mengubah atau menghapusnya, atau tombol
 **+ New block**. Semuanya langsung ditulis ke kalender utama Google Anda, dan perubahan yang dibuat di Google (mis. dari ponsel)
 tampil saat halaman dibuka lagi. Acara seharian dan acara yang melewati tengah malam ditampilkan tetapi diubah di Google

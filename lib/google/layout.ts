@@ -79,17 +79,11 @@ export function layoutWeek(events: CalendarEvent[], weekStart: string): DayLayou
   return days;
 }
 
-/** Rentang jam yang ditampilkan: default 07:00–20:00, melebar bila ada acara di luarnya. */
-export function visibleHours(days: DayLayout[], defaults = { start: 7, end: 20 }): { start: number; end: number } {
-  let start = defaults.start;
-  let end = defaults.end;
-  for (const day of days) {
-    for (const b of day.blocks) {
-      start = Math.min(start, Math.floor(b.startMin / 60));
-      end = Math.max(end, Math.ceil(b.endMin / 60));
-    }
-  }
-  return { start: Math.max(0, start), end: Math.min(24, end) };
+/** Jam yang ditampilkan paling atas saat kalender dibuka: 07:00, atau satu jam sebelum acara paling awal bila ada yang lebih pagi. */
+export function initialScrollHour(days: DayLayout[], defaultHour = 7): number {
+  let hour = defaultHour;
+  for (const day of days) for (const b of day.blocks) hour = Math.min(hour, Math.floor(b.startMin / 60) - 1);
+  return Math.max(0, hour);
 }
 
 /** "09:00–10:30" (WIB) dari dua instan ISO; null bila salah satunya kosong atau tidak valid. */
