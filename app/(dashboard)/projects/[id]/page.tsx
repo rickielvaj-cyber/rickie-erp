@@ -150,7 +150,7 @@ export default async function ProjectDetailPage({
           </span>
         </div>
         <p className="mb-4 mt-1 text-sm text-muted">
-          Each phase has its own to-do list. A phase's status follows its to-dos: all done → Done, some done → In progress. You can still
+          Each phase has its own to-do list. The status of a phase follows its to-dos: all done → Done, some done → In progress. You can still
           set it by hand; it updates again the next time one of its to-dos changes.
         </p>
 
