@@ -9,7 +9,11 @@ type Grouping = { goalTitle: string | null; projectTitle?: string | null; phaseT
 
 export type DoneTask = { title: string } & Grouping;
 export type HandledIssue = { client: string | null; module: string | null; title: string };
-export type PlanTask = { title: string; dueDate: string | null } & Grouping;
+export type PlanTask = { title: string; dueDate: string | null; time?: string | null } & Grouping;
+/** Blok waktu di kalender yang tertaut ke to-do; `minutes` = lama blok. */
+export type TimeBlock = { minutes: number } & Grouping;
+/** Acara kalender yang tidak tertaut ke to-do (hanya dipakai bila pengguna memilih menyertakannya). */
+export type OtherEvent = { date: string; time: string; title: string; minutes: number };
 export type ProjectStatusLine = {
   name: string;
   clientName: string | null;
@@ -46,6 +50,31 @@ function taskTitle(t: Grouping & { title: string }) {
   return t.projectTitle?.trim() && t.phaseTitle?.trim() ? `${t.title} [${t.phaseTitle.trim()}]` : t.title;
 }
 
+/** 90 -> "1 h 30 m", 45 -> "45 m", 120 -> "2 h". */
+export function formatDuration(minutes: number): string {
+  const total = Math.max(0, Math.round(minutes));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h === 0 ? `${m} m` : m === 0 ? `${h} h` : `${h} h ${m} m`;
+}
+
+const sumMinutes = (rows: { minutes: number }[]) => rows.reduce((total, r) => total + r.minutes, 0);
+
+/** Jam terblokir per Proyek/Goal/Other (yang terbanyak dulu), total di judul. */
+function timeBlockLines(blocks: TimeBlock[], others: OtherEvent[]) {
+  const out: string[] = [`Time blocked (${formatDuration(sumMinutes(blocks) + sumMinutes(others))})`];
+  const rank = (k: string) => (k === OTHER ? 2 : k.startsWith(PROJECT_PREFIX) ? 0 : 1);
+  const groups = groupTasks(blocks).sort(
+    ([a, x], [b, y]) => rank(a) - rank(b) || sumMinutes(y) - sumMinutes(x) || a.localeCompare(b),
+  );
+  for (const [name, rows] of groups) out.push(`- ${name === OTHER ? OTHER : name}: ${formatDuration(sumMinutes(rows))}`);
+  if (others.length > 0) {
+    out.push(`Other calendar events (${formatDuration(sumMinutes(others))})`);
+    for (const e of others) out.push(`- ${formatDate(e.date)} ${e.time} · ${e.title}`);
+  }
+  return out;
+}
+
 function lines(groups: [string, string[]][]) {
   const out: string[] = [];
   for (const [name, items] of groups) {
@@ -76,12 +105,17 @@ export function buildSummaryText({
   done,
   issues,
   projects = [],
+  timeBlocks = null,
+  otherEvents = [],
 }: {
   weekStart: string;
   weekEnd: string;
   done: DoneTask[];
   issues: HandledIssue[];
   projects?: ProjectStatusLine[];
+  /** null = kalender tidak dipakai (bagian "Time blocked" disembunyikan); [] = dipakai tapi tidak ada blok. */
+  timeBlocks?: TimeBlock[] | null;
+  otherEvents?: OtherEvent[];
 }): string {
   const out: string[] = [`Summary of This Week (${range(weekStart, weekEnd)})`, ""];
 
@@ -110,6 +144,10 @@ export function buildSummaryText({
     }
   }
 
+  if (timeBlocks !== null && (timeBlocks.length > 0 || otherEvents.length > 0)) {
+    out.push("", ...timeBlockLines(timeBlocks, otherEvents));
+  }
+
   if (projects.length > 0) {
     out.push("", `Project status (${projects.length})`, ...projectLines(projects));
   }
@@ -134,7 +172,7 @@ export function buildPlanText({
     const label = (t: PlanTask) => {
       if (!t.dueDate) return taskTitle(t);
       const carried = t.dueDate < nextStart ? "carried over, " : "";
-      return `${taskTitle(t)} (${carried}due ${formatDate(t.dueDate)})`;
+      return `${taskTitle(t)} (${carried}due ${formatDate(t.dueDate)}${t.time ? ` ${t.time}` : ""})`;
     };
     out.push(
       ...lines(

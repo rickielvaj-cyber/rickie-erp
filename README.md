@@ -280,7 +280,13 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
   Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
   termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke
-  YonWork. Hasil edit tidak disimpan.
+  YonWork. Hasil edit tidak disimpan. Bila Google Calendar tersambung, "Summary of This Week"
+  punya bagian **Time blocked**: total jam blok kalender (Senin–Jumat) yang tertaut ke to-do, per
+  Proyek/Goal/Other (`lib/google/summary-blocks.ts`). Jam diambil langsung dari Google (to-do
+  disinkronkan dulu); bila Google tidak terbaca dipakai jam tersimpan terakhir, dengan catatan di
+  halaman. Acara yang TIDAK tertaut ke to-do (rapat, pribadi) tidak ikut kecuali kamu klik
+  "Include them" (`?calendar=all`). "Next Week Plan" menambahkan jam blok pada to-do yang tertaut,
+  mis. `(due 22 Oct 2026 13:00–14:30)`. Tanpa migrasi database.
 - **Export**: menu akun (avatar) → "Export semua data (JSON)" dan "Export issue log (CSV)";
   halaman Issue Log punya tombol Export CSV yang mengikuti filter. CSV memakai BOM UTF-8 dan
   menetralkan sel yang diawali `= + - @` (dengan awalan `'`) supaya tidak jadi rumus di Excel/Sheets.
