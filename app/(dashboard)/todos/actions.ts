@@ -53,6 +53,7 @@ async function withValidPhase<T extends { project_id: string | null; phase_id: s
 function revalidateTodoViews() {
   revalidatePath("/todos");
   revalidatePath("/goals", "layout"); // daftar goal + detail menampilkan to-do tertaut
+  revalidatePath("/projects", "layout"); // status fase proyek mengikuti to-do-nya (trigger database)
   revalidatePath("/summary");
   revalidatePath("/");
 }

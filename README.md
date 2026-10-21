@@ -103,6 +103,10 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0021_phase_status_auto.sql` — trigger di `todos` yang menghitung ulang status fase proyek: semua to-do-nya selesai -> Done,
+  sebagian selesai atau ada yang In progress -> In progress, fase tanpa to-do tidak disentuh, fase Done yang mendapat
+  to-do terbuka -> In progress. Fungsi `security invoker` (RLS berlaku). Tidak mengubah data saat dijalankan (tanpa backfill).
+  Aman diulang.
 - `0020_todo_sort_order.sql` — kolom `todos.sort_order` (nullable) untuk urutan to-do dalam satu hari hasil seret. Tidak mengubah
   data yang ada; RLS tidak berubah. **Jalankan sebelum kode ini live** (halaman To-Do mengurutkan dengan kolom itu). Aman diulang.
 - `0019_todo_calendar_link.sql` — kolom `todos.calendar_event_id`, `scheduled_start`, `scheduled_end` (semua nullable) dan satu indeks
