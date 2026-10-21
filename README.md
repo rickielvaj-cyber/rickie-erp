@@ -103,6 +103,8 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0022_issue_kb_link.sql` — kolom `issue_log.kb_entry_id` (nullable, FK ke `kb_entries`, `on delete set null`) untuk tombol
+  "Add to KB" di Issue Log. Tidak mengubah data atau RLS. Aman diulang. **Jalankan sebelum kode ini live.**
 - `0021_phase_status_auto.sql` — trigger di `todos` yang menghitung ulang status fase proyek: semua to-do-nya selesai -> Done,
   sebagian selesai atau ada yang In progress -> In progress, fase tanpa to-do tidak disentuh, fase Done yang mendapat
   to-do terbuka -> In progress. Fungsi `security invoker` (RLS berlaku). Tidak mengubah data saat dijalankan (tanpa backfill).
@@ -277,6 +279,11 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   `lib/issues.ts`), deskripsi, akar masalah, resolusi. Klien & modul = teks bebas dengan
   autocomplete dari nilai yang pernah dipakai. Filter klien/modul/kategori/bulan, plus hitungan
   per bulan, kategori, dan klien (mengikuti filter) sebagai dasar KPI bulanan.
+  **Add to KB**: issue yang sudah punya akar masalah atau resolusi bisa dijadikan entri Knowledge Base
+  (`lib/issue-kb.ts`). Formulir menyarankan bab dari kolom Module (yang tidak jelas masuk Bab 15
+  Troubleshooting), draf berisi Masalah/Penyebab/Solusi **tanpa nama klien dan proyek** (KB ikut dikirim
+  ke Gemini untuk search, issue tidak), dan bisa diedit dulu. Satu issue satu entri; setelah itu tombolnya
+  berubah jadi "In KB".
 - **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
   Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
   termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke

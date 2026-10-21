@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { syncSearchAfterWrite } from "@/lib/search/sync";
 import { isISODate, todayISO } from "@/lib/date";
 import { defaultIssueTitle, isIssueCategory } from "@/lib/issues";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { isKbModuleSlug } from "@/lib/kb/modules";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -149,4 +151,47 @@ export async function setIssueCopied(id: string, copied: boolean) {
     .eq("id", id);
 
   revalidatePath("/issues");
+}
+
+/**
+ * Buat entri Knowledge Base dari issue (isi sudah diperiksa/diedit di formulir) dan simpan tautannya di issue.
+ * Tidak membuat duplikat: issue yang sudah punya entri ditolak. Entri baru ikut terindeks (sync-on-save).
+ */
+export async function createKbEntryFromIssue(issueId: string, formData: FormData) {
+  const back = (message: string): never => redirect(`/issues?kb=${issueId}&error=` + encodeURIComponent(message));
+  if (!UUID_RE.test(issueId)) redirect("/issues");
+
+  const kbModule = String(formData.get("kb_module") ?? "");
+  const title = String(formData.get("kb_title") ?? "").trim();
+  const content = String(formData.get("kb_content") ?? "").trim();
+  if (!isKbModuleSlug(kbModule)) back("Choose a chapter.");
+  if (!title) back("Title is required.");
+  if (!content) back("Content is required.");
+
+  const user = await getAuthUser();
+  if (!user) redirect("/login");
+  const supabase = await createClient();
+
+  const { data: issue } = await supabase.from("issue_log").select("id, kb_entry_id").eq("id", issueId).maybeSingle();
+  if (!issue) redirect("/issues");
+  if (issue.kb_entry_id) back("This issue is already in the Knowledge Base.");
+
+  const { data: entry, error } = await supabase
+    .from("kb_entries")
+    .insert({ user_id: user.id, module: kbModule, title, content })
+    .select("id")
+    .single();
+  if (error || !entry) back(error?.message ?? "Could not create the entry.");
+
+  const { error: linkError } = await supabase.from("issue_log").update({ kb_entry_id: entry!.id }).eq("id", issueId);
+  if (linkError) {
+    // Tanpa tautan, klik berikutnya akan membuat duplikat: batalkan entri yang baru dibuat.
+    await supabase.from("kb_entries").delete().eq("id", entry!.id);
+    back(linkError.message);
+  }
+
+  syncSearchAfterWrite();
+  revalidatePath("/issues");
+  revalidatePath("/knowledge-base", "layout");
+  redirect(`/knowledge-base/${kbModule}`);
 }

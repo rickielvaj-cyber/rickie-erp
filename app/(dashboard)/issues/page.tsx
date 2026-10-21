@@ -7,7 +7,8 @@ import { sheetSegmentDG, sheetSegmentKL } from "@/lib/sheet";
 import type { Client, IssueLog, ProjectStatus } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { CopyForSheet } from "@/components/CopyForSheet";
-import { createIssue, deleteIssue, setIssueCopied, updateIssue } from "./actions";
+import { buildKbDraft, canBecomeKbEntry, kbModuleChoices, suggestKbModule } from "@/lib/issue-kb";
+import { createIssue, createKbEntryFromIssue, deleteIssue, setIssueCopied, updateIssue } from "./actions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -19,6 +20,7 @@ type SearchParams = {
   month_to?: string;
   new?: string;
   edit?: string;
+  kb?: string;
   error?: string;
 };
 
@@ -42,6 +44,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   const monthTo = isYearMonth(params.month_to) ? params.month_to : "";
   const isNew = params.new === "1";
   const editId = UUID_RE.test(params.edit ?? "") ? params.edit! : null;
+  const kbId = UUID_RE.test(params.kb ?? "") ? params.kb! : null;
 
   const supabase = await createClient();
 
@@ -65,6 +68,15 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
 
   const issues = found ?? [];
   const editingIssue = editResult?.data ?? null;
+  // Issue yang sudah punya entri KB: bab tujuannya untuk tautan "In KB". Issue untuk formulir "Add to KB" diambil
+  // sendiri (bisa saja di luar filter yang sedang aktif).
+  const linkedEntryIds = issues.map((i) => i.kb_entry_id).filter((v): v is string => Boolean(v));
+  const [kbEntriesResult, kbIssueResult] = await Promise.all([
+    linkedEntryIds.length > 0 ? supabase.from("kb_entries").select("id, module").in("id", linkedEntryIds) : Promise.resolve(null),
+    kbId ? supabase.from("issue_log").select("*").eq("id", kbId).maybeSingle() : Promise.resolve(null),
+  ]);
+  const kbModuleOfEntry = new Map((kbEntriesResult?.data ?? []).map((e) => [e.id, e.module]));
+  const kbIssue = kbIssueResult?.data && !kbIssueResult.data.kb_entry_id ? kbIssueResult.data : null;
   const clients: Client[] = clientsResult.data ?? [];
   const clientById = new Map(clients.map((c) => [c.id, c]));
   const projectOptions: ProjectOption[] = (projectsResult.data ?? []).map((p) => ({
@@ -132,6 +144,12 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           </Link>
         </div>
       </div>
+
+      {kbIssue && (
+        <div className="mt-8">
+          <KbEntryForm key={kbIssue.id} issue={kbIssue} error={params.error} />
+        </div>
+      )}
 
       {(isNew || editingIssue) && (
         <div className="mt-8">
@@ -326,6 +344,23 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
+                    {issue.kb_entry_id && kbModuleOfEntry.get(issue.kb_entry_id) ? (
+                      <Link
+                        href={`/knowledge-base/${kbModuleOfEntry.get(issue.kb_entry_id)}`}
+                        title="Open the Knowledge Base entry made from this issue"
+                        className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
+                      >
+                        In KB ↗
+                      </Link>
+                    ) : canBecomeKbEntry(issue) ? (
+                      <Link
+                        href={`/issues?kb=${issue.id}`}
+                        title="Turn this issue into a Knowledge Base entry"
+                        className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
+                      >
+                        Add to KB
+                      </Link>
+                    ) : null}
                     <Link
                       href={`/issues?edit=${issue.id}`}
                       className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
@@ -380,6 +415,58 @@ function Detail({ label, value }: { label: string; value: string | null }) {
       <dt className="text-xs font-medium uppercase">{label}</dt>
       <dd className="whitespace-pre-line text-foreground">{value}</dd>
     </div>
+  );
+}
+
+function KbEntryForm({ issue, error }: { issue: IssueLog; error?: string }) {
+  const draft = buildKbDraft(issue);
+  return (
+    <form
+      action={createKbEntryFromIssue.bind(null, issue.id)}
+      className="space-y-4 rounded-3xl border border-border bg-surface p-6"
+    >
+      <h2 className="text-xl font-semibold tracking-tight">Add to Knowledge Base</h2>
+      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      <p className="text-sm text-muted">
+        The draft leaves out the client and project. The Knowledge Base is also sent to Gemini for search, so read it once and
+        remove any client names, people or amounts that slipped into the text.
+      </p>
+      <div>
+        <label htmlFor="kb_module" className="block text-sm font-medium">
+          Chapter
+        </label>
+        <select id="kb_module" name="kb_module" defaultValue={suggestKbModule(issue.module)} className={field}>
+          {kbModuleChoices().map((m) => (
+            <option key={m.slug} value={m.slug}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor="kb_title" className="block text-sm font-medium">
+          Title
+        </label>
+        <input id="kb_title" name="kb_title" required defaultValue={draft.title} className={field} />
+      </div>
+      <div>
+        <label htmlFor="kb_content" className="block text-sm font-medium">
+          Content (Markdown)
+        </label>
+        <textarea id="kb_content" name="kb_content" required rows={12} defaultValue={draft.content} className={`${field} font-mono text-sm`} />
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          className="rounded-full bg-accent px-6 py-2.5 text-base font-medium text-white transition-colors hover:bg-accent-hover"
+        >
+          Add to Knowledge Base
+        </button>
+        <Link href="/issues" className="rounded-full border border-border px-6 py-2.5 text-base transition-colors hover:border-foreground">
+          Cancel
+        </Link>
+      </div>
+    </form>
   );
 }
 
