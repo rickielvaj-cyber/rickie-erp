@@ -3,9 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { addDaysISO, formatDate, isISODate, mondayOfISO, todayISO } from "@/lib/date";
 import { buildPlanText, buildSummaryText } from "@/lib/summary";
 import { currentPhase, sortPhases } from "@/lib/projects";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { loadSummaryCalendar } from "@/lib/google/summary-blocks";
+import { formatScheduled } from "@/lib/google/layout";
 import { SummaryEditor } from "@/components/SummaryEditor";
 
-type SearchParams = { week?: string };
+type SearchParams = { week?: string; calendar?: string };
 
 // Zona waktu Jakarta (WIB, UTC+7, tanpa DST) untuk batas hari pada completed_at.
 const WIB = "+07:00";
@@ -22,7 +25,13 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
   const nextStart = addDaysISO(weekStart, 7);
   const nextEnd = addDaysISO(weekStart, 11);
 
+  const includeOthers = params.calendar === "all";
+  const authUser = await getAuthUser();
   const supabase = await createClient();
+  // Sinkron dulu (to-do tertaut mengikuti acaranya), baru query lain supaya jam rencana minggu depan ikut mutakhir.
+  const calendar = authUser
+    ? await loadSummaryCalendar(supabase, authUser.id, weekStart, weekEnd, includeOthers)
+    : { blocks: [], otherEvents: [], note: null };
   const [doneResult, issuesResult, planResult, goalsResult, projectsResult, phasesResult, clientsResult] = await Promise.all([
     supabase
       .from("todos")
@@ -41,7 +50,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
     // Belum selesai dan terjadwal sampai Jumat minggu depan (termasuk yang terlewat).
     supabase
       .from("todos")
-      .select("id, title, goal_id, project_id, phase_id, due_date")
+      .select("id, title, goal_id, project_id, phase_id, due_date, calendar_event_id, scheduled_start, scheduled_end")
       .neq("status", "done")
       .not("due_date", "is", null)
       .lte("due_date", nextEnd)
@@ -99,6 +108,12 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
     })),
     issues: issues.map((i) => ({ client: i.client_name, module: i.module, title: i.title })),
     projects: projectStatus,
+    timeBlocks: calendar.blocks.map((b) => ({
+      minutes: b.minutes,
+      goalTitle: goalOf(b.goal_id),
+      projectTitle: projectOf(b.project_id),
+    })),
+    otherEvents: calendar.otherEvents,
   });
   const planText = buildPlanText({
     nextStart,
@@ -106,6 +121,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
     tasks: plan.map((t) => ({
       title: t.title,
       dueDate: t.due_date,
+      time: t.calendar_event_id ? formatScheduled(t.scheduled_start, t.scheduled_end) : null,
       goalTitle: goalOf(t.goal_id),
       projectTitle: projectOf(t.project_id),
       phaseTitle: phaseOf(t.phase_id),
@@ -137,6 +153,8 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
         </nav>
       </div>
 
+      {calendar.note && <p className="mt-5 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm">{calendar.note}</p>}
+
       {fetchError && (
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
           Failed to load data: {fetchError.message}
@@ -145,10 +163,29 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
 
       <div className="mt-8">
         {/* key: pindah minggu = editor dimuat ulang dari template minggu itu. */}
-        <SummaryEditor key={weekStart} summaryText={summaryText} planText={planText} />
+        <SummaryEditor key={`${weekStart}-${includeOthers}`} summaryText={summaryText} planText={planText} />
       </div>
 
       <p className="mt-8 text-sm text-muted">
+        Time blocked adds up calendar blocks linked to to-dos (Mon–Fri).{" "}
+        {includeOthers ? (
+          <>
+            Other calendar events are included.{" "}
+            <Link href={`/summary?week=${weekStart}`} className="underline">
+              Leave them out
+            </Link>
+          </>
+        ) : (
+          <>
+            Meetings and other events that are not linked to a to-do are left out.{" "}
+            <Link href={`/summary?week=${weekStart}&calendar=all`} className="underline">
+              Include them
+            </Link>
+          </>
+        )}
+        .
+      </p>
+      <p className="mt-3 text-sm text-muted">
         Tasks count by the date they were checked off (Asia/Jakarta time zone); issues count by their own date.
         Anything checked off or logged on Saturday–Sunday is not included in the Mon–Fri summary.
       </p>
