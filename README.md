@@ -332,6 +332,10 @@ Gaya hitam-putih ala Apple: menu atas sticky, konten di tengah, banyak ruang kos
 Warna aksen (tombol utama, nav aktif) = CSS variable `--accent` (hitam) di
 `app/globals.css`. Merah (`--danger`) cuma buat pesan error dan aksi hapus.
 
+Ukuran: di layar >= 1024px skala dasar 14px (bukan 16px) supaya tidak terasa penuh; semua teks dan jarak memakai rem
+jadi mengecil serempak, dan lebar kolom (`--container-*`) dikalikan 16/14 supaya lebarnya dalam piksel tetap. Ponsel dan
+tablet tetap 16px. Mengubah ukuran desktop = satu angka (`font-size` di blok `@media (min-width: 1024px)`).
+
 Home (`/`) satu-satunya halaman yang bisa dibuka tanpa login (lihat `PUBLIC_EXACT_PATHS` di
 `lib/supabase/middleware.ts`); Home nggak memuat data apa pun kalau belum login.
 

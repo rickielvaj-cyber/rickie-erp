@@ -24,6 +24,28 @@
   --font-sans: var(--font-inter);
 }
 
+/* Desktop: skala dasar diperkecil (14px, bukan 16px). Seluruh teks dan jarak memakai rem, jadi huruf, kotak, dan
+   spasi mengecil serempak dan halaman terasa lebih lega. Lebar kolom (max-w-*) dikalikan 16/14 supaya lebarnya dalam
+   piksel tetap sama; tanpa itu kolom ikut menyempit dan judul to-do lebih sering terpotong ke baris berikutnya.
+   Ponsel dan tablet (< 1024px) tetap 16px. */
+@media (min-width: 1024px) {
+  html {
+    font-size: 87.5%;
+  }
+  :root {
+    --container-sm: calc(24rem * 8 / 7);
+    --container-md: calc(28rem * 8 / 7);
+    --container-lg: calc(32rem * 8 / 7);
+    --container-xl: calc(36rem * 8 / 7);
+    --container-2xl: calc(42rem * 8 / 7);
+    --container-3xl: calc(48rem * 8 / 7);
+    --container-4xl: calc(56rem * 8 / 7);
+    --container-5xl: calc(64rem * 8 / 7);
+    --container-6xl: calc(72rem * 8 / 7);
+    --container-7xl: calc(80rem * 8 / 7);
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
