@@ -3,12 +3,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { CalendarSection, CalendarSkeleton } from "@/components/CalendarSection";
+import { WeekBoard } from "@/components/WeekBoard";
 import { formatScheduled } from "@/lib/google/layout";
 import {
   addDaysISO,
   formatDayMonth,
   formatLongDay,
-  formatWeekdayShort,
   isISODate,
   mondayOfISO,
   todayISO,
@@ -99,12 +99,16 @@ export default async function TodosPage({
   else if (goal !== "all") todayQuery = todayQuery.eq("goal_id", goal);
 
   const [todayResult, weekResult, editResult, goalsResult, projectsResult, clientsResult, phasesResult] = await Promise.all([
-    todayQuery.order("due_date", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
+    todayQuery
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true }),
     supabase
       .from("todos")
       .select("*")
       .gte("due_date", weekStart)
       .lte("due_date", weekEnd)
+      .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
     editId ? supabase.from("todos").select("*").eq("id", editId).maybeSingle() : Promise.resolve(null),
     supabase.from("goals").select("id, title, status").order("created_at", { ascending: true }),
@@ -327,20 +331,14 @@ export default async function TodosPage({
           </nav>
         </div>
 
-        {/* Senin–Jumat = 5 kolom (lebar ±215px di 1152px, ±260px di layar sangat lebar); Sabtu dan Minggu di baris sendiri
-            di bawahnya supaya kolom kerja tidak sempit. Di layar sangat lebar bagian ini sedikit keluar dari lebar halaman. */}
-        <div className="2xl:-mx-20">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {weekDays.slice(0, 5).map((day) => (
-              <DayCard key={day} day={day} today={today} todos={weekTodos} week={weekParam ?? undefined} goalTitles={goalTitles} projectTitles={projectTitles} />
-            ))}
-          </div>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {weekDays.slice(5).map((day) => (
-              <DayCard key={day} day={day} today={today} todos={weekTodos} week={weekParam ?? undefined} goalTitles={goalTitles} projectTitles={projectTitles} compact />
-            ))}
-          </div>
-        </div>
+        <WeekBoard
+          todos={weekTodos}
+          days={weekDays}
+          today={today}
+          week={weekParam ?? undefined}
+          goalTitles={Object.fromEntries(goalTitles)}
+          projectTitles={Object.fromEntries(projectTitles)}
+        />
       </section>
 
       {authUser && (
@@ -355,62 +353,6 @@ export default async function TodosPage({
       )}
 
       <TodoUndoToast />
-    </div>
-  );
-}
-
-function DayCard({
-  day,
-  today,
-  todos,
-  week,
-  goalTitles,
-  projectTitles,
-  compact,
-}: {
-  day: string;
-  today: string;
-  todos: Todo[];
-  week?: string;
-  goalTitles: Map<string, string>;
-  projectTitles: Map<string, string>;
-  compact?: boolean;
-}) {
-  const dayTodos = todos.filter((t) => t.due_date === day);
-  const isToday = day === today;
-  return (
-    <div
-      aria-label={`${formatLongDay(day)}${isToday ? " (today)" : ""}`}
-      className={`flex flex-col gap-3 rounded-2xl p-3.5 ${compact ? "min-h-[9rem]" : "min-h-[26rem]"} ${
-        isToday ? "border-2 border-foreground bg-surface" : "border border-border"
-      }`}
-    >
-      <div className="flex items-baseline justify-between border-b border-border pb-2">
-        <span className="text-base font-medium">{formatWeekdayShort(day)}</span>
-        <span className="text-sm text-muted">{formatDayMonth(day)}</span>
-      </div>
-
-      <ul className="flex flex-col gap-2">
-        {dayTodos.map((todo) => (
-          <WeekTask
-            key={todo.id}
-            todo={todo}
-            week={week}
-            goalTitle={goalTitles.get(todo.goal_id ?? "")}
-            projectTitle={projectTitles.get(todo.id)}
-          />
-        ))}
-      </ul>
-
-      <form action={createTodoForDay.bind(null, day)} className="mt-auto">
-        <input
-          name="title"
-          required
-          placeholder="+ Add"
-          aria-label={`Add task for ${formatLongDay(day)}`}
-          className="w-full rounded-lg border border-dashed border-muted/60 bg-background px-2.5 py-1.5 text-center text-sm placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
-        />
-      </form>
     </div>
   );
 }
@@ -536,51 +478,6 @@ function TodoRow({
           <TodoDeleteButton todo={todo} />
         </div>
       </div>
-    </li>
-  );
-}
-
-function WeekTask({
-  todo,
-  week,
-  goalTitle,
-  projectTitle,
-}: {
-  todo: Todo;
-  week?: string;
-  goalTitle?: string;
-  projectTitle?: string;
-}) {
-  const done = todo.status === "done";
-  return (
-    <li className="flex items-start gap-2 text-sm leading-snug">
-      <span className="mt-0.5">
-        <Checkbox todo={todo} size="sm" />
-      </span>
-      <Link
-        href={week ? `/todos?edit=${todo.id}&week=${week}` : `/todos?edit=${todo.id}`}
-        title={`${PRIORITY_LABEL[todo.priority]}${goalTitle ? ` · Goal: ${goalTitle}` : ""}${projectTitle ? ` · Project: ${projectTitle}` : ""} · click to edit`}
-        className={`min-w-0 flex-1 break-words hover:underline ${done ? "text-muted line-through" : ""} ${
-          todo.priority === "high" && !done ? "font-medium" : ""
-        }`}
-      >
-        {todo.priority === "high" && !done && <span aria-label="High priority">! </span>}
-        {todo.title}
-        {todo.calendar_event_id && formatScheduled(todo.scheduled_start, todo.scheduled_end) && (
-          <span className="block text-xs font-normal text-muted">{formatScheduled(todo.scheduled_start, todo.scheduled_end)}</span>
-        )}
-      </Link>
-      {!done && !todo.calendar_event_id && (
-        <Link
-          href={week ? `/todos?block=${todo.id}&week=${week}#calendar` : `/todos?block=${todo.id}#calendar`}
-          aria-label={`Block time for ${todo.title}`}
-          title="Block time in the calendar"
-          className="shrink-0 rounded px-1 text-xs text-muted hover:bg-surface hover:text-foreground"
-        >
-          +time
-        </Link>
-      )}
-      <TodoDeleteButton todo={todo} variant="week" />
     </li>
   );
 }

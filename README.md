@@ -103,6 +103,8 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0020_todo_sort_order.sql` — kolom `todos.sort_order` (nullable) untuk urutan to-do dalam satu hari hasil seret. Tidak mengubah
+  data yang ada; RLS tidak berubah. **Jalankan sebelum kode ini live** (halaman To-Do mengurutkan dengan kolom itu). Aman diulang.
 - `0019_todo_calendar_link.sql` — kolom `todos.calendar_event_id`, `scheduled_start`, `scheduled_end` (semua nullable) dan satu indeks
   unik parsial: tautan to-do ke blok Google Calendar ("Block time"). To-do lama tidak berubah; RLS tidak berubah. **Jalankan
   sebelum kode ini live** (kode membaca kolom itu di halaman To-Do). Aman diulang.
@@ -258,6 +260,10 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **To-Do** (`/todos`): panel Hari ini + pelacak mingguan. Tiap tugas bisa dikaitkan ke satu
   **Goal** (dropdown di form, filter Goal). Tugas **Terlewat** punya tombol "Pindah ke hari ini".
   Hapus memakai toast **Urungkan** (6 detik). Mencentang tugas **tidak** mengubah Goal.
+  **Seret dan lepas** di pelacak mingguan: seret tugas ke hari lain, atau ubah urutannya dalam satu hari (urutan tersimpan
+  di `sort_order`). Mouse: seret langsung; layar sentuh: tekan-tahan sebentar lalu seret; keyboard: fokus ke pegangan ⋮⋮, Spasi
+  untuk mengambil, panah untuk memindahkan, Spasi untuk menaruh. Tugas yang tertaut ke blok Google Calendar ikut memindahkan
+  bloknya ke hari tujuan (jam tetap). Panel "Hari ini" di atas tidak bisa diseret, tapi mengikuti urutan yang sama.
 - **Goals** (`/goals`): target jangka panjang dengan checklist. Item punya grup (`group_name`
   jadi judul), catatan, dan urutan (↑↓ dalam grup). Progres = item selesai / total. Goal
   **diselesaikan manual** lewat checkbox, tidak otomatis dari item atau to-do, dan tidak muncul

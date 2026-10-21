@@ -90,6 +90,14 @@ export async function updateEvent(accessToken: string, eventId: string, input: B
   return normalizeEvent((await write(accessToken, "PATCH", `/${encodeURIComponent(eventId)}`, eventBody(input))) ?? {});
 }
 
+/** Pindahkan acara ke tanggal lain dengan jam yang sama (hanya start/end; judul dan lainnya tidak disentuh). */
+export async function rescheduleEvent(accessToken: string, eventId: string, date: string, startMin: number, endMin: number): Promise<void> {
+  await write(accessToken, "PATCH", `/${encodeURIComponent(eventId)}`, {
+    start: { dateTime: wibIso(date, startMin), timeZone: "Asia/Jakarta" },
+    end: { dateTime: wibIso(date, endMin), timeZone: "Asia/Jakarta" },
+  });
+}
+
 export async function deleteEvent(accessToken: string, eventId: string): Promise<void> {
   await write(accessToken, "DELETE", `/${encodeURIComponent(eventId)}`);
 }
