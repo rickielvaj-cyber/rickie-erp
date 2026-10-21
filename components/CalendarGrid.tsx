@@ -57,6 +57,7 @@ export function CalendarGrid({
   today,
   startHour,
   endHour,
+  scrollHour,
   linkable,
   linkedTitles,
   prefill,
@@ -66,6 +67,8 @@ export function CalendarGrid({
   today: string;
   startHour: number;
   endHour: number;
+  /** Jam yang tampil paling atas saat grid dibuka (grid 24 jam penuh, bisa digulir). */
+  scrollHour: number;
   /** To-do terbuka yang belum tertaut ke blok mana pun (untuk pilihan "Link to a to-do"). */
   linkable: LinkOption[];
   /** id acara -> judul to-do yang tertaut padanya. */
@@ -92,6 +95,7 @@ export function CalendarGrid({
   const gesture = useRef<Gesture | null>(null);
   const suppressClick = useRef(false);
   const colRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const hasAllDay = days.some((d) => d.allDay.length > 0);
@@ -111,6 +115,13 @@ export function CalendarGrid({
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel]);
+
+  // Grid 24 jam penuh dalam area yang bisa digulir: saat dibuka (atau pindah minggu) gulir ke jam awal, bukan tengah malam.
+  const firstDay = days[0]?.date;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = (scrollHour / (endHour - startHour)) * (el.scrollHeight - (el.querySelector<HTMLElement>(".sticky")?.offsetHeight ?? 0));
+  }, [firstDay, scrollHour, startHour, endHour]);
 
   // ---- buat blok baru: klik atau seret di slot kosong ----
   const minutesIn = (e: { clientY: number }, el: HTMLElement) => {
@@ -280,8 +291,9 @@ export function CalendarGrid({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-foreground">
+      <div ref={scrollRef} className="max-h-[40rem] overflow-auto rounded-2xl border border-foreground">
         <div className="min-w-[56rem]">
+          <div className="sticky top-0 z-30 bg-background">
           <div className={`${cols} border-b border-border`}>
             <div />
             {days.map((d) => (
@@ -311,11 +323,12 @@ export function CalendarGrid({
               ))}
             </div>
           )}
+          </div>
           <div className={cols}>
             <div>
               {hours.map((h) => (
                 <div key={h} style={{ height: `${HOUR_REM}rem` }} className="pr-1 text-right text-[10px] text-muted">
-                  <span className="relative -top-1.5">{String(h).padStart(2, "0")}:00</span>
+                  <span className={`relative ${h === startHour ? "top-0.5" : "-top-1.5"}`}>{String(h).padStart(2, "0")}:00</span>
                 </div>
               ))}
             </div>

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { decryptToken, encryptToken, safeEqual } from "./google/crypto";
-import { layoutWeek, toWib, visibleHours, type CalendarEvent } from "./google/layout";
+import { initialScrollHour, layoutWeek, toWib, type CalendarEvent } from "./google/layout";
 import { normalizeEvent, listWeekEvents, CalendarApiError } from "./google/calendar";
 import { buildAuthUrl, exchangeCode, GoogleAuthError, GOOGLE_SCOPE, refreshAccessToken } from "./google/oauth";
 
@@ -107,10 +107,12 @@ test("layoutWeek gives very short events a minimum height and spreads all-day ev
   assert.deepEqual(days.map((d) => d.allDay.length), [0, 1, 1, 1, 0, 0, 0]);
 });
 
-test("visibleHours defaults to 07-20 and widens for early or late events", () => {
-  assert.deepEqual(visibleHours(layoutWeek([], "2026-10-19")), { start: 7, end: 20 });
-  const wide = layoutWeek([timed("e", "2026-10-19T05:30:00+07:00", "2026-10-19T22:15:00+07:00")], "2026-10-19");
-  assert.deepEqual(visibleHours(wide), { start: 5, end: 23 });
+test("initialScrollHour opens at 07:00, or one hour before an earlier event", () => {
+  assert.equal(initialScrollHour(layoutWeek([], "2026-10-19")), 7);
+  assert.equal(initialScrollHour(layoutWeek([timed("e", "2026-10-19T09:00:00+07:00", "2026-10-19T10:00:00+07:00")], "2026-10-19")), 7);
+  assert.equal(initialScrollHour(layoutWeek([timed("e", "2026-10-19T05:30:00+07:00", "2026-10-19T06:30:00+07:00")], "2026-10-19")), 4);
+  assert.equal(initialScrollHour(layoutWeek([timed("e", "2026-10-19T00:30:00+07:00", "2026-10-19T01:30:00+07:00")], "2026-10-19")), 0, "never below midnight");
+  assert.equal(initialScrollHour(layoutWeek([timed("late", "2026-10-19T22:00:00+07:00", "2026-10-19T23:00:00+07:00")], "2026-10-19")), 7, "late events do not move the start");
 });
 
 test("normalizeEvent keeps timed and all-day events, drops cancelled or malformed ones, names untitled ones", () => {

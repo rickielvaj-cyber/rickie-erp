@@ -1,6 +1,6 @@
 import { addDaysISO, formatDayMonth } from "@/lib/date";
 import { listWeekEvents } from "@/lib/google/calendar";
-import { layoutWeek, visibleHours, type DayLayout } from "@/lib/google/layout";
+import { initialScrollHour, layoutWeek, type DayLayout } from "@/lib/google/layout";
 import { CalendarGrid, type LinkOption, type Prefill } from "@/components/CalendarGrid";
 import { RefreshOnMount } from "@/components/RefreshOnMount";
 import { createClient } from "@/lib/supabase/server";
@@ -132,7 +132,6 @@ export async function CalendarSection({
     );
   }
 
-  const hourRange = visibleHours(state.days);
   const count = state.days.reduce((n, d) => n + d.allDay.length + d.blocks.length, 0);
   return (
     <Shell notice={notice}>
@@ -150,8 +149,9 @@ export async function CalendarSection({
         key={prefill?.todoId ?? "none"}
         days={state.days}
         today={today}
-        startHour={hourRange.start}
-        endHour={hourRange.end}
+        startHour={0}
+        endHour={24}
+        scrollHour={initialScrollHour(state.days)}
         linkable={linkable}
         linkedTitles={linkedTitles}
         prefill={prefill}
