@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, todayISO } from "@/lib/date";
 import { kindOf } from "@/lib/clients";
-import { PHASE_STATUSES, PHASE_STATUS_LABEL, isOverdue, phaseProgress, sortPhases } from "@/lib/projects";
+import { PHASE_STATUSES, PHASE_STATUS_LABEL, groupTodosByPhase, isOverdue, phaseProgress, sortPhases } from "@/lib/projects";
 import type { Client, Project, ProjectPhase, Todo } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { ProgressBar, ProjectStatusPill, phasePillClass, phasePillText } from "@/components/projects/ProjectBits";
@@ -67,10 +67,9 @@ export default async function ProjectDetailPage({
     .map((pid) => clientName.get(pid))
     .filter((n): n is string => Boolean(n))
     .sort((a, b) => a.localeCompare(b));
-  const phaseNames = new Map(phases.map((ph) => [ph.id, ph.name]));
   const todos: Todo[] = todosResult.data ?? [];
-  const openTodos = todos.filter((t) => t.status !== "done");
-  const doneTodos = todos.filter((t) => t.status === "done");
+  const doneCount = todos.filter((t) => t.status === "done").length;
+  const { byPhase, unphased } = groupTodosByPhase(todos, phases);
   const issues = issuesResult.data ?? [];
   const progress = phaseProgress(phases);
   const editing = query.edit === "1";
@@ -140,35 +139,51 @@ export default async function ProjectDetailPage({
         <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load data: {fetchError.message}</p>
       )}
 
-      {/* ---- Fase ---- */}
+      {/* ---- Fase, masing-masing dengan daftar to-do sendiri ---- */}
       <section aria-labelledby="phases-heading" className="mt-10">
-        <h2 id="phases-heading" className="mb-4 text-2xl font-semibold tracking-tight">
-          Phases
-        </h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="phases-heading" className="text-2xl font-semibold tracking-tight">
+            Phases &amp; to-dos
+          </h2>
+          <span className="text-sm text-muted">
+            {doneCount} / {todos.length} to-dos done
+          </span>
+        </div>
+        <p className="mb-4 mt-1 text-sm text-muted">
+          Each phase has its own to-do list. These to-dos also show up in the To-Do List and the Weekly Summary.
+        </p>
 
         {phases.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
-            No phases yet. Add the first one below.
+            No phases yet. Add the first one below, then add to-dos under it.
           </p>
         ) : (
-          <ul className="overflow-hidden rounded-2xl border border-foreground">
-            {phases.map((phase, index) =>
-              editingPhaseId === phase.id ? (
-                <li key={phase.id} className="border-b border-border bg-surface p-4 last:border-b-0">
-                  <PhaseEditForm projectId={project.id} phase={phase} error={query.error} />
-                </li>
-              ) : (
-                <PhaseRow
-                  key={phase.id}
-                  projectId={project.id}
-                  phase={phase}
-                  today={today}
-                  isFirst={index === 0}
-                  isLast={index === phases.length - 1}
-                />
-              ),
-            )}
-          </ul>
+          <div className="space-y-4">
+            {phases.map((phase, index) => {
+              const list = byPhase.get(phase.id) ?? [];
+              return (
+                <div key={phase.id} className="overflow-hidden rounded-2xl border border-foreground">
+                  {editingPhaseId === phase.id ? (
+                    <div className="border-b border-border bg-surface p-4">
+                      <PhaseEditForm projectId={project.id} phase={phase} error={query.error} />
+                    </div>
+                  ) : (
+                    <PhaseRow
+                      projectId={project.id}
+                      phase={phase}
+                      today={today}
+                      isFirst={index === 0}
+                      isLast={index === phases.length - 1}
+                      todoCount={list.length}
+                      todoDone={list.filter((t) => t.status === "done").length}
+                    />
+                  )}
+                  <TodoList todos={list} today={today} />
+                  <AddTodoForm projectId={project.id} phaseId={phase.id} placeholder={`+ Add a to-do to ${phase.name}`} today={today} />
+                </div>
+              );
+            })}
+          </div>
         )}
 
         <form action={addPhase.bind(null, project.id)} className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-muted/60 p-3">
@@ -186,70 +201,18 @@ export default async function ProjectDetailPage({
             Add
           </button>
         </form>
-      </section>
 
-      {/* ---- To-do ---- */}
-      <section aria-labelledby="todos-heading" className="mt-12">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 id="todos-heading" className="text-2xl font-semibold tracking-tight">
-            To-dos
-          </h2>
-          <span className="text-sm text-muted">
-            {doneTodos.length} / {todos.length} done
-          </span>
-        </div>
-        <p className="mb-4 mt-1 text-sm text-muted">Daily to-dos linked to this project. They also show up in the To-Do List.</p>
-
-        {todos.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
-            No linked to-dos yet. Pick this project when writing a to-do, or add one below.
-          </p>
-        ) : (
-          <ul className="overflow-hidden rounded-2xl border border-foreground">
-            {[...openTodos, ...doneTodos].map((todo) => (
-              <TodoRow key={todo.id} todo={todo} today={today} phaseName={todo.phase_id ? phaseNames.get(todo.phase_id) : undefined} />
-            ))}
-          </ul>
+        {(unphased.length > 0 || phases.length === 0) && (
+          <div className="mt-8">
+            <h3 className="mb-2 text-sm font-medium text-muted">
+              {phases.length === 0 ? "To-dos" : "Not in any phase"} · {unphased.length}
+            </h3>
+            <div className="overflow-hidden rounded-2xl border border-border">
+              <TodoList todos={unphased} today={today} />
+              <AddTodoForm projectId={project.id} phaseId="" placeholder="+ Add a to-do (no phase)" today={today} />
+            </div>
+          </div>
         )}
-
-        <form
-          action={createTodoForProject.bind(null, project.id)}
-          className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-muted/60 p-3"
-        >
-          <input
-            name="title"
-            required
-            placeholder="+ Write a new to-do for this project"
-            aria-label="New to-do for this project"
-            className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
-          />
-          <select
-            name="phase_id"
-            defaultValue=""
-            aria-label="To-do phase"
-            className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
-          >
-            <option value="">No phase</option>
-            {phases.map((ph) => (
-              <option key={ph.id} value={ph.id}>
-                {ph.name}
-              </option>
-            ))}
-          </select>
-          <input
-            name="due_date"
-            type="date"
-            defaultValue={today}
-            aria-label="To-do date"
-            className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
-          />
-          <button
-            type="submit"
-            className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-          >
-            Add
-          </button>
-        </form>
       </section>
 
       {/* ---- Issue ---- */}
@@ -294,19 +257,23 @@ function PhaseRow({
   today,
   isFirst,
   isLast,
+  todoCount,
+  todoDone,
 }: {
   projectId: string;
   phase: ProjectPhase;
   today: string;
   isFirst: boolean;
   isLast: boolean;
+  todoCount: number;
+  todoDone: number;
 }) {
   const done = phase.status === "done";
   const overdue = isOverdue(phase.target_date, today, done);
   const move = "rounded-full px-2 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent";
 
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3.5 last:border-b-0">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface px-4 py-3.5">
       <form action={cyclePhaseStatus.bind(null, projectId, phase.id, phase.status)}>
         <button
           type="submit"
@@ -320,6 +287,7 @@ function PhaseRow({
 
       <div className="min-w-0 flex-1 basis-40">
         <p className={`text-lg ${done ? "text-muted line-through" : ""}`}>{phase.name}</p>
+        <p className="text-xs text-muted">{todoCount === 0 ? "No to-dos yet" : `${todoDone} of ${todoCount} to-dos done`}</p>
         {(phase.start_date || phase.target_date) && (
           <p className="text-xs text-muted">
             {phase.start_date && <>From {formatDate(phase.start_date)}</>}
@@ -360,15 +328,54 @@ function PhaseRow({
           />
         </form>
       </div>
-    </li>
+    </div>
   );
 }
 
-function TodoRow({ todo, today, phaseName }: { todo: Todo; today: string; phaseName?: string }) {
+function TodoList({ todos, today }: { todos: Todo[]; today: string }) {
+  if (todos.length === 0) return null;
+  return (
+    <ul>
+      {todos.map((todo) => (
+        <TodoRow key={todo.id} todo={todo} today={today} />
+      ))}
+    </ul>
+  );
+}
+
+function AddTodoForm({ projectId, phaseId, placeholder, today }: { projectId: string; phaseId: string; placeholder: string; today: string }) {
+  return (
+    <form action={createTodoForProject.bind(null, projectId)} className="flex flex-wrap items-center gap-2 border-t border-dashed border-border px-4 py-3">
+      <input type="hidden" name="phase_id" value={phaseId} />
+      <input
+        name="title"
+        required
+        placeholder={placeholder}
+        aria-label={placeholder.replace(/^\+ /, "")}
+        className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+      />
+      <input
+        name="due_date"
+        type="date"
+        defaultValue={today}
+        aria-label="To-do date"
+        className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
+      />
+      <button
+        type="submit"
+        className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+      >
+        Add
+      </button>
+    </form>
+  );
+}
+
+function TodoRow({ todo, today }: { todo: Todo; today: string }) {
   const done = todo.status === "done";
   const overdue = isOverdue(todo.due_date, today, done);
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-4 py-3.5 last:border-b-0">
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border py-3 pl-8 pr-4 last:border-b-0">
       <form action={toggleTodoDone.bind(null, todo.id, todo.status)} className="flex">
         <button
           type="submit"
@@ -389,7 +396,6 @@ function TodoRow({ todo, today, phaseName }: { todo: Todo; today: string; phaseN
         <p className={`text-xs ${overdue ? "font-medium text-danger" : "text-muted"}`}>
           {todo.due_date ? `${overdue ? "Overdue · " : ""}${formatDate(todo.due_date)}` : "No date"}
           {todo.status === "in_progress" ? " · In progress" : ""}
-          {phaseName ? ` · ${phaseName}` : ""}
         </p>
       </div>
     </li>

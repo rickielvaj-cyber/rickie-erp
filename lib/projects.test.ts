@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { currentPhase, isOverdue, isPhaseStatus, isProjectStatus, phaseProgress, sortPhases } from "./projects";
+import { currentPhase, groupTodosByPhase, isOverdue, isPhaseStatus, isProjectStatus, phaseProgress, sortPhases } from "./projects";
 
 const phase = (id: string, status: "not_started" | "in_progress" | "done", position: number, created = "2026-10-01") => ({
   id,
@@ -51,4 +51,25 @@ test("status guards reject unknown values", () => {
   assert.equal(isProjectStatus("ngawur"), false);
   assert.equal(isPhaseStatus("in_progress"), true);
   assert.equal(isPhaseStatus("active"), false);
+});
+
+test("groupTodosByPhase puts each to-do under its phase, open before done, and keeps phase-less ones apart", () => {
+  const todos = [
+    { id: "a", phase_id: "p1", status: "done" },
+    { id: "b", phase_id: "p1", status: "todo" },
+    { id: "c", phase_id: "p2", status: "in_progress" },
+    { id: "d", phase_id: null, status: "done" },
+    { id: "e", phase_id: null, status: "todo" },
+  ];
+  const { byPhase, unphased } = groupTodosByPhase(todos, [{ id: "p1" }, { id: "p2" }, { id: "p3" }]);
+  assert.deepEqual(byPhase.get("p1")?.map((t) => t.id), ["b", "a"]);
+  assert.deepEqual(byPhase.get("p2")?.map((t) => t.id), ["c"]);
+  assert.deepEqual(byPhase.get("p3"), [], "a phase with no to-dos still has an (empty) list");
+  assert.deepEqual(unphased.map((t) => t.id), ["e", "d"]);
+});
+
+test("groupTodosByPhase treats a phase id that is not one of this project's phases as no phase", () => {
+  const { byPhase, unphased } = groupTodosByPhase([{ id: "x", phase_id: "deleted", status: "todo" }], [{ id: "p1" }]);
+  assert.deepEqual(byPhase.get("p1"), []);
+  assert.deepEqual(unphased.map((t) => t.id), ["x"]);
 });

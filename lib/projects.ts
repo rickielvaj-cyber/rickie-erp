@@ -62,3 +62,23 @@ export function currentPhase<T extends PhaseLike>(phases: T[]): T | null {
 export function isOverdue(targetDate: string | null, today: string, done: boolean): boolean {
   return !done && targetDate !== null && targetDate < today;
 }
+
+type TodoLike = { id: string; phase_id: string | null; status: string };
+
+/**
+ * Kelompokkan to-do proyek per fase (halaman proyek: tiap fase punya daftar to-do sendiri). Dalam tiap kelompok yang
+ * belum selesai tampil lebih dulu, urutan lain mengikuti urutan masukan. To-do yang fasenya sudah dihapus atau tidak
+ * dikenal (bukan milik proyek ini) masuk ke `unphased`.
+ */
+export function groupTodosByPhase<T extends TodoLike>(todos: T[], phases: { id: string }[]): { byPhase: Map<string, T[]>; unphased: T[] } {
+  const known = new Set(phases.map((p) => p.id));
+  const order = (list: T[]) => [...list.filter((t) => t.status !== "done"), ...list.filter((t) => t.status === "done")];
+  const byPhase = new Map<string, T[]>(phases.map((p) => [p.id, [] as T[]]));
+  const unphased: T[] = [];
+  for (const t of todos) {
+    if (t.phase_id && known.has(t.phase_id)) byPhase.get(t.phase_id)!.push(t);
+    else unphased.push(t);
+  }
+  for (const [id, list] of byPhase) byPhase.set(id, order(list));
+  return { byPhase, unphased: order(unphased) };
+}
