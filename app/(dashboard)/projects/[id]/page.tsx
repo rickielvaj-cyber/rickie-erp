@@ -150,7 +150,8 @@ export default async function ProjectDetailPage({
           </span>
         </div>
         <p className="mb-4 mt-1 text-sm text-muted">
-          Each phase has its own to-do list. These to-dos also show up in the To-Do List and the Weekly Summary.
+          Each phase has its own to-do list. A phase's status follows its to-dos: all done → Done, some done → In progress. You can still
+          set it by hand; it updates again the next time one of its to-dos changes.
         </p>
 
         {phases.length === 0 ? (
@@ -277,7 +278,7 @@ function PhaseRow({
       <form action={cyclePhaseStatus.bind(null, projectId, phase.id, phase.status)}>
         <button
           type="submit"
-          title="Click to move to the next status"
+          title="Click to change the status (it also updates by itself as to-dos are ticked)"
           aria-label={`${phase.name}: ${PHASE_STATUS_LABEL[phase.status]}. Click to change status`}
           className={`${phasePillClass(phase.status)} min-w-28 hover:opacity-80`}
         >
