@@ -66,6 +66,8 @@ export type IssueLog = {
   project_id: string | null;
   /** Kapan terakhir isi enam kolom sheet disalin; null = belum / sudah berubah sejak disalin. */
   copied_to_sheet_at: string | null;
+  /** Entri KB yang dibuat dari issue ini (tombol "Add to KB"); null = belum. */
+  kb_entry_id: string | null;
 };
 
 /** Master klien. `canonical_name` = ejaan persis seperti Customer Name di Sheet1. */
@@ -203,12 +205,12 @@ export type Database = {
         Row: IssueLog;
         Insert: Omit<
           IssueLog,
-          "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "project_id" | "copied_to_sheet_at"
+          "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "project_id" | "copied_to_sheet_at" | "kb_entry_id"
         > &
           Partial<
             Pick<
               IssueLog,
-              "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "project_id" | "copied_to_sheet_at"
+              "id" | "created_at" | "user_id" | "module" | "root_cause" | "client_id" | "project_id" | "copied_to_sheet_at" | "kb_entry_id"
             >
           >;
         Update: Partial<Omit<IssueLog, "id">>;
