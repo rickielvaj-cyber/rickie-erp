@@ -304,7 +304,7 @@ app/(dashboard)/todos/    modul To-Do List (panel Hari ini + pelacak mingguan, t
 app/(dashboard)/goals/    modul Goals: daftar + detail checklist (grup, urutan, centang)
 app/(dashboard)/issues/   modul Issue Log
 app/(dashboard)/clients/  master klien dan partner
-app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase, partner, to-do, issue)
+app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase masing-masing dengan daftar to-do sendiri, partner, issue)
 docs/BACKUP.md            backup mingguan terenkripsi dan cara restore
 app/(dashboard)/summary/  modul Ringkasan Mingguan (format YonWork, bisa diedit + Copy)
 app/api/export/           Export: JSON semua data (/api/export), CSV issue log (/api/export/issues)
