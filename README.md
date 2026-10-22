@@ -170,7 +170,12 @@ kosinus pgvector) dan **kata persis** (kode akun, nama klien, dsb), lalu dikelom
 Tabel sumber hanya dibaca, tidak diubah.
 
 **Issue sengaja tidak dikirim ke Google**: deskripsinya memuat nama klien. Issue tetap bisa dicari lewat
-kata persis (indeks menyimpannya tanpa vektor). Daftar jenis yang di-embed ada di `EMBEDDED_TYPES`
+kata persis, dengan dua pelengkap tanpa Gemini (`lib/search/issues.ts`): issue dicari **langsung di tabel `issue_log`**
+(selalu mutakhir, tidak menunggu indeks), dan kalimat panjang ("gagal closing karena belum mapping") cukup cocok
+sebagian: kata penghubung dibuang, satu-dua kata harus semuanya ada, tiga kata atau lebih cukup 60%. Hasil issue
+diselipkan bergantian dengan hasil kata persis lain supaya tidak tergeser ratusan entri KB. Halaman `/search` punya
+chip filter jenis (All, Knowledge Base, Issues, Projects, Goals, Clients & Partners); chip Issues hanya mencari issue
+dan tidak memanggil Gemini sama sekali. Tanpa migrasi. Daftar jenis yang di-embed ada di `EMBEDDED_TYPES`
 (`lib/search/types.ts`). Catatan: nama klien dan catatan **Projects** ikut terkirim; hapus `project` dari
 daftar itu bila tidak diinginkan.
 

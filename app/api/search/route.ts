@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { searchAll } from "@/lib/search/query";
 import { normalizeQuery } from "@/lib/search/text";
+import { SOURCE_TYPES, type SearchSourceType } from "@/lib/search/types";
 
 // Embedding query + 2 panggilan database: bisa beberapa detik, jangan di-cache.
 export const dynamic = "force-dynamic";
@@ -19,7 +20,11 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     // ?debug=1 menyertakan skor mentah hasil arti (similarity dan z) supaya ambang bisa disetel.
-    return NextResponse.json(await searchAll(supabase, query, { debug: request.nextUrl.searchParams.get("debug") === "1" }));
+    const rawType = request.nextUrl.searchParams.get("type");
+    const type = SOURCE_TYPES.find((t) => t === rawType) as SearchSourceType | undefined;
+    return NextResponse.json(
+      await searchAll(supabase, query, { debug: request.nextUrl.searchParams.get("debug") === "1", type }),
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Search failed." },
