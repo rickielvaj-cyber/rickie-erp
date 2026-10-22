@@ -58,12 +58,12 @@ function Group({ type, hits }: { type: SearchSourceType; hits: SearchHit[] }) {
  * Memanggil /api/search; menampilkan kerangka pemuatan selama menunggu (embedding service + database).
  * Pemanggil memberi key={query}, jadi query baru = komponen baru dengan state "loading".
  */
-export function SearchResults({ query, debug = false }: { query: string; debug?: boolean }) {
+export function SearchResults({ query, debug = false, type }: { query: string; debug?: boolean; type?: SearchSourceType }) {
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/search?q=${encodeURIComponent(query)}${debug ? "&debug=1" : ""}`, { signal: controller.signal })
+    fetch(`/api/search?q=${encodeURIComponent(query)}${debug ? "&debug=1" : ""}${type ? `&type=${type}` : ""}`, { signal: controller.signal })
       .then(async (response) => {
         const json = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error((json as { error?: string }).error ?? "Search failed.");
@@ -74,7 +74,7 @@ export function SearchResults({ query, debug = false }: { query: string; debug?:
         setState({ status: "error", message: error instanceof Error ? error.message : "Search failed." });
       });
     return () => controller.abort();
-  }, [query, debug]);
+  }, [query, debug, type]);
 
   if (state.status === "loading") return <Skeleton />;
   if (state.status === "error") {
@@ -91,7 +91,7 @@ export function SearchResults({ query, debug = false }: { query: string; debug?:
       {warning && <p className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-muted">{warning}</p>}
       {results.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
-          Nothing found for “{query}”. Try other words, or describe what you are looking for.
+          Nothing found for “{query}”{type ? ` in ${SOURCE_LABEL[type]}` : ""}. Try other words, or describe what you are looking for.
         </p>
       ) : (
         <>

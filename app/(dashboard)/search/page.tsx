@@ -1,11 +1,22 @@
+import Link from "next/link";
 import { SearchResults } from "@/components/SearchResults";
 import { normalizeQuery } from "@/lib/search/text";
+import { SOURCE_LABEL, SOURCE_TYPES, type SearchSourceType } from "@/lib/search/types";
 
 export const metadata = { title: "Search" };
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; debug?: string }> }) {
-  const { q, debug } = await searchParams;
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; debug?: string; type?: string }> }) {
+  const { q, debug, type: rawType } = await searchParams;
   const query = normalizeQuery(q);
+  const type = SOURCE_TYPES.find((t) => t === rawType) as SearchSourceType | undefined;
+  const chipHref = (t?: SearchSourceType) => {
+    const p = new URLSearchParams({ q: q ?? "" });
+    if (t) p.set("type", t);
+    if (debug === "1") p.set("debug", "1");
+    return `/search?${p}`;
+  };
+  // Urutan chip: yang paling sering dicari dulu.
+  const chipTypes: SearchSourceType[] = ["kb_entry", "issue", "project", "goal", "client"];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -16,6 +27,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
       {/* GET biasa: bekerja juga di layar sempit, tempat kolom di menu atas disembunyikan. */}
       <form action="/search" role="search" className="mt-6 flex gap-2">
+        {type && <input type="hidden" name="type" value={type} />}
         <input
           type="search"
           name="q"
@@ -34,9 +46,28 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </button>
       </form>
 
+      {query && (
+        <nav aria-label="Filter by type" className="mt-4 flex flex-wrap gap-2">
+          {[undefined, ...chipTypes].map((t) => (
+            <Link
+              key={t ?? "all"}
+              href={chipHref(t)}
+              aria-current={type === t ? "page" : undefined}
+              className={`rounded-full border px-3.5 py-1 text-sm transition-colors ${
+                type === t
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border text-muted hover:border-foreground hover:text-foreground"
+              }`}
+            >
+              {t ? SOURCE_LABEL[t] : "All"}
+            </Link>
+          ))}
+        </nav>
+      )}
+
       <div className="mt-8">
         {query ? (
-          <SearchResults key={`${query}|${debug}`} query={query} debug={debug === "1"} />
+          <SearchResults key={`${query}|${debug}|${type}`} query={query} debug={debug === "1"} type={type} />
         ) : q ? (
           <p className="text-sm text-muted">Type at least 2 characters.</p>
         ) : null}
