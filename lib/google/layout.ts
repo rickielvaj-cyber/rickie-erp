@@ -1,4 +1,5 @@
 import { addDaysISO } from "@/lib/date";
+import type { ReminderChoice } from "./reminder";
 
 // Menata acara kalender ke grid minggu. Semua murni (tanpa jaringan) supaya mudah diuji.
 // Zona waktu aplikasi: Asia/Jakarta (WIB, UTC+7, tanpa DST), sama seperti seluruh situs.
@@ -12,6 +13,8 @@ export type CalendarEvent = {
   start: string;
   end: string;
   link?: string;
+  /** Pengingat acara berjam (lihat lib/google/reminder.ts). */
+  reminder?: ReminderChoice;
 };
 
 export type TimedBlock = { event: CalendarEvent; startMin: number; endMin: number; lane: number; lanes: number };

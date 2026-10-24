@@ -1,4 +1,5 @@
 import { isISODate } from "@/lib/date";
+import { parseReminder, type ReminderChoice } from "./reminder";
 
 // Blok waktu (time block) di grid kalender: hitung menit dari posisi pointer, validasi masukan form, dan ubah jam WIB
 // menjadi waktu ISO untuk Google. Semua murni supaya mudah diuji. Zona waktu situs: Asia/Jakarta (UTC+7, tanpa DST).
@@ -46,7 +47,7 @@ export function wibIso(date: string, minutes: number): string {
   return `${date}T${minutesToTime(minutes)}:00+07:00`;
 }
 
-export type BlockInput = { date: string; startMin: number; endMin: number; title: string };
+export type BlockInput = { date: string; startMin: number; endMin: number; title: string; reminder?: ReminderChoice };
 
 /** Validasi masukan dari form (server action): tidak percaya data dari browser. */
 export function parseBlockInput(raw: unknown): { ok: true; value: BlockInput } | { ok: false; error: string } {
@@ -60,7 +61,10 @@ export function parseBlockInput(raw: unknown): { ok: true; value: BlockInput } |
   if (!isISODate(date)) return { ok: false, error: "Choose a valid date." };
   if (startMin === null || endMin === null) return { ok: false, error: "Choose a valid start and end time." };
   if (endMin <= startMin) return { ok: false, error: "The end time must be after the start time." };
-  return { ok: true, value: { date, startMin, endMin, title } };
+  // Tanpa bidang reminder = jangan mengubah pengingat yang sudah ada.
+  const reminder = r.reminder === undefined || r.reminder === "" ? undefined : parseReminder(r.reminder);
+  if (reminder === null) return { ok: false, error: "Choose a valid reminder." };
+  return { ok: true, value: { date, startMin, endMin, title, ...(reminder !== undefined ? { reminder } : {}) } };
 }
 
 const EVENT_ID = /^[A-Za-z0-9_-]{1,1024}$/;

@@ -241,6 +241,14 @@ bisa diubah dari form (geser bloknya); acara yang dihapus di Google melepas taut
 situs juga melepas tautan. Menghapus to-do atau menandainya selesai tidak menghapus acaranya. Penulisan memakai
 `sendUpdates=none`, jadi peserta acara tidak dikirimi email. Gratis.
 
+**Pengingat (reminder)**: dialog blok punya pilihan *Reminder* (Calendar default, No reminder, At start, 5/10/15/30 menit, 1 jam,
+2 jam, 1 hari sebelum). Situs hanya mengisi bidang `reminders` pada acara di Google (popup); **notifikasinya dikirim aplikasi
+Google Calendar di HP**, jadi notifikasi aplikasi itu harus aktif di perangkatmu. Blok baru memakai "Calendar default" (sama
+seperti sebelumnya: pengaturan bawaan kalendermu). Saat mengubah blok, pilihan menampilkan pengingat yang sudah ada;
+pengingat yang diatur di Google dengan cara lain (email, atau beberapa sekaligus) tampil sebagai "Custom (set in Google)" dan
+tidak diubah kecuali kamu memilih nilai lain. Menggeser atau mengubah ukuran blok tidak menyentuh pengingat. To-do tanpa
+blok tidak punya pengingat. Tanpa migrasi, tanpa scope Google baru.
+
 1. **Google Cloud Console** → proyek baru → *APIs & Services → Library* → **Google Calendar API → Enable**.
 2. *OAuth consent screen*: tipe **External**, isi nama aplikasi dan email. Di **Test users** tambahkan email Google Anda. Setelah
    semuanya jalan, ubah *Publishing status* ke **In production** supaya login tidak kedaluwarsa tiap 7 hari (aplikasi

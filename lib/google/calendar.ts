@@ -1,6 +1,7 @@
 import { addDaysISO } from "@/lib/date";
 import { wibIso, type BlockInput } from "./block";
 import type { CalendarEvent } from "./layout";
+import { reminderFromApi, reminderToApi, type RawReminders } from "./reminder";
 
 const API = () => process.env.GOOGLE_CALENDAR_API ?? "https://www.googleapis.com/calendar/v3";
 
@@ -13,6 +14,7 @@ type RawEvent = {
   htmlLink?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
+  reminders?: RawReminders;
 };
 
 /** Bentuk acara Google -> bentuk minimal yang dipakai situs. Acara batal atau tanpa waktu dibuang. */
@@ -20,7 +22,15 @@ export function normalizeEvent(raw: RawEvent): CalendarEvent | null {
   if (!raw.id || raw.status === "cancelled") return null;
   const title = raw.summary?.trim() || "(No title)";
   if (raw.start?.dateTime && raw.end?.dateTime) {
-    return { id: raw.id, title, allDay: false, start: raw.start.dateTime, end: raw.end.dateTime, link: raw.htmlLink };
+    return {
+      id: raw.id,
+      title,
+      allDay: false,
+      start: raw.start.dateTime,
+      end: raw.end.dateTime,
+      link: raw.htmlLink,
+      reminder: reminderFromApi(raw.reminders),
+    };
   }
   if (raw.start?.date && raw.end?.date) {
     return { id: raw.id, title, allDay: true, start: raw.start.date, end: raw.end.date, link: raw.htmlLink };
@@ -38,7 +48,7 @@ export async function listWeekEvents(accessToken: string, weekStart: string): Pr
     orderBy: "startTime",
     maxResults: "250",
     timeZone: "Asia/Jakarta",
-    fields: "items(id,status,summary,htmlLink,start,end)",
+    fields: "items(id,status,summary,htmlLink,start,end,reminders)",
   }).toString();
 
   const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10_000), cache: "no-store" });
@@ -58,6 +68,7 @@ function eventBody(input: BlockInput) {
     summary: input.title,
     start: { dateTime: wibIso(input.date, input.startMin), timeZone: "Asia/Jakarta" },
     end: { dateTime: wibIso(input.date, input.endMin), timeZone: "Asia/Jakarta" },
+    ...(input.reminder !== undefined && reminderToApi(input.reminder) ? { reminders: reminderToApi(input.reminder) } : {}),
   };
 }
 
