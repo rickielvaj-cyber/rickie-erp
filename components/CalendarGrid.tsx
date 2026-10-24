@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatDayMonth, formatLongDay, formatWeekdayShort } from "@/lib/date";
 import { DEFAULT_BLOCK_MIN, SNAP_MIN, dragRange, minutesToTime, slotFromOffset, snapMinutes } from "@/lib/google/block";
 import { toWib, type CalendarEvent, type DayLayout, type TimedBlock } from "@/lib/google/layout";
+import { parseReminder, reminderOptions } from "@/lib/google/reminder";
 import { createCalendarBlock, deleteCalendarBlock, updateCalendarBlock } from "@/app/(dashboard)/todos/calendar-actions";
 
 const HOUR_REM = 3; // tinggi satu jam di grid
@@ -23,6 +24,8 @@ type Panel = {
   end: string;
   link?: string;
   todoId?: string;
+  /** Nilai <select> pengingat; kosong = "default" untuk blok baru. */
+  reminder?: string;
 };
 
 type Slot = { date: string; startMin: number; endMin: number };
@@ -49,7 +52,7 @@ function panelFor(event: CalendarEvent): Panel | null {
   const s = toWib(event.start);
   const e = toWib(event.end);
   if (s.date !== e.date) return null;
-  return { mode: "edit", id: event.id, title: event.title, date: s.date, start: minutesToTime(s.minutes), end: minutesToTime(e.minutes), link: event.link };
+  return { mode: "edit", id: event.id, title: event.title, date: s.date, start: minutesToTime(s.minutes), end: minutesToTime(e.minutes), link: event.link, reminder: String(event.reminder ?? "default") };
 }
 
 export function CalendarGrid({
@@ -233,7 +236,7 @@ export function CalendarGrid({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!panel) return;
-    const payload = { title: panel.title, date: panel.date, start: panel.start, end: panel.end, todoId: panel.todoId };
+    const payload = { title: panel.title, date: panel.date, start: panel.start, end: panel.end, todoId: panel.todoId, reminder: panel.reminder ?? "default" };
     startTransition(async () => {
       const result = panel.mode === "edit" && panel.id ? await updateCalendarBlock(panel.id, payload) : await createCalendarBlock(payload);
       if (result.ok) {
@@ -494,6 +497,17 @@ export function CalendarGrid({
                 <input type="time" step={900} required value={panel.end} onChange={(e) => setPanel({ ...panel, end: e.target.value })} className={inputClass} />
               </label>
             </div>
+            <label className="block text-sm">
+              <span className="mb-1 block text-muted">Reminder</span>
+              <select value={panel.reminder ?? "default"} onChange={(e) => setPanel({ ...panel, reminder: e.target.value })} className={inputClass}>
+                {reminderOptions(panel.reminder === undefined ? undefined : (parseReminder(panel.reminder) ?? undefined)).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-muted">Sent by the Google Calendar app on your phone.</span>
+            </label>
             {error && (
               <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-danger">
                 {error}

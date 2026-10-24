@@ -384,3 +384,93 @@ test("getEvent returns null for a deleted event (404/410) and throws for other f
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+// ---- pengingat (reminders) ----
+import { parseReminder, reminderFromApi, reminderLabel, reminderOptions, reminderToApi } from "./google/reminder";
+
+test("reminderToApi: default, none and minutes; custom/undefined send nothing", () => {
+  assert.deepEqual(reminderToApi("default"), { useDefault: true });
+  assert.deepEqual(reminderToApi("none"), { useDefault: false, overrides: [] });
+  assert.deepEqual(reminderToApi(15), { useDefault: false, overrides: [{ method: "popup", minutes: 15 }] });
+  assert.deepEqual(reminderToApi(0), { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] });
+  assert.equal(reminderToApi("custom"), undefined);
+  assert.equal(reminderToApi(undefined), undefined);
+});
+
+test("reminderFromApi reads Google's field back", () => {
+  assert.equal(reminderFromApi(undefined), "default");
+  assert.equal(reminderFromApi({ useDefault: true }), "default");
+  assert.equal(reminderFromApi({ useDefault: false, overrides: [] }), "none");
+  assert.equal(reminderFromApi({ useDefault: false }), "none");
+  assert.equal(reminderFromApi({ useDefault: false, overrides: [{ method: "popup", minutes: 30 }] }), 30);
+  assert.equal(reminderFromApi({ useDefault: false, overrides: [{ method: "email", minutes: 30 }] }), "custom");
+  assert.equal(reminderFromApi({ useDefault: false, overrides: [{ method: "popup", minutes: 5 }, { method: "popup", minutes: 60 }] }), "custom");
+});
+
+test("parseReminder accepts form values and rejects junk", () => {
+  assert.equal(parseReminder("default"), "default");
+  assert.equal(parseReminder("none"), "none");
+  assert.equal(parseReminder("10"), 10);
+  assert.equal(parseReminder("0"), 0);
+  assert.equal(parseReminder(1440), 1440);
+  assert.equal(parseReminder("-5"), null);
+  assert.equal(parseReminder("99999"), null);
+  assert.equal(parseReminder("soon"), null);
+  assert.equal(parseReminder(1.5), null);
+});
+
+test("reminder labels and options keep an unusual existing value selectable", () => {
+  assert.equal(reminderLabel(0), "At start");
+  assert.equal(reminderLabel(10), "10 minutes before");
+  assert.equal(reminderLabel(60), "1 hour before");
+  assert.equal(reminderLabel(120), "2 hours before");
+  assert.equal(reminderLabel(1440), "1 day before");
+  assert.ok(!reminderOptions().some((o) => o.value === "custom"));
+  assert.ok(reminderOptions("custom").some((o) => o.value === "custom"));
+  assert.ok(reminderOptions(45).some((o) => o.value === "45" && o.label === "45 minutes before"));
+  assert.equal(reminderOptions(10).filter((o) => o.value === "10").length, 1);
+});
+
+test("parseBlockInput: reminder optional, validated, and normalizeEvent reports it", () => {
+  const base = { title: "x", date: "2026-10-20", start: "09:00", end: "10:00" };
+  const none = parseBlockInput(base);
+  assert.ok(none.ok && none.value.reminder === undefined);
+  const ok15 = parseBlockInput({ ...base, reminder: "15" });
+  assert.ok(ok15.ok && ok15.value.reminder === 15);
+  const def = parseBlockInput({ ...base, reminder: "default" });
+  assert.ok(def.ok && def.value.reminder === "default");
+  const bad = parseBlockInput({ ...base, reminder: "tomorrow" });
+  assert.ok(!bad.ok && /reminder/i.test(bad.error));
+  const ev = normalizeEvent({ id: "1", start: { dateTime: "2026-10-19T09:00:00+07:00" }, end: { dateTime: "2026-10-19T10:00:00+07:00" }, reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] } });
+  assert.equal(ev?.reminder, 10);
+});
+
+test("createEvent sends the reminder; leaving it out or choosing custom sends none", async () => {
+  const bodies: unknown[] = [];
+  const server: Server = createServer((req, res) => {
+    let raw = "";
+    req.on("data", (c) => (raw += c));
+    req.on("end", () => {
+      bodies.push(JSON.parse(raw));
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ id: "ev1", start: { dateTime: "2026-10-20T09:00:00+07:00" }, end: { dateTime: "2026-10-20T10:00:00+07:00" } }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  process.env.GOOGLE_CALENDAR_API = `http://127.0.0.1:${(server.address() as AddressInfo).port}/calendar/v3`;
+  try {
+    const input = { title: "t", date: "2026-10-20", startMin: 540, endMin: 600 };
+    await createEvent("AT", { ...input, reminder: 10 });
+    await createEvent("AT", { ...input, reminder: "none" });
+    await updateEvent("AT", "ev1", input);
+    await updateEvent("AT", "ev1", { ...input, reminder: "custom" });
+    const r = (i: number) => (bodies[i] as { reminders?: unknown }).reminders;
+    assert.deepEqual(r(0), { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] });
+    assert.deepEqual(r(1), { useDefault: false, overrides: [] });
+    assert.equal(r(2), undefined);
+    assert.equal(r(3), undefined);
+  } finally {
+    delete process.env.GOOGLE_CALENDAR_API;
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
