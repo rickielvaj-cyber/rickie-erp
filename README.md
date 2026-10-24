@@ -289,6 +289,13 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   Troubleshooting), draf berisi Masalah/Penyebab/Solusi **tanpa nama klien dan proyek** (KB ikut dikirim
   ke Gemini untuk search, issue tidak), dan bisa diedit dulu. Satu issue satu entri; setelah itu tombolnya
   berubah jadi "In KB".
+- **Beranda / Dashboard** (`/`, setelah login; sebelum login tetap halaman sambutan): "Today" (terlewat, jatuh tempo hari ini
+  dengan jam blok kalender, tanpa tanggal; kotak tambah tugas cepat), "This week" (tugas selesai, jatuh tempo sisa minggu,
+  jam terblokir, issue ditangani), "Needs attention" (issue belum ditandai masuk sheet; issue yang bisa dijadikan entri
+  KB) dan "Running projects" (fase berjalan, progres fase, target; yang lewat target di atas). Semua dari database sendiri
+  (`components/Dashboard.tsx`, `lib/dashboard.ts`); tidak memanggil Google, jadi jam blok = jam tersimpan terakhir.
+  Issue tidak punya status "terbuka" (semua issue adalah catatan yang sudah diselesaikan), jadi yang ditampilkan adalah
+  yang menunggu tindakan di sisi pencatatan. Tanpa migrasi.
 - **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
   Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
   termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke
