@@ -1,11 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
-import { KB_MODULES } from "@/lib/kb/modules";
+import { Dashboard, DashboardFallback } from "@/components/Dashboard";
 
-// Home PUBLIK: hero + kartu fitur nggak memuat data apa pun. Angka ringkas di
-// bawah hero cuma di-query kalau sudah login (RLS tetap jadi pagar terakhir).
+// Home PUBLIK: hero + kartu fitur nggak memuat data apa pun. Setelah login, home menjadi dashboard
+// (components/Dashboard.tsx: hari ini, minggu ini, proyek berjalan); RLS tetap jadi pagar terakhir.
 
 const iconProps = {
   width: 22,
@@ -55,45 +54,6 @@ const FEATURES = [
   },
 ];
 
-async function getStats() {
-  const supabase = await createClient();
-  const [{ count: entries }, { count: openTodos }] = await Promise.all([
-    supabase.from("kb_entries").select("id", { count: "exact", head: true }),
-    supabase.from("todos").select("id", { count: "exact", head: true }).neq("status", "done"),
-  ]);
-  return { entries: entries ?? 0, openTodos: openTodos ?? 0 };
-}
-
-// Di dalam <Suspense>: hero dan kartu fitur langsung tampil, angka menyusul
-// begitu query selesai (nggak menahan seluruh halaman).
-async function HomeStats() {
-  const stats = await getStats();
-  return (
-    <dl className="mt-10 grid w-full max-w-xl grid-cols-3 gap-3 text-center">
-      {[
-        { label: "Modules", value: KB_MODULES.length },
-        { label: "Knowledge Base entries", value: stats.entries },
-        { label: "Open to-dos", value: stats.openTodos },
-      ].map((s) => (
-        <div key={s.label} className="rounded-2xl border border-border bg-background px-3 py-4">
-          <dd className="text-2xl font-semibold tracking-tight">{s.value}</dd>
-          <dt className="mt-1 text-xs text-muted">{s.label}</dt>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function HomeStatsFallback() {
-  return (
-    <div aria-hidden="true" className="mt-10 grid w-full max-w-xl animate-pulse grid-cols-3 gap-3">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-[74px] rounded-2xl border border-border bg-background" />
-      ))}
-    </div>
-  );
-}
-
 const primaryButton =
   "rounded-full bg-accent px-7 py-3 text-base font-medium text-white transition-colors hover:bg-accent-hover";
 const outlineButton =
@@ -101,6 +61,16 @@ const outlineButton =
 
 export default async function HomePage() {
   const user = await getAuthUser();
+
+  if (user) {
+    return (
+      <main>
+        <Suspense fallback={<DashboardFallback />}>
+          <Dashboard />
+        </Suspense>
+      </main>
+    );
+  }
 
   return (
     <main>
@@ -114,32 +84,13 @@ export default async function HomePage() {
             the dashboard feel.
           </p>
           <div className="mt-3 flex flex-wrap justify-center gap-4">
-            {user ? (
-              <>
-                <Link href="/knowledge-base" className={primaryButton}>
-                  Open Knowledge Base
-                </Link>
-                <Link href="/todos" className={outlineButton}>
-                  View To-Do
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/login" className={primaryButton}>
-                  Sign in
-                </Link>
-                <Link href="/knowledge-base" className={outlineButton}>
-                  Open Knowledge Base
-                </Link>
-              </>
-            )}
+            <Link href="/login" className={primaryButton}>
+              Sign in
+            </Link>
+            <Link href="/knowledge-base" className={outlineButton}>
+              Open Knowledge Base
+            </Link>
           </div>
-
-          {user && (
-            <Suspense fallback={<HomeStatsFallback />}>
-              <HomeStats />
-            </Suspense>
-          )}
         </div>
       </section>
 
