@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { formatDate, todayISO } from "@/lib/date";
 import { displayTitle, noteSnippet } from "@/lib/notes";
 
@@ -48,6 +49,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="mx-auto max-w-3xl">
+      <AutoRefresh intervalMs={8000} />
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div>
           <h1 className="text-4xl font-semibold tracking-tight">Notes</h1>

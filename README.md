@@ -313,6 +313,11 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   pencarian global dengan chip Notes). Kalau catatan yang sama diubah dari perangkat lain, simpan otomatis berhenti dan muncul
   peringatan + tombol Reload (tulisan di perangkat lain tidak tertimpa). Catatan masuk indeks pencarian **kata persis** langsung
   saat disimpan (`lib/search/note-index.ts`), **tidak di-embed dan tidak dikirim ke Gemini**. Ikut Export JSON.
+  **Sinkron antar-perangkat** (`components/AutoRefresh.tsx`, polling, bukan push real time): daftar Notes diperbarui tiap 8 detik dan
+  dashboard tiap 15 detik selama tab terlihat (plus saat tab difokuskan lagi); editor yang terbuka memeriksa perubahan dari
+  perangkat lain tiap 4 detik dan menampilkannya sendiri ("Updated from another device") selama di layar itu tidak ada
+  ketikan yang belum tersimpan. Tab yang tersembunyi tidak memanggil server. Halaman lain (To-Do, Issue Log, KB, dst.) belum
+  memakai ini: di sana perubahan dari perangkat lain muncul setelah dimuat ulang.
 - **Pasang di HP (PWA)**: situs punya manifest dan ikon, jadi bisa dipasang ke layar utama dan dibuka layar penuh. iPhone: Safari →
   Share → **Add to Home Screen**; Android: menu Chrome → **Install app / Add to Home screen**. Jalan pintas "New note" dan "To-Do
   List" muncul saat ikon ditekan lama (Android). Tidak ada service worker: situs tetap butuh koneksi (tidak ada mode offline).
