@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deleteNote, saveNote, setNotePinned, type SaveResult } from "@/app/(dashboard)/notes/actions";
+import { deleteNote, fetchNote, saveNote, setNotePinned, type SaveResult } from "@/app/(dashboard)/notes/actions";
 import { NOTE_MAX_CHARS } from "@/lib/notes";
 
 export type NoteDraft = { id: string | null; body: string; clientId: string | null; pinned: boolean; updatedAt: string | null };
@@ -12,6 +12,8 @@ export type ClientOption = { id: string; name: string };
 type Status = "idle" | "saving" | "saved" | "error" | "conflict";
 
 const AUTOSAVE_MS = 700;
+/** Seberapa sering editor yang terbuka memeriksa perubahan dari perangkat lain (hanya saat tab terlihat dan tidak ada ketikan yang belum tersimpan). */
+const REMOTE_POLL_MS = 4000;
 
 /**
  * Editor satu catatan dengan simpan otomatis (jeda 0,7 detik setelah berhenti mengetik, saat fokus pindah, dan saat tab
@@ -24,6 +26,7 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
   const [pinned, setPinned] = useState(initial.pinned);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const idRef = useRef(initial.id);
   const baseRef = useRef(initial.updatedAt);
@@ -33,6 +36,8 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
   const chain = useRef<Promise<void>>(Promise.resolve());
   const stopped = useRef(false);
   const area = useRef<HTMLTextAreaElement | null>(null);
+  const inflight = useRef(0);
+  const polling = useRef(false);
 
   const fit = () => {
     const el = area.current;
@@ -52,9 +57,12 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
         return;
       }
       setStatus("saving");
+      inflight.current++;
       const result = await saveNote(idRef.current, baseRef.current, { body: snapshot.body, clientId: snapshot.clientId || null }).catch(
         (): SaveResult => ({ ok: false, error: "Could not reach the server. Your text is still on this screen." }),
-      );
+      ).finally(() => {
+        inflight.current--;
+      });
       if (result.ok) {
         const wasNew = idRef.current === null;
         idRef.current = result.id;
@@ -105,6 +113,47 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Perubahan dari perangkat lain (mis. diketik di HP) muncul sendiri di sini, selama di sini tidak ada ketikan yang belum
+  // tersimpan. Kalau ada, simpan berikutnya akan ditolak sebagai bentrok (lihat saveNote), jadi tulisan tidak saling menimpa.
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible" || polling.current || stopped.current) return;
+      if (idRef.current === null || dirty.current || inflight.current > 0) return;
+      polling.current = true;
+      try {
+        const remote = await fetchNote(idRef.current);
+        if (!remote.ok || dirty.current || inflight.current > 0 || stopped.current) return;
+        if (remote.note === null) {
+          stopped.current = true;
+          setStatus("conflict");
+          setMessage("This note was deleted on another device.");
+          return;
+        }
+        if (remote.note.updatedAt === baseRef.current) return;
+        const el = area.current;
+        const caret = el ? Math.min(el.selectionStart, remote.note.body.length) : 0;
+        baseRef.current = remote.note.updatedAt;
+        latest.current = { body: remote.note.body, clientId: remote.note.clientId ?? "" };
+        setBody(remote.note.body);
+        setClientId(remote.note.clientId ?? "");
+        setPinned(remote.note.pinned);
+        setNotice("Updated from another device");
+        setTimeout(() => setNotice(null), 4000);
+        if (el && document.activeElement === el) requestAnimationFrame(() => el.setSelectionRange(caret, caret));
+      } finally {
+        polling.current = false;
+      }
+    };
+    const timer = setInterval(check, REMOTE_POLL_MS);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
+  }, []);
+
   const onBody = (value: string) => {
     setBody(value);
     latest.current.body = value;
@@ -151,7 +200,7 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
   };
 
   const statusText =
-    status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "conflict" ? "Not saved" : status === "error" ? "Not saved" : "";
+    status === "saving" ? "Saving…" : status === "conflict" || status === "error" ? "Not saved" : (notice ?? (status === "saved" ? "Saved" : ""));
 
   return (
     <div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { addDaysISO, formatDate, formatLongDay, todayISO } from "@/lib/date";
 import { blockedLabel, blockedMinutes, buildToday, issueAttention, runningProjects, weekOf } from "@/lib/dashboard";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { createTodoForDay } from "@/app/(dashboard)/todos/actions";
 
 // Beranda setelah login: apa yang perlu dikerjakan hari ini dan gambaran minggu ini. Semua dari database sendiri
@@ -78,6 +79,7 @@ export async function Dashboard() {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
+      <AutoRefresh intervalMs={15000} />
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div>
           <h1 className="text-4xl font-semibold tracking-tight">Today</h1>
