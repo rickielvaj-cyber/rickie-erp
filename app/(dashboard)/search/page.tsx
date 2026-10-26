@@ -16,7 +16,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     return `/search?${p}`;
   };
   // Urutan chip: yang paling sering dicari dulu.
-  const chipTypes: SearchSourceType[] = ["kb_entry", "issue", "project", "goal", "client"];
+  const chipTypes: SearchSourceType[] = ["kb_entry", "issue", "note", "project", "goal", "client"];
 
   return (
     <div className="mx-auto max-w-3xl">

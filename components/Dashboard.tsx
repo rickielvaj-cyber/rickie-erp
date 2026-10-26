@@ -88,9 +88,14 @@ export async function Dashboard() {
             {doneToday.count ?? 0} done
           </p>
         </div>
-        <Link href="/summary" className="rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface">
-          Weekly Summary
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/notes/new" className="rounded-full bg-accent px-4 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover">
+            New note
+          </Link>
+          <Link href="/summary" className="rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface">
+            Weekly Summary
+          </Link>
+        </div>
       </div>
 
       {fetchError && (

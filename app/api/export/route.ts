@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = await createClient();
 
   try {
-    const [todos, goals, goalItems, issues, clients, projects, projectPhases, projectPartners, kbEntries] = await Promise.all([
+    const [todos, goals, goalItems, issues, clients, projects, projectPhases, projectPartners, kbEntries, notes] = await Promise.all([
       fetchAll((from, to) =>
         supabase.from("todos").select("*").order("created_at").order("id").range(from, to),
       ),
@@ -47,6 +47,7 @@ export async function GET() {
           .order("id")
           .range(from, to),
       ),
+      fetchAll((from, to) => supabase.from("notes").select("*").order("created_at").order("id").range(from, to)),
     ]);
 
     const payload = {
@@ -63,6 +64,7 @@ export async function GET() {
         project_phases: projectPhases.length,
         project_partners: projectPartners.length,
         kb_entries: kbEntries.length,
+        notes: notes.length,
       },
       todos,
       goals,
@@ -73,6 +75,7 @@ export async function GET() {
       project_phases: projectPhases,
       project_partners: projectPartners,
       kb_entries: kbEntries,
+      notes,
     };
 
     return new NextResponse(JSON.stringify(payload, null, 2), {
