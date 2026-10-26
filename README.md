@@ -103,6 +103,9 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0023_notes.sql` — tabel `notes` (isi, judul turunan, klien opsional, pin; RLS pemilik; trigger `updated_at`; isi maks. 100.000
+  karakter) dan jenis hasil pencarian baru `note` pada constraint `search_index`. Tidak mengubah data lain. Aman diulang.
+  **Jalankan sebelum kode ini live.**
 - `0022_issue_kb_link.sql` — kolom `issue_log.kb_entry_id` (nullable, FK ke `kb_entries`, `on delete set null`) untuk tombol
   "Add to KB" di Issue Log. Tidak mengubah data atau RLS. Aman diulang. **Jalankan sebelum kode ini live.**
 - `0021_phase_status_auto.sql` — trigger di `todos` yang menghitung ulang status fase proyek: semua to-do-nya selesai -> Done,
@@ -304,6 +307,15 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   (`components/Dashboard.tsx`, `lib/dashboard.ts`); tidak memanggil Google, jadi jam blok = jam tersimpan terakhir.
   Issue tidak punya status "terbuka" (semua issue adalah catatan yang sudah diselesaikan), jadi yang ditampilkan adalah
   yang menunggu tindakan di sisi pencatatan. Tanpa migrasi.
+- **Notes** (`/notes`): catatan cepat ala Notes iPhone. Satu kotak teks; baris pertama jadi judul; simpan otomatis 0,7 detik
+  setelah berhenti mengetik (juga saat fokus pindah atau tab disembunyikan). Catatan baru dibuat pada simpan pertama, jadi
+  catatan kosong tidak tersimpan. Bisa disematkan (Pin), ditautkan ke satu klien, dan dicari (kotak cari di daftar, atau
+  pencarian global dengan chip Notes). Kalau catatan yang sama diubah dari perangkat lain, simpan otomatis berhenti dan muncul
+  peringatan + tombol Reload (tulisan di perangkat lain tidak tertimpa). Catatan masuk indeks pencarian **kata persis** langsung
+  saat disimpan (`lib/search/note-index.ts`), **tidak di-embed dan tidak dikirim ke Gemini**. Ikut Export JSON.
+- **Pasang di HP (PWA)**: situs punya manifest dan ikon, jadi bisa dipasang ke layar utama dan dibuka layar penuh. iPhone: Safari →
+  Share → **Add to Home Screen**; Android: menu Chrome → **Install app / Add to Home screen**. Jalan pintas "New note" dan "To-Do
+  List" muncul saat ikon ditekan lama (Android). Tidak ada service worker: situs tetap butuh koneksi (tidak ada mode offline).
 - **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
   Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
   termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke

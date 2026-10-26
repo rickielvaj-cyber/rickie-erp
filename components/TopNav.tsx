@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/knowledge-base", label: "Knowledge Base" },
   { href: "/todos", label: "To-Do List" },
+  { href: "/notes", label: "Notes" },
   { href: "/projects", label: "Projects" },
   { href: "/goals", label: "Goals" },
   { href: "/issues", label: "Issue Log" },

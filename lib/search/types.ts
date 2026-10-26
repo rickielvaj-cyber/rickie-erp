@@ -1,4 +1,4 @@
-export const SOURCE_TYPES = ["client", "project", "issue", "goal", "kb_entry"] as const;
+export const SOURCE_TYPES = ["client", "project", "issue", "goal", "kb_entry", "note"] as const;
 export type SearchSourceType = (typeof SOURCE_TYPES)[number];
 
 export const SOURCE_LABEL: Record<SearchSourceType, string> = {
@@ -7,6 +7,7 @@ export const SOURCE_LABEL: Record<SearchSourceType, string> = {
   project: "Projects",
   issue: "Issues",
   goal: "Goals",
+  note: "Notes",
 };
 
 /**

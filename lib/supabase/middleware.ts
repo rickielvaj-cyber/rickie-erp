@@ -5,7 +5,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // kalau pakai startsWith, semua path ikut jadi publik.
 // /api/cron/: dipanggil Vercel Cron tanpa sesi login (diamankan CRON_SECRET, lihat route-nya).
 const PUBLIC_PATHS = ["/login", "/api/cron/"];
-const PUBLIC_EXACT_PATHS = ["/"];
+// /manifest.webmanifest: manifest PWA dibaca peramban tanpa sesi saat memasang ke layar utama.
+const PUBLIC_EXACT_PATHS = ["/", "/manifest.webmanifest"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

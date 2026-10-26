@@ -3,6 +3,7 @@ import type { Database } from "@/lib/types";
 import { kindOf } from "@/lib/clients";
 import { sortPhases } from "@/lib/projects";
 import { EMBED_BATCH_SIZE, EmbeddingError, embedBatch } from "./gemini";
+import { noteDocs } from "./note-index";
 import { buildChunks, contentHash, vectorLiteral } from "./text";
 import { EMBEDDED_TYPES, type SearchDoc, type SearchSourceType } from "./types";
 
@@ -46,7 +47,7 @@ async function fetchAll<T>(load: (from: number, to: number) => PromiseLike<{ dat
  * issue_log, goals) dan menyusun teks yang akan di-embed.
  */
 export async function collectDocs(db: Db): Promise<SearchDoc[]> {
-  const [kb, projects, phases, partners, clients, issues, goals, goalItems] = await Promise.all([
+  const [kb, projects, phases, partners, clients, issues, goals, goalItems, notes] = await Promise.all([
     fetchAll((a, b) => db.from("kb_entries").select("id, user_id, module, title, content").order("id").range(a, b)),
     fetchAll((a, b) => db.from("projects").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("project_phases").select("*").order("id").range(a, b)),
@@ -55,6 +56,7 @@ export async function collectDocs(db: Db): Promise<SearchDoc[]> {
     fetchAll((a, b) => db.from("issue_log").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("goals").select("*").order("id").range(a, b)),
     fetchAll((a, b) => db.from("goal_items").select("goal_id, title, group_name, note").order("id").range(a, b)),
+    fetchAll((a, b) => db.from("notes").select("id, user_id, title, body, client_id").order("id").range(a, b)),
   ]);
 
   const clientName = new Map(clients.map((c) => [c.id, c.canonical_name]));
@@ -121,6 +123,11 @@ export async function collectDocs(db: Db): Promise<SearchDoc[]> {
       .filter(Boolean)
       .join(" ");
     push(g.user_id, "goal", g.id, g.title, body, `/goals/${g.id}`);
+  }
+
+  // Catatan: tanpa vektor (bukan EMBEDDED_TYPES); disimpan juga langsung saat catatan disimpan (lib/search/note-index.ts).
+  for (const n of notes) {
+    docs.push(...noteDocs({ id: n.id, user_id: n.user_id, title: n.title, body: n.body, clientName: n.client_id ? (clientName.get(n.client_id) ?? null) : null }));
   }
 
   return docs;

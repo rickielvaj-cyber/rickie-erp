@@ -33,8 +33,8 @@ export default async function SettingsPage() {
           Search index
         </h2>
         <p className="mt-1 text-sm text-muted">
-          Search finds Knowledge Base entries, projects, and goals by meaning, using Google Gemini embeddings. Issues, clients,
-          and partners are indexed for exact-word search only and are never sent to Google, because they contain client names. New or
+          Search finds Knowledge Base entries, projects, and goals by meaning, using Google Gemini embeddings. Issues, notes,
+          clients, and partners are indexed for exact-word search only and are never sent to Google, because they contain client names. New or
           edited content is indexed right after you save it; a daily job and the button below catch up anything that was missed. The free embedding quota is
           small, so the first run may stop early — if it says items are still waiting, press the button again after a
           minute.

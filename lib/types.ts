@@ -130,10 +130,22 @@ export type KbEntry = {
   updated_at: string;
 };
 
+export type Note = {
+  id: string;
+  user_id: string;
+  /** Baris pertama isi (dihitung aplikasi saat simpan); kosong bila isi kosong. */
+  title: string;
+  body: string;
+  client_id: string | null;
+  pinned: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SearchIndexRow = {
   id: string;
   user_id: string;
-  source_type: "kb_entry" | "project" | "issue" | "goal" | "client";
+  source_type: "kb_entry" | "project" | "issue" | "goal" | "client" | "note";
   source_id: string;
   /** Konten panjang dipecah jadi beberapa baris; 0 = potongan pertama. */
   chunk_index: number;
@@ -257,6 +269,13 @@ export type Database = {
         Insert: Pick<GoogleConnectionRow, "user_id" | "refresh_token_enc"> &
           Partial<Pick<GoogleConnectionRow, "scope" | "connected_at" | "updated_at">>;
         Update: Partial<GoogleConnectionRow>;
+        Relationships: [];
+      };
+      notes: {
+        Row: Note;
+        Insert: Partial<Omit<Note, "id" | "user_id" | "created_at" | "updated_at">> &
+          Partial<Pick<Note, "id" | "user_id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<Note, "id">>;
         Relationships: [];
       };
       kb_entries: {

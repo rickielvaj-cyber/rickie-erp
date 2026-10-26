@@ -3,7 +3,7 @@ import type { Database } from "@/lib/types";
 import { EmbeddingError, embedQuery, hasEmbeddingKey } from "./gemini";
 import { isRelevantSemantic, mergeRanked, pickSemantic, SEMANTIC_MIN_SIMILARITY, SEMANTIC_MIN_Z, vectorLiteral, zOf, type SemanticRow } from "./text";
 import { searchIssues } from "./issues";
-import type { SearchCandidate, SearchHit, SearchResponse, SearchSourceType } from "./types";
+import { EMBEDDED_TYPES, type SearchCandidate, type SearchHit, type SearchResponse, type SearchSourceType } from "./types";
 
 type Db = SupabaseClient<Database>;
 
@@ -62,7 +62,10 @@ export async function searchAll(
   let warning: string | undefined;
   let rawSemantic: SemanticRow[] = [];
 
+  // Jenis tanpa vektor (catatan, klien) tidak butuh embedding: filter ke jenis itu tidak memakai kuota Gemini.
+  const wantsSemantic = !opts.type || EMBEDDED_TYPES.includes(opts.type);
   const semantic = async () => {
+    if (!wantsSemantic) return [];
     if (!hasEmbeddingKey()) {
       warning = "Meaning-based search is off (GEMINI_API_KEY is not set); showing exact-word matches only.";
       return [];
