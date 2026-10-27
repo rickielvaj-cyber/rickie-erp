@@ -1,3 +1,4 @@
+import { withFrom } from "@/lib/return-to";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -7,7 +8,7 @@ import { PHASE_STATUSES, PHASE_STATUS_LABEL, groupTodosByPhase, isOverdue, phase
 import type { Client, Project, ProjectPhase, Todo } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { ProgressBar, ProjectStatusPill, phasePillClass, phasePillText } from "@/components/projects/ProjectBits";
-import { toggleTodoDone } from "../../todos/actions";
+import { removeTodo, toggleTodoDone } from "../../todos/actions";
 import {
   addPhase,
   createTodoForProject,
@@ -179,7 +180,7 @@ export default async function ProjectDetailPage({
                       todoDone={list.filter((t) => t.status === "done").length}
                     />
                   )}
-                  <TodoList todos={list} today={today} />
+                  <TodoList todos={list} today={today} projectId={project.id} />
                   <AddTodoForm projectId={project.id} phaseId={phase.id} placeholder={`+ Add a to-do to ${phase.name}`} today={today} />
                 </div>
               );
@@ -209,7 +210,7 @@ export default async function ProjectDetailPage({
               {phases.length === 0 ? "To-dos" : "Not in any phase"} · {unphased.length}
             </h3>
             <div className="overflow-hidden rounded-2xl border border-border">
-              <TodoList todos={unphased} today={today} />
+              <TodoList todos={unphased} today={today} projectId={project.id} />
               <AddTodoForm projectId={project.id} phaseId="" placeholder="+ Add a to-do (no phase)" today={today} />
             </div>
           </div>
@@ -236,7 +237,7 @@ export default async function ProjectDetailPage({
           <ul className="overflow-hidden rounded-2xl border border-foreground">
             {issues.map((issue) => (
               <li key={issue.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border px-4 py-3.5 last:border-b-0">
-                <Link href={`/issues?edit=${issue.id}`} className="min-w-0 flex-1 basis-60 text-lg hover:underline">
+                <Link href={withFrom(`/issues?edit=${issue.id}`, `/projects/${project.id}`)} className="min-w-0 flex-1 basis-60 text-lg hover:underline">
                   {issue.title}
                 </Link>
                 <span className="text-sm text-muted">
@@ -333,12 +334,12 @@ function PhaseRow({
   );
 }
 
-function TodoList({ todos, today }: { todos: Todo[]; today: string }) {
+function TodoList({ todos, today, projectId }: { todos: Todo[]; today: string; projectId: string }) {
   if (todos.length === 0) return null;
   return (
     <ul>
       {todos.map((todo) => (
-        <TodoRow key={todo.id} todo={todo} today={today} />
+        <TodoRow key={todo.id} todo={todo} today={today} projectId={projectId} />
       ))}
     </ul>
   );
@@ -372,7 +373,7 @@ function AddTodoForm({ projectId, phaseId, placeholder, today }: { projectId: st
   );
 }
 
-function TodoRow({ todo, today }: { todo: Todo; today: string }) {
+function TodoRow({ todo, today, projectId }: { todo: Todo; today: string; projectId: string }) {
   const done = todo.status === "done";
   const overdue = isOverdue(todo.due_date, today, done);
   return (
@@ -391,7 +392,7 @@ function TodoRow({ todo, today }: { todo: Todo; today: string }) {
         </button>
       </form>
       <div className="min-w-0 flex-1 basis-40">
-        <Link href={`/todos?edit=${todo.id}`} className={`text-lg hover:underline ${done ? "text-muted line-through" : ""}`}>
+        <Link href={withFrom(`/todos?edit=${todo.id}`, `/projects/${projectId}`)} className={`text-lg hover:underline ${done ? "text-muted line-through" : ""}`}>
           {todo.title}
         </Link>
         <p className={`text-xs ${overdue ? "font-medium text-danger" : "text-muted"}`}>
@@ -399,6 +400,13 @@ function TodoRow({ todo, today }: { todo: Todo; today: string }) {
           {todo.status === "in_progress" ? " · In progress" : ""}
         </p>
       </div>
+      <form action={removeTodo.bind(null, todo.id)} className="flex">
+        <ConfirmButton
+          label="Delete"
+          confirmText={`Delete the to-do “${todo.title}”?`}
+          className="rounded-full px-3 py-1 text-sm text-muted transition-colors hover:bg-surface hover:text-danger"
+        />
+      </form>
     </li>
   );
 }

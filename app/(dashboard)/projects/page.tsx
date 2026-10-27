@@ -1,3 +1,5 @@
+import { ClientPicker } from "@/components/ClientPicker";
+import { withFrom } from "@/lib/return-to";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, todayISO } from "@/lib/date";
@@ -7,7 +9,7 @@ import type { Client, Project, ProjectPartner, ProjectPhase } from "@/lib/types"
 import { ProgressBar, ProjectStatusPill } from "@/components/projects/ProjectBits";
 import { createProject } from "./actions";
 
-type SearchParams = { show?: string; new?: string; error?: string };
+type SearchParams = { show?: string; new?: string; error?: string; client?: string };
 type Show = "open" | "done" | "all";
 
 const FILTERS: [Show, string][] = [
@@ -86,7 +88,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
 
       {isNew && (
         <div className="mt-8">
-          <NewProjectForm clients={clients} error={params.error} />
+          <NewProjectForm clients={clients} error={params.error} selectedClient={params.client} />
         </div>
       )}
 
@@ -179,7 +181,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   );
 }
 
-function NewProjectForm({ clients, error }: { clients: Client[]; error?: string }) {
+function NewProjectForm({ clients, error, selectedClient }: { clients: Client[]; error?: string; selectedClient?: string }) {
   const active = clients.filter((c) => c.active);
   const partners = active.filter((c) => kindOf(c) === "partner");
 
@@ -200,27 +202,16 @@ function NewProjectForm({ clients, error }: { clients: Client[]; error?: string 
           <label htmlFor="client_id" className="block text-sm font-medium">
             Client
           </label>
-          <select id="client_id" name="client_id" required defaultValue="" className={field}>
-            <option value="" disabled>
-              Select client
-            </option>
-            {(["client", "partner"] as const).map((kind) => {
-              const group = active.filter((c) => kindOf(c) === kind);
-              if (group.length === 0) return null;
-              return (
-                <optgroup key={kind} label={kind === "client" ? "Clients" : "Partners"}>
-                  {group.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.canonical_name}
-                    </option>
-                  ))}
-                </optgroup>
-              );
-            })}
-          </select>
+          <ClientPicker
+            id="client_id"
+            name="client_id"
+            options={active.map((c) => ({ id: c.id, name: c.canonical_name, kind: kindOf(c), aliases: c.aliases }))}
+            defaultId={selectedClient}
+            inputClass={field}
+          />
           <p className="mt-1 text-xs text-muted">
             Not listed?{" "}
-            <Link href="/clients" className="underline underline-offset-2 hover:text-foreground">
+            <Link href={withFrom("/clients", "/projects?new=1")} className="underline underline-offset-2 hover:text-foreground">
               Add a client or partner
             </Link>
           </p>

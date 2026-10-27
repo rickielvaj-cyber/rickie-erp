@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { syncSearchAfterWrite } from "@/lib/search/sync";
 import { isISODate, todayISO } from "@/lib/date";
+import { safeReturnPath, withFrom } from "@/lib/return-to";
 import { defaultIssueTitle, isIssueCategory } from "@/lib/issues";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { isKbModuleSlug } from "@/lib/kb/modules";
@@ -99,12 +100,15 @@ export async function createIssue(formData: FormData) {
 
 export async function updateIssue(id: string, formData: FormData) {
   const fields = readIssueFields(formData);
+  // Dibuka dari halaman lain (mis. Proyek)? Setelah simpan kembali ke sana.
+  const from = safeReturnPath(String(formData.get("from") ?? ""));
+  const editUrl = withFrom(`/issues?edit=${id}`, from);
   const problem = validate(fields);
-  if (problem) redirect(`/issues?edit=${id}&error=` + encodeURIComponent(problem));
+  if (problem) redirect(editUrl + "&error=" + encodeURIComponent(problem));
 
   const supabase = await createClient();
   const client = await resolveClient(supabase, fields);
-  if (client.error) redirect(`/issues?edit=${id}&error=` + encodeURIComponent(client.error));
+  if (client.error) redirect(editUrl + "&error=" + encodeURIComponent(client.error));
 
   const next = dbFields(fields, client);
 
@@ -128,10 +132,10 @@ export async function updateIssue(id: string, formData: FormData) {
     .from("issue_log")
     .update(sheetChanged ? { ...next, copied_to_sheet_at: null } : next)
     .eq("id", id);
-  if (error) redirect(`/issues?edit=${id}&error=` + encodeURIComponent(error.message));
+  if (error) redirect(editUrl + "&error=" + encodeURIComponent(error.message));
 
   revalidateIssueViews();
-  redirect("/issues");
+  redirect(from ?? "/issues");
 }
 
 export async function deleteIssue(id: string) {

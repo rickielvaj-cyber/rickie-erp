@@ -1,3 +1,5 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
+import { removeNote } from "./actions";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AutoRefresh } from "@/components/AutoRefresh";
@@ -33,8 +35,8 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
   const others = notes.filter((n) => !n.pinned);
 
   const row = (n: (typeof notes)[number]) => (
-    <li key={n.id} className="border-b border-border last:border-b-0">
-      <Link href={`/notes/${n.id}`} className="block px-5 py-4 transition-colors hover:bg-surface">
+    <li key={n.id} className="flex items-stretch border-b border-border last:border-b-0">
+      <Link href={`/notes/${n.id}`} className="block min-w-0 flex-1 px-5 py-4 transition-colors hover:bg-surface">
         <div className="flex items-baseline justify-between gap-4">
           <span className="min-w-0 flex-1 truncate text-lg font-medium">{displayTitle(n.title)}</span>
           <span className="shrink-0 text-sm text-muted">{whenLabel(n.updated_at)}</span>
@@ -44,6 +46,13 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
           {noteSnippet(n.body) || "No additional text"}
         </p>
       </Link>
+      <form action={removeNote.bind(null, n.id)} className="flex shrink-0 items-center border-l border-border">
+        <ConfirmButton
+          label="Delete"
+          confirmText={`Delete the note “${displayTitle(n.title)}”?`}
+          className="h-full px-4 text-sm text-muted transition-colors hover:bg-surface hover:text-danger"
+        />
+      </form>
     </li>
   );
 

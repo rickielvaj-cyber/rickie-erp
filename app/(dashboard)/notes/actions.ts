@@ -112,3 +112,8 @@ export async function deleteNote(id: string): Promise<{ ok: boolean }> {
   revalidatePath("/");
   return { ok: true };
 }
+
+/** Hapus langsung dari daftar (tanpa membuka catatan). Untuk <form action>, jadi tidak mengembalikan nilai. */
+export async function removeNote(id: string): Promise<void> {
+  await deleteNote(id);
+}

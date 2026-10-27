@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/todos", label: "To-Do List" },
   { href: "/notes", label: "Notes" },
   { href: "/projects", label: "Projects" },
+  { href: "/clients", label: "Clients" },
   { href: "/goals", label: "Goals" },
   { href: "/issues", label: "Issue Log" },
   { href: "/summary", label: "Weekly Summary" },
@@ -141,12 +142,12 @@ export function TopNav({ email }: { email: string | null }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
-      <div className="mx-auto grid h-14 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-6 md:grid-cols-[1fr_auto_1fr]">
+      <div className="mx-auto grid h-14 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-6 lg:grid-cols-[1fr_auto_1fr]">
         <Link href="/" className="text-base font-semibold tracking-tight">
           Personal Workspace
         </Link>
 
-        <NavLinks pathname={pathname} className="hidden items-center gap-7 md:flex" />
+        <NavLinks pathname={pathname} className="hidden items-center gap-5 lg:flex xl:gap-7" />
 
         <div className="flex items-center justify-end gap-2">
           {email && (
@@ -175,7 +176,7 @@ export function TopNav({ email }: { email: string | null }) {
       {/* Layar sempit: link pindah ke baris kedua yang bisa digeser. */}
       <NavLinks
         pathname={pathname}
-        className="flex items-center gap-6 overflow-x-auto border-t border-border px-6 py-2 md:hidden"
+        className="flex items-center gap-6 overflow-x-auto border-t border-border px-6 py-2 lg:hidden"
       />
     </header>
   );

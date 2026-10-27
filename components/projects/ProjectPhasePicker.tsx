@@ -1,5 +1,6 @@
 "use client";
 
+import { EMPTY_MUTED } from "@/lib/ui";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -43,7 +44,7 @@ export function ProjectPhasePicker({
             setProject(e.target.value);
             setPhase("");
           }}
-          className={field}
+          className={`${field} ${EMPTY_MUTED}`}
         >
           <option value="">No project</option>
           {projects
@@ -75,7 +76,7 @@ export function ProjectPhasePicker({
           value={phase}
           onChange={(e) => setPhase(e.target.value)}
           disabled={!project}
-          className={`${field} disabled:text-muted`}
+          className={`${field} disabled:text-muted ${EMPTY_MUTED}`}
         >
           <option value="">{project ? "No phase" : "Pick a project first"}</option>
           {phases.map((ph) => (
