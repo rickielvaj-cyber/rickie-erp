@@ -321,6 +321,15 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **Pasang di HP (PWA)**: situs punya manifest dan ikon, jadi bisa dipasang ke layar utama dan dibuka layar penuh. iPhone: Safari →
   Share → **Add to Home Screen**; Android: menu Chrome → **Install app / Add to Home screen**. Jalan pintas "New note" dan "To-Do
   List" muncul saat ikon ditekan lama (Android). Tidak ada service worker: situs tetap butuh koneksi (tidak ada mode offline).
+- **Clients** (menu atas, `/clients`): tempat master data klien dan partner; tidak lagi bagian dari Issue Log. Halaman yang
+  butuh klien baru (form Proyek baru, form Issue) membuka menu ini dengan `?from=<halaman asal>`: tombol "‹ Projects" /
+  "‹ Issue Log" dan hasil simpan kembali ke asal, dan klien yang baru dibuat langsung terpilih di form Proyek baru.
+  Pola `from` yang sama dipakai saat membuka edit to-do atau edit issue dari halaman Proyek: Batal dan Simpan kembali ke
+  halaman Proyek, bukan ke daftar To-Do/Issue (`lib/return-to.ts`; hanya path relatif situs ini yang diterima).
+- **Pemilih klien berketik** (form Proyek baru, `components/ClientPicker.tsx`): ketik sebagian nama atau alias (urutan kata bebas),
+  pilih dengan klik atau panah + Enter; wajib memilih dari daftar.
+- **Hapus langsung**: tombol Delete (dengan konfirmasi) di daftar Notes dan di tiap to-do pada halaman Proyek.
+- Pilihan kosong di form ("No goal", "No project", "No phase") tampil abu-abu (`lib/ui.ts`).
 - **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
   Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
   termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke

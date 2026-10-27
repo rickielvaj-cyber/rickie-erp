@@ -1,3 +1,5 @@
+import { EMPTY_MUTED } from "@/lib/ui";
+import { safeReturnPath } from "@/lib/return-to";
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -43,6 +45,7 @@ type SearchParams = {
   error?: string;
   calendar?: string;
   block?: string;
+  from?: string;
 };
 
 type Show = "all" | "open" | "done";
@@ -179,7 +182,7 @@ export default async function TodosPage({
     <div className="mx-auto">
       {(isNew || editingTodo) && (
         <div className="mx-auto mb-10 max-w-2xl">
-          <TodoForm key={editingTodo?.id ?? "new"} todo={editingTodo} goals={goals} projects={projectOptions} error={params.error} />
+          <TodoForm key={editingTodo?.id ?? "new"} todo={editingTodo} goals={goals} projects={projectOptions} error={params.error} from={safeReturnPath(params.from)} />
         </div>
       )}
 
@@ -487,11 +490,14 @@ function TodoForm({
   goals,
   projects,
   error,
+  from,
 }: {
   todo: Todo | null;
   goals: GoalOption[];
   projects: PickerProject[];
   error?: string;
+  /** Halaman asal (mis. /projects/abc): tombol Batal dan hasil simpan kembali ke sana. */
+  from: string | null;
 }) {
   const action = todo ? updateTodo.bind(null, todo.id) : createTodo;
   const field =
@@ -500,6 +506,7 @@ function TodoForm({
   return (
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">{todo ? "Edit task" : "New task"}</h2>
+      {todo && from && <input type="hidden" name="from" value={from} />}
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
@@ -570,8 +577,10 @@ function TodoForm({
         <label htmlFor="goal_id" className="block text-sm font-medium">
           Goal
         </label>
-        <select id="goal_id" name="goal_id" defaultValue={todo?.goal_id ?? ""} className={field}>
-          <option value="">No goal</option>
+        <select id="goal_id" name="goal_id" defaultValue={todo?.goal_id ?? ""} className={`${field} ${EMPTY_MUTED}`}>
+          <option value="" className="text-muted">
+            No goal
+          </option>
           {goals
             // Goal aktif saja untuk dipilih, kecuali goal yang sudah terpasang di tugas ini.
             .filter((g) => g.status === "active" || g.id === todo?.goal_id)
@@ -602,7 +611,7 @@ function TodoForm({
           Save
         </button>
         <Link
-          href="/todos"
+          href={todo && from ? from : "/todos"}
           className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel

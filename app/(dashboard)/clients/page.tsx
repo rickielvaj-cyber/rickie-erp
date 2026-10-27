@@ -2,9 +2,10 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { kindOf } from "@/lib/clients";
 import type { Client } from "@/lib/types";
+import { returnLabel, safeReturnPath } from "@/lib/return-to";
 import { addClient, setClientActive, setClientVerified, updateClient } from "./actions";
 
-type SearchParams = { edit?: string; error?: string; show?: string };
+type SearchParams = { edit?: string; error?: string; show?: string; from?: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const field =
@@ -14,6 +15,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
   const showInactive = params.show === "all";
   const editId = UUID_RE.test(params.edit ?? "") ? params.edit! : null;
+  // Dibuka dari halaman lain (mis. form Proyek baru): tombol kembali dan hasil simpan menuju ke sana.
+  const from = safeReturnPath(params.from);
 
   const supabase = await createClient();
   const [clientsResult, issuesResult] = await Promise.all([
@@ -43,12 +46,14 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             sheet exactly, and partners must match how you type them in its Client column, so per-client KPIs are not split.
           </p>
         </div>
-        <Link
-          href="/issues"
-          className="shrink-0 rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
-        >
-          ‹ Issue Log
-        </Link>
+        {from && (
+          <Link
+            href={from}
+            className="shrink-0 rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
+          >
+            ‹ {returnLabel(from)}
+          </Link>
+        )}
       </div>
 
       {fetchError && (
@@ -62,6 +67,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           key={editId ?? "new"}
           client={editId ? (all.find((c) => c.id === editId) ?? null) : null}
           error={params.error}
+          from={from}
         />
       </section>
 
@@ -177,7 +183,7 @@ function ClientRow({ client, count, showInactive }: { client: Client; count: num
   );
 }
 
-function ClientForm({ client, error }: { client: Client | null; error?: string }) {
+function ClientForm({ client, error, from }: { client: Client | null; error?: string; from: string | null }) {
   const action = client ? updateClient.bind(null, client.id) : addClient;
 
   return (
@@ -187,6 +193,7 @@ function ClientForm({ client, error }: { client: Client | null; error?: string }
       </h2>
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {from && <input type="hidden" name="from" value={from} />}
 
       <div>
         <label htmlFor="kind" className="block text-sm font-medium">
@@ -242,7 +249,7 @@ function ClientForm({ client, error }: { client: Client | null; error?: string }
         </button>
         {client && (
           <Link
-            href="/clients"
+            href={from ?? "/clients"}
             className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
           >
             Cancel

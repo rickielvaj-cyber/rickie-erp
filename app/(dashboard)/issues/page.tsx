@@ -1,3 +1,4 @@
+import { safeReturnPath, withFrom } from "@/lib/return-to";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { endOfMonthISO, formatDate, formatMonthYear, isYearMonth, todayISO } from "@/lib/date";
@@ -20,6 +21,7 @@ type SearchParams = {
   month_to?: string;
   new?: string;
   edit?: string;
+  from?: string;
   kb?: string;
   error?: string;
 };
@@ -137,7 +139,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             </Link>
           )}
           <Link
-            href="/clients"
+            href={withFrom("/clients", "/issues")}
             className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:border-foreground hover:text-foreground"
           >
             Add new client
@@ -160,6 +162,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             projects={projectOptions}
             modules={moduleSuggestions}
             error={params.error}
+            from={safeReturnPath(params.from)}
           />
         </div>
       )}
@@ -478,12 +481,15 @@ function IssueForm({
   projects,
   modules,
   error,
+  from,
 }: {
   issue: IssueLog | null;
   clients: Client[];
   projects: ProjectOption[];
   modules: string[];
   error?: string;
+  /** Halaman asal (mis. /projects/abc): Batal dan hasil simpan kembali ke sana. */
+  from: string | null;
 }) {
   const action = issue ? updateIssue.bind(null, issue.id) : createIssue;
   // Issue lama yang namanya belum cocok dengan daftar klien: teksnya dipertahankan kecuali
@@ -495,6 +501,7 @@ function IssueForm({
   return (
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">{issue ? "Edit issue" : "New issue"}</h2>
+      {issue && from && <input type="hidden" name="from" value={from} />}
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
 
@@ -528,7 +535,7 @@ function IssueForm({
           {legacyName && <input type="hidden" name="legacy_client_name" value={legacyName} />}
           <p className="mt-1 text-xs text-muted">
             Not listed?{" "}
-            <Link href="/clients" className="underline underline-offset-2 hover:text-foreground">
+            <Link href={withFrom("/clients", issue ? `/issues?edit=${issue.id}` : "/issues?new=1")} className="underline underline-offset-2 hover:text-foreground">
               Add a client or partner
             </Link>
           </p>
@@ -644,7 +651,7 @@ function IssueForm({
           Save
         </button>
         <Link
-          href="/issues"
+          href={issue && from ? from : "/issues"}
           className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel

@@ -1,5 +1,6 @@
 "use server";
 
+import { safeReturnPath, withFrom } from "@/lib/return-to";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -77,8 +78,10 @@ export async function createTodo(formData: FormData) {
 
 export async function updateTodo(id: string, formData: FormData) {
   const fields = readTodoFields(formData);
+  // Dibuka dari halaman lain (mis. Proyek)? Setelah simpan kembali ke sana, bukan ke daftar To-Do.
+  const from = safeReturnPath(String(formData.get("from") ?? ""));
   if (!fields.title) {
-    redirect(`/todos?edit=${id}&error=` + encodeURIComponent("Title is required."));
+    redirect(withFrom(`/todos?edit=${id}`, from) + "&error=" + encodeURIComponent("Title is required."));
   }
 
   const supabase = await createClient();
@@ -91,11 +94,11 @@ export async function updateTodo(id: string, formData: FormData) {
   const { error } = await supabase.from("todos").update(update).eq("id", id);
 
   if (error) {
-    redirect(`/todos?edit=${id}&error=` + encodeURIComponent(error.message));
+    redirect(withFrom(`/todos?edit=${id}`, from) + "&error=" + encodeURIComponent(error.message));
   }
 
   revalidateTodoViews();
-  redirect("/todos");
+  redirect(from ?? "/todos");
 }
 
 export async function deleteTodo(id: string) {
@@ -104,6 +107,12 @@ export async function deleteTodo(id: string) {
 
   revalidateTodoViews();
   return { error: error?.message ?? null };
+}
+
+/** Hapus langsung dari daftar lain (mis. halaman Proyek). Untuk <form action>, jadi tidak mengembalikan nilai. */
+export async function removeTodo(id: string): Promise<void> {
+  if (!UUID_RE.test(id)) return;
+  await deleteTodo(id);
 }
 
 // Undo hapus: masukkan lagi baris yang sama (id dan created_at asli dipertahankan,
