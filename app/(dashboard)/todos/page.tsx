@@ -1,3 +1,5 @@
+import { BatchSelection, SelectBox, SelectGroup } from "@/components/todo/BatchSelection";
+import { groupByProject, startsOpen, type GroupMeta } from "@/lib/todo-groups";
 import { EMPTY_MUTED } from "@/lib/ui";
 import { safeReturnPath } from "@/lib/return-to";
 import { Suspense } from "react";
@@ -137,6 +139,15 @@ export default async function TodosPage({
     label: `${clientNames.get(p.client_id) ?? "Client"} — ${p.name}`,
     phases: sortPhases(phaseRows.filter((ph) => ph.project_id === p.id)).map((ph) => ({ id: ph.id, name: ph.name })),
   }));
+  // Pengelompokan daftar Hari ini per proyek lalu fase: label proyek, serta nama dan urutan fase.
+  const groupMeta: GroupMeta = {
+    projects: new Map(projectOptions.map((p) => [p.id, p.label])),
+    phases: new Map(
+      projectRows.flatMap((p) =>
+        sortPhases(phaseRows.filter((ph) => ph.project_id === p.id)).map((ph, order) => [ph.id, { name: ph.name, order }] as const),
+      ),
+    ),
+  };
   // Label "Proyek · Fase" per to-do (kunci = id to-do), dipakai di daftar Hari ini dan pelacak mingguan.
   const projectTitles = new Map<string, string>();
   for (const t of [...todayTodos, ...weekTodos]) {
@@ -275,10 +286,15 @@ export default async function TodosPage({
           </p>
         )}
 
+        <BatchSelection
+          today={today}
+          goals={activeGoals.map((g) => ({ id: g.id, title: g.title }))}
+          projects={projectOptions.filter((p) => !p.done).map((p) => ({ id: p.id, label: p.label, phases: p.phases }))}
+        >
         <div className="flex flex-col gap-6">
-          <TaskGroup title="Overdue" tone="danger" todos={overdue} goalTitles={goalTitles} projectTitles={projectTitles} moveToToday={today} />
-          <TaskGroup title={overdue.length || undated.length ? "Today" : undefined} todos={dueToday} goalTitles={goalTitles} projectTitles={projectTitles} />
-          <TaskGroup title="No date" todos={undated} goalTitles={goalTitles} projectTitles={projectTitles} />
+          <TaskGroup title="Overdue" tone="danger" todos={overdue} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} moveToToday={today} />
+          <TaskGroup title={overdue.length || undated.length ? "Today" : undefined} todos={dueToday} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} />
+          <TaskGroup title="No date" todos={undated} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} />
 
           {todayTodos.length === 0 && (
             <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
@@ -286,6 +302,7 @@ export default async function TodosPage({
             </p>
           )}
         </div>
+        </BatchSelection>
 
         <form action={createTodoForDay.bind(null, today)}>
           {/* Sedang memfilter satu goal: tugas baru dari kotak ini ikut tertaut ke goal itu. */}
@@ -391,6 +408,7 @@ function TaskGroup({
   tone,
   goalTitles,
   projectTitles,
+  meta,
   moveToToday,
 }: {
   title?: string;
@@ -398,28 +416,57 @@ function TaskGroup({
   tone?: "danger";
   goalTitles: Map<string, string>;
   projectTitles: Map<string, string>;
+  meta: GroupMeta;
   /** Isi dengan tanggal hari ini untuk menampilkan tombol "Move to today" (grup Overdue). */
   moveToToday?: string;
 }) {
   if (todos.length === 0) return null;
+  // To-do tanpa proyek tetap satu daftar; to-do proyek dikelompokkan per proyek lalu fase (dilipat bila banyak).
+  const { loose, projects } = groupByProject(todos, meta);
+  const row = (todo: Todo, withProject: boolean) => (
+    <TodoRow
+      key={todo.id}
+      todo={todo}
+      goalTitle={goalTitles.get(todo.goal_id ?? "")}
+      projectTitle={withProject ? projectTitles.get(todo.id) : undefined}
+      moveToToday={moveToToday}
+    />
+  );
   return (
     <div>
       {title && (
-        <h2 className={`mb-2 text-sm font-medium ${tone === "danger" ? "text-danger" : "text-muted"}`}>
-          {title} · {todos.length}
+        <h2 className={`mb-2 flex items-center gap-3 text-sm font-medium ${tone === "danger" ? "text-danger" : "text-muted"}`}>
+          <SelectGroup ids={todos.map((t) => t.id)} label={title} />
+          <span>
+            {title} · {todos.length}
+          </span>
         </h2>
       )}
-      <ul className="overflow-hidden rounded-2xl border border-foreground">
-        {todos.map((todo) => (
-          <TodoRow
-            key={todo.id}
-            todo={todo}
-            goalTitle={goalTitles.get(todo.goal_id ?? "")}
-            projectTitle={projectTitles.get(todo.id)}
-            moveToToday={moveToToday}
-          />
+      <div className="flex flex-col gap-3">
+        {loose.length > 0 && <ul className="overflow-hidden rounded-2xl border border-foreground">{loose.map((t) => row(t, true))}</ul>}
+        {projects.map((g) => (
+          <details key={g.projectId} open={startsOpen(g.count)} className="group overflow-hidden rounded-2xl border border-foreground">
+            <summary className="flex cursor-pointer list-none items-center gap-3 bg-surface px-5 py-3 [&::-webkit-details-marker]:hidden">
+              <SelectGroup ids={g.phases.flatMap((p) => p.todos.map((t) => t.id))} label={g.label} />
+              <span className="min-w-0 flex-1 truncate text-base font-medium">{g.label}</span>
+              <span className="shrink-0 text-sm text-muted">{g.count}</span>
+              <span aria-hidden="true" className="shrink-0 text-sm text-muted transition-transform group-open:rotate-90">
+                ›
+              </span>
+            </summary>
+            {g.phases.map((ph) => (
+              <div key={ph.phaseId ?? "none"}>
+                {(g.phases.length > 1 || ph.name) && (
+                  <p className="border-t border-border px-5 py-1.5 text-xs font-medium text-muted">
+                    {ph.name ?? "No phase"} · {ph.todos.length}
+                  </p>
+                )}
+                <ul>{ph.todos.map((t) => row(t, false))}</ul>
+              </div>
+            ))}
+          </details>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
@@ -438,6 +485,7 @@ function TodoRow({
   const done = todo.status === "done";
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-5 py-4 last:border-b-0">
+      <SelectBox id={todo.id} title={todo.title} />
       <Checkbox todo={todo} />
       <div className="min-w-0 flex-1 basis-40">
         <p className={`text-lg ${done ? "text-muted line-through" : ""}`}>{todo.title}</p>

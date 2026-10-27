@@ -321,6 +321,16 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **Pasang di HP (PWA)**: situs punya manifest dan ikon, jadi bisa dipasang ke layar utama dan dibuka layar penuh. iPhone: Safari →
   Share → **Add to Home Screen**; Android: menu Chrome → **Install app / Add to Home screen**. Jalan pintas "New note" dan "To-Do
   List" muncul saat ikon ditekan lama (Android). Tidak ada service worker: situs tetap butuh koneksi (tidak ada mode offline).
+- **Edit massal to-do** (panel Today di `/todos`, `components/todo/BatchSelection.tsx`, `lib/todo-batch.ts`): kotak centang di tiap to-do
+  dan di tiap grup (Overdue, Today, proyek). Setelah ada yang dipilih, bar di bawah layar mengubah sekaligus: tanggal (Today /
+  Tomorrow / Next Mon / No date / tanggal bebas), prioritas, status, goal, proyek + fase, atau menghapus. Pilihan yang dibiarkan
+  "no change" tidak disentuh; mengganti proyek tanpa memilih fase mengosongkan fasenya. To-do yang tertaut ke blok kalender
+  tetap mengikuti bloknya untuk tanggal (kolom lain tetap berubah; pesan hasil menyebut berapa yang tanggalnya dipertahankan).
+  Maksimal 200 to-do per aksi; masukan divalidasi di server. Di HP, kolom ubah terlipat di balik tombol "Edit…". Belum ada di
+  pelacak mingguan (seret-lepas) dan halaman Proyek.
+- **To-do proyek dikelompokkan** di panel Today (`lib/todo-groups.ts`): to-do tanpa proyek tetap daftar biasa; to-do proyek masuk
+  satu blok per proyek (abjad), dengan sub-judul per fase menurut urutan fase. Blok dengan lebih dari 3 to-do terlipat
+  (judul menampilkan jumlahnya; kotak centang di judul memilih semuanya tanpa membuka lipatan).
 - **Clients** (menu atas, `/clients`): tempat master data klien dan partner; tidak lagi bagian dari Issue Log. Halaman yang
   butuh klien baru (form Proyek baru, form Issue) membuka menu ini dengan `?from=<halaman asal>`: tombol "‹ Projects" /
   "‹ Issue Log" dan hasil simpan kembali ke asal, dan klien yang baru dibuat langsung terpilih di form Proyek baru.
