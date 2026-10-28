@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { indexNote, unindexNote } from "@/lib/search/note-index";
+import { removeParentFiles } from "@/lib/attachments-server";
 import { isNoteId, noteTitle, parseNoteInput } from "@/lib/notes";
 
 // Penyimpanan otomatis catatan. Tanpa redirect dan tanpa revalidasi daftar di setiap ketikan: daftar diambil ulang saat dibuka.
@@ -105,6 +106,7 @@ export async function deleteNote(id: string): Promise<{ ok: boolean }> {
   const user = await getAuthUser();
   if (!user) return { ok: false };
   const db = await createClient();
+  await removeParentFiles(db, "note", id); // file lampiran dibersihkan dulu; barisnya ikut terhapus (cascade)
   const { error } = await db.from("notes").delete().eq("id", id);
   if (error) return { ok: false };
   reindexLater(() => unindexNote(db, id));

@@ -1,3 +1,6 @@
+import { AttachmentPanel } from "@/components/AttachmentPanel";
+import { loadAttachments, type AttachmentView } from "@/lib/attachments-server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { safeReturnPath, withFrom } from "@/lib/return-to";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -79,6 +82,9 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   ]);
   const kbModuleOfEntry = new Map((kbEntriesResult?.data ?? []).map((e) => [e.id, e.module]));
   const kbIssue = kbIssueResult?.data && !kbIssueResult.data.kb_entry_id ? kbIssueResult.data : null;
+  // Lampiran issue yang tampil (dan yang sedang diedit, yang bisa di luar filter), dalam satu panggilan ke Storage.
+  const authUser = await getAuthUser();
+  const attachmentsByIssue = await loadAttachments(supabase, "issue", Array.from(new Set([...issues.map((i) => i.id), ...(editingIssue ? [editingIssue.id] : [])])));
   const clients: Client[] = clientsResult.data ?? [];
   const clientById = new Map(clients.map((c) => [c.id, c]));
   const projectOptions: ProjectOption[] = (projectsResult.data ?? []).map((p) => ({
@@ -163,6 +169,8 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
             modules={moduleSuggestions}
             error={params.error}
             from={safeReturnPath(params.from)}
+            userId={authUser?.id ?? null}
+            attachments={editingIssue ? (attachmentsByIssue.get(editingIssue.id) ?? []) : []}
           />
         </div>
       )}
@@ -304,6 +312,9 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                       <Detail label="Root cause" value={issue.root_cause} />
                       <Detail label="Resolution" value={issue.resolution} />
                     </dl>
+                    {authUser && (
+                      <AttachmentPanel parent="issue" parentId={issue.id} userId={authUser.id} initial={attachmentsByIssue.get(issue.id) ?? []} />
+                    )}
                     {issue.project_id && projectLabel.get(issue.project_id) && (
                       <p className="mt-2 text-xs text-muted">
                         Project:{" "}
@@ -482,12 +493,16 @@ function IssueForm({
   modules,
   error,
   from,
+  userId,
+  attachments,
 }: {
   issue: IssueLog | null;
   clients: Client[];
   projects: ProjectOption[];
   modules: string[];
   error?: string;
+  userId: string | null;
+  attachments: AttachmentView[];
   /** Halaman asal (mis. /projects/abc): Batal dan hasil simpan kembali ke sana. */
   from: string | null;
 }) {
@@ -642,6 +657,10 @@ function IssueForm({
           </select>
         </div>
       </fieldset>
+
+      {issue && userId && (
+        <AttachmentPanel parent="issue" parentId={issue.id} userId={userId} initial={attachments} capturePaste label="Screenshots & files" />
+      )}
 
       <div className="flex gap-2 pt-1">
         <button

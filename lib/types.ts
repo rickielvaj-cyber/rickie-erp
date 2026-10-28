@@ -142,6 +142,20 @@ export type Note = {
   updated_at: string;
 };
 
+export type Attachment = {
+  id: string;
+  user_id: string;
+  issue_id: string | null;
+  kb_entry_id: string | null;
+  note_id: string | null;
+  /** Jalur di bucket Storage `attachments`: `<user_id>/<uuid>.<ext>`. */
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 export type SearchIndexRow = {
   id: string;
   user_id: string;
@@ -269,6 +283,13 @@ export type Database = {
         Insert: Pick<GoogleConnectionRow, "user_id" | "refresh_token_enc"> &
           Partial<Pick<GoogleConnectionRow, "scope" | "connected_at" | "updated_at">>;
         Update: Partial<GoogleConnectionRow>;
+        Relationships: [];
+      };
+      attachments: {
+        Row: Attachment;
+        Insert: Pick<Attachment, "storage_path" | "file_name" | "mime_type" | "size_bytes"> &
+          Partial<Pick<Attachment, "id" | "user_id" | "issue_id" | "kb_entry_id" | "note_id" | "created_at">>;
+        Update: Partial<Omit<Attachment, "id">>;
         Relationships: [];
       };
       notes: {
