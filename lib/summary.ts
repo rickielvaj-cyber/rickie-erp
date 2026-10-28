@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/date";
 type Grouping = { goalTitle: string | null; projectTitle?: string | null; phaseTitle?: string | null };
 
 export type DoneTask = { title: string } & Grouping;
-export type HandledIssue = { client: string | null; module: string | null; title: string };
+export type HandledIssue = { client: string | null; module: string | null; title: string; category?: string | null };
 export type PlanTask = { title: string; dueDate: string | null; time?: string | null } & Grouping;
 /** Blok waktu di kalender yang tertaut ke to-do; `minutes` = lama blok. */
 export type TimeBlock = { minutes: number } & Grouping;
@@ -189,5 +189,74 @@ export function buildPlanText({
     );
   }
 
+  return out.join("\n");
+}
+
+// ---- Rekap bulanan -----------------------------------------------------------------------------------------------------
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "2026-10" -> "October 2026". */
+export function monthTitle(yyyyMm: string): string {
+  const [y, m] = yyyyMm.split("-").map(Number);
+  return `${MONTH_NAMES[(m ?? 1) - 1] ?? yyyyMm} ${y}`;
+}
+
+/** Hitung kemunculan; yang kosong dikelompokkan ke `emptyLabel` dan ditaruh paling bawah, sisanya terbanyak dulu. */
+function tally<T>(rows: T[], pick: (row: T) => string | null | undefined, emptyLabel: string): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const key = pick(row)?.trim() || emptyLabel;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).sort(([a, x], [b, y]) => (a === emptyLabel ? 1 : b === emptyLabel ? -1 : y - x || a.localeCompare(b)));
+}
+
+/**
+ * Rekap satu bulan dari data (bukan dari teks mingguan yang disimpan): jumlah tugas selesai per Proyek/Goal/Other, issue per
+ * klien, modul dan kategori, jam terblokir per Proyek/Goal/Other, dan status proyek. Hanya angka, supaya muat satu layar
+ * untuk laporan bulanan; rincian ada di summary mingguan.
+ */
+export function buildMonthlyText({
+  month,
+  done,
+  issues,
+  timeBlocks = null,
+  projects = [],
+}: {
+  month: string;
+  done: DoneTask[];
+  issues: HandledIssue[];
+  timeBlocks?: TimeBlock[] | null;
+  projects?: ProjectStatusLine[];
+}): string {
+  const out: string[] = [`Monthly Summary (${monthTitle(month)})`, ""];
+
+  out.push(`Tasks completed (${done.length})`);
+  if (done.length === 0) out.push("- No completed tasks recorded.");
+  else for (const [name, rows] of groupTasks(done)) out.push(`- ${name === OTHER ? OTHER : name}: ${rows.length}`);
+
+  out.push("", `Issues handled (${issues.length})`);
+  if (issues.length === 0) {
+    out.push("- None.");
+  } else {
+    out.push("By client:");
+    for (const [name, n] of tally(issues, (i) => i.client, "No client")) out.push(`- ${name}: ${n}`);
+    out.push("By module:");
+    for (const [name, n] of tally(issues, (i) => i.module, "No module")) out.push(`- ${name}: ${n}`);
+    if (issues.some((i) => i.category?.trim())) {
+      out.push("By category:");
+      for (const [name, n] of tally(issues, (i) => i.category, "No category")) out.push(`- ${name}: ${n}`);
+    }
+  }
+
+  if (timeBlocks !== null && timeBlocks.length > 0) {
+    out.push("", `Time blocked (${formatDuration(sumMinutes(timeBlocks))})`);
+    const rank = (k: string) => (k === OTHER ? 2 : k.startsWith(PROJECT_PREFIX) ? 0 : 1);
+    const groups = groupTasks(timeBlocks).sort(([a, x], [b, y]) => rank(a) - rank(b) || sumMinutes(y) - sumMinutes(x) || a.localeCompare(b));
+    for (const [name, rows] of groups) out.push(`- ${name === OTHER ? OTHER : name}: ${formatDuration(sumMinutes(rows))}`);
+  }
+
+  if (projects.length > 0) out.push("", `Project status (${projects.length})`, ...projectLines(projects));
   return out.join("\n");
 }

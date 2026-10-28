@@ -32,7 +32,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
   const calendar = authUser
     ? await loadSummaryCalendar(supabase, authUser.id, weekStart, weekEnd, includeOthers)
     : { blocks: [], otherEvents: [], note: null };
-  const [doneResult, issuesResult, planResult, goalsResult, projectsResult, phasesResult, clientsResult] = await Promise.all([
+  const [doneResult, issuesResult, planResult, goalsResult, projectsResult, phasesResult, clientsResult, savedResult] = await Promise.all([
     supabase
       .from("todos")
       .select("id, title, goal_id, project_id, phase_id")
@@ -42,7 +42,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
       .order("completed_at", { ascending: true }),
     supabase
       .from("issue_log")
-      .select("id, title, client_name, module")
+      .select("id, title, client_name, module, category")
       .gte("date_resolved", weekStart)
       .lte("date_resolved", weekEnd)
       .order("date_resolved", { ascending: true })
@@ -59,6 +59,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
     supabase.from("projects").select("id, name, client_id, status, target_date"),
     supabase.from("project_phases").select("*"),
     supabase.from("clients").select("id, canonical_name"),
+    supabase.from("weekly_summaries").select("summary_text, plan_text, updated_at").eq("week_start", weekStart).maybeSingle(),
   ]);
 
   const goalTitles = new Map((goalsResult.data ?? []).map((g) => [g.id, g.title]));
@@ -95,7 +96,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
   const issues = issuesResult.data ?? [];
   const plan = planResult.data ?? [];
   const fetchError =
-    doneResult.error ?? issuesResult.error ?? planResult.error ?? goalsResult.error ?? projectsResult.error ?? phasesResult.error ?? clientsResult.error;
+    doneResult.error ?? issuesResult.error ?? planResult.error ?? goalsResult.error ?? projectsResult.error ?? phasesResult.error ?? clientsResult.error ?? savedResult.error;
 
   const summaryText = buildSummaryText({
     weekStart,
@@ -153,6 +154,15 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
         </nav>
       </div>
 
+      <p className="mt-4 flex gap-4 text-sm">
+        <Link href="/summary/history" className="underline underline-offset-4 hover:text-muted">
+          History
+        </Link>
+        <Link href={`/summary/monthly?month=${addDaysISO(weekStart, 4).slice(0, 7)}`} className="underline underline-offset-4 hover:text-muted">
+          Monthly recap
+        </Link>
+      </p>
+
       {calendar.note && <p className="mt-5 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm">{calendar.note}</p>}
 
       {fetchError && (
@@ -163,7 +173,17 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
 
       <div className="mt-8">
         {/* key: pindah minggu = editor dimuat ulang dari template minggu itu. */}
-        <SummaryEditor key={`${weekStart}-${includeOthers}`} summaryText={summaryText} planText={planText} />
+        <SummaryEditor
+          key={`${weekStart}-${includeOthers}`}
+          weekStart={weekStart}
+          summaryText={summaryText}
+          planText={planText}
+          saved={
+            savedResult.data
+              ? { summary: savedResult.data.summary_text, plan: savedResult.data.plan_text, savedAt: savedResult.data.updated_at }
+              : null
+          }
+        />
       </div>
 
       <p className="mt-8 text-sm text-muted">
@@ -184,6 +204,9 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
           </>
         )}
         .
+      </p>
+      <p className="mt-3 text-sm text-muted">
+        When a saved version exists, the editor opens with it; use &quot;Reset to template&quot; to rebuild the text from the current data.
       </p>
       <p className="mt-3 text-sm text-muted">
         Tasks count by the date they were checked off (Asia/Jakarta time zone); issues count by their own date.

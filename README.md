@@ -103,6 +103,8 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0025_weekly_summaries.sql` — tabel `weekly_summaries` (teks Summary dan Plan per minggu; satu baris per pengguna per Senin; maks.
+  50.000 karakter per kolom; RLS pemilik; trigger `updated_at`). Tidak mengubah data lain. Aman diulang. **Jalankan sebelum kode ini live.**
 - `0024_attachments.sql` — tabel `attachments` (metadata; tepat satu induk: issue, entri KB, atau catatan; cascade), bucket Storage privat
   `attachments` (10 MB per file, hanya jenis file yang diizinkan, tanpa SVG) dan policy Storage per folder pengguna. Tidak mengubah data
   lain. Policy dibuat tanpa DROP (jalankan sekali). **Jalankan sebelum kode ini live.**
@@ -355,13 +357,17 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
   Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
   termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke
-  YonWork. Hasil edit tidak disimpan. Bila Google Calendar tersambung, "Summary of This Week"
+  YonWork. Tombol **Save** menyimpan teks minggu itu (satu baris per minggu, `weekly_summaries`); membuka minggu itu
+  lagi menampilkan teks tersimpan, "Reset to template" membangun ulang dari data, "Delete saved text" menghapus simpanannya.
+  `/summary/history` mendaftar minggu yang disimpan (per bulan, dengan jumlah tugas/issue/jam dari teksnya) dan
+  `/summary/monthly?month=YYYY-MM` membuat rekap bulanan berupa angka (tugas per Proyek/Goal, issue per klien/modul/kategori, jam
+  terblokir, status proyek) langsung dari data (`buildMonthlyText`). Bila Google Calendar tersambung, "Summary of This Week"
   punya bagian **Time blocked**: total jam blok kalender (Senin–Jumat) yang tertaut ke to-do, per
   Proyek/Goal/Other (`lib/google/summary-blocks.ts`). Jam diambil langsung dari Google (to-do
   disinkronkan dulu); bila Google tidak terbaca dipakai jam tersimpan terakhir, dengan catatan di
   halaman. Acara yang TIDAK tertaut ke to-do (rapat, pribadi) tidak ikut kecuali kamu klik
   "Include them" (`?calendar=all`). "Next Week Plan" menambahkan jam blok pada to-do yang tertaut,
-  mis. `(due 22 Oct 2026 13:00–14:30)`. Tanpa migrasi database.
+  mis. `(due 22 Oct 2026 13:00–14:30)`. Riwayat butuh migrasi `0025`.
 - **Export**: menu akun (avatar) → "Export semua data (JSON)" dan "Export issue log (CSV)";
   halaman Issue Log punya tombol Export CSV yang mengikuti filter. CSV memakai BOM UTF-8 dan
   menetralkan sel yang diawali `= + - @` (dengan awalan `'`) supaya tidak jadi rumus di Excel/Sheets.

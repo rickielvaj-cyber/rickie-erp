@@ -109,3 +109,53 @@ test("plan shows the block time of linked to-dos next to the due date", () => {
   });
   assert.ok(text.includes("- Workshop (due 22 Oct 2026 13:00–14:30)"), text);
 });
+
+// ---- rekap bulanan ----
+import { buildMonthlyText, monthTitle } from "./summary";
+
+test("monthTitle", () => {
+  assert.equal(monthTitle("2026-10"), "October 2026");
+  assert.equal(monthTitle("2027-01"), "January 2027");
+});
+
+test("monthly recap counts tasks per project/goal/other and issues per client, module and category", () => {
+  const text = buildMonthlyText({
+    month: "2026-10",
+    done: [
+      { title: "a", goalTitle: null, projectTitle: "PT X — Nagiya" },
+      { title: "b", goalTitle: null, projectTitle: "PT X — Nagiya" },
+      { title: "c", goalTitle: "Learn YonSuite" },
+      { title: "d", goalTitle: null },
+    ],
+    issues: [
+      { client: "PT A", module: "General Ledger", title: "1", category: "Configuration" },
+      { client: "PT A", module: "Accounts Payable", title: "2", category: "Configuration" },
+      { client: "PT B", module: "General Ledger", title: "3", category: "Report" },
+      { client: null, module: null, title: "4" },
+    ],
+    timeBlocks: [
+      { minutes: 90, goalTitle: null, projectTitle: "PT X — Nagiya" },
+      { minutes: 30, goalTitle: "Learn YonSuite" },
+    ],
+  });
+  const lines = text.split("\n");
+  assert.equal(lines[0], "Monthly Summary (October 2026)");
+  assert.ok(lines.includes("Tasks completed (4)"));
+  assert.ok(lines.includes("- Project: PT X — Nagiya: 2"));
+  assert.ok(lines.includes("- Goal: Learn YonSuite: 1"));
+  assert.ok(lines.includes("- Other: 1"));
+  assert.ok(lines.includes("Issues handled (4)"));
+  assert.ok(lines.includes("- PT A: 2") && lines.includes("- No client: 1"));
+  assert.ok(lines.indexOf("- PT A: 2") < lines.indexOf("- No client: 1"));
+  assert.ok(lines.includes("- General Ledger: 2") && lines.includes("- No module: 1"));
+  assert.ok(lines.includes("By category:") && lines.includes("- Configuration: 2") && lines.includes("- No category: 1"));
+  assert.ok(lines.includes("Time blocked (2 h)"));
+  assert.ok(lines.includes("- Project: PT X — Nagiya: 1 h 30 m") && lines.includes("- Goal: Learn YonSuite: 30 m"));
+  assert.ok(!text.includes("a\n") && !text.includes("- b"), "task titles are not listed in the monthly recap");
+});
+
+test("monthly recap handles an empty month and hides empty sections", () => {
+  const text = buildMonthlyText({ month: "2026-11", done: [], issues: [] });
+  assert.ok(text.includes("- No completed tasks recorded.") && text.includes("- None."));
+  assert.ok(!text.includes("Time blocked") && !text.includes("By category") && !text.includes("Project status"));
+});
