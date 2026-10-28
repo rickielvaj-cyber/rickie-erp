@@ -1,5 +1,7 @@
 "use client";
 
+import { AttachmentPanel } from "@/components/AttachmentPanel";
+import type { AttachmentView } from "@/lib/attachments-server";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,7 +21,17 @@ const REMOTE_POLL_MS = 4000;
  * Editor satu catatan dengan simpan otomatis (jeda 0,7 detik setelah berhenti mengetik, saat fokus pindah, dan saat tab
  * disembunyikan). Penyimpanan berjalan satu per satu (antrean) supaya catatan baru selalu dibuat dulu sebelum diperbarui.
  */
-export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: ClientOption[] }) {
+export function NoteEditor({
+  initial,
+  clients,
+  userId,
+  attachments,
+}: {
+  initial: NoteDraft;
+  clients: ClientOption[];
+  userId: string;
+  attachments: AttachmentView[];
+}) {
   const router = useRouter();
   const [body, setBody] = useState(initial.body);
   const [clientId, setClientId] = useState(initial.clientId ?? "");
@@ -27,6 +39,8 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Lampiran butuh catatan yang sudah tersimpan: id baru ada setelah simpan pertama.
+  const [noteId, setNoteId] = useState<string | null>(initial.id);
 
   const idRef = useRef(initial.id);
   const baseRef = useRef(initial.updatedAt);
@@ -70,7 +84,10 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
         if (latest.current.body === snapshot.body && latest.current.clientId === snapshot.clientId) dirty.current = false;
         setStatus(dirty.current ? "saving" : "saved");
         setMessage(null);
-        if (wasNew) window.history.replaceState(null, "", `/notes/${result.id}`);
+        if (wasNew) {
+          window.history.replaceState(null, "", `/notes/${result.id}`);
+          setNoteId(result.id);
+        }
         if (dirty.current) runSave();
       } else if (result.conflict) {
         stopped.current = true;
@@ -255,6 +272,14 @@ export function NoteEditor({ initial, clients }: { initial: NoteDraft; clients: 
         className="mt-5 block w-full resize-none rounded-none border-0 bg-transparent p-0 text-lg leading-relaxed placeholder:text-muted focus:outline-none"
         style={{ minHeight: "20rem" }}
       />
+
+      {noteId ? (
+        <div className="mt-6 border-t border-border pt-2">
+          <AttachmentPanel parent="note" parentId={noteId} userId={userId} initial={attachments} capturePaste label="Attachments" />
+        </div>
+      ) : (
+        <p className="mt-6 border-t border-border pt-4 text-sm text-muted">Start typing; once the note is saved you can add screenshots and files.</p>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
         <label htmlFor="note-client" className="text-sm text-muted">

@@ -1,3 +1,6 @@
+import { AttachmentPanel } from "@/components/AttachmentPanel";
+import { loadAttachments } from "@/lib/attachments-server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -64,7 +67,9 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
   }
 
   const supabase = await createClient();
+  const user = await getAuthUser();
   const { chapter, error } = await loadKbChapter(supabase, module);
+  const attachmentsByEntry = await loadAttachments(supabase, "kb_entry", chapter.sections.map(({ entry }) => entry.id));
   const lastUpdated = chapter.sections.reduce<string | null>(
     (latest, { entry }) => (!latest || entry.updated_at > latest ? entry.updated_at : latest),
     null,
@@ -109,6 +114,11 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
               <EntryEditor entryId={entry.id} initialTitle={entry.title} initialContent={entry.content}>
                 <KbContent tree={tree} />
               </EntryEditor>
+              {user && (
+                <div data-kb-skip>
+                  <AttachmentPanel parent="kb_entry" parentId={entry.id} userId={user.id} initial={attachmentsByEntry.get(entry.id) ?? []} />
+                </div>
+              )}
             </article>
           ))}
         </div>

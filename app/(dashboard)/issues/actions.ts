@@ -8,6 +8,7 @@ import { isISODate, todayISO } from "@/lib/date";
 import { safeReturnPath, withFrom } from "@/lib/return-to";
 import { defaultIssueTitle, isIssueCategory } from "@/lib/issues";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { removeParentFiles } from "@/lib/attachments-server";
 import { isKbModuleSlug } from "@/lib/kb/modules";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -140,6 +141,8 @@ export async function updateIssue(id: string, formData: FormData) {
 
 export async function deleteIssue(id: string) {
   const supabase = await createClient();
+  // File lampiran dibersihkan dari Storage dulu (barisnya ikut terhapus bersama issue lewat cascade).
+  await removeParentFiles(supabase, "issue", id);
   await supabase.from("issue_log").delete().eq("id", id);
 
   revalidateIssueViews();

@@ -103,6 +103,9 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0024_attachments.sql` — tabel `attachments` (metadata; tepat satu induk: issue, entri KB, atau catatan; cascade), bucket Storage privat
+  `attachments` (10 MB per file, hanya jenis file yang diizinkan, tanpa SVG) dan policy Storage per folder pengguna. Tidak mengubah data
+  lain. Policy dibuat tanpa DROP (jalankan sekali). **Jalankan sebelum kode ini live.**
 - `0023_notes.sql` — tabel `notes` (isi, judul turunan, klien opsional, pin; RLS pemilik; trigger `updated_at`; isi maks. 100.000
   karakter) dan jenis hasil pencarian baru `note` pada constraint `search_index`. Tidak mengubah data lain. Aman diulang.
   **Jalankan sebelum kode ini live.**
@@ -307,6 +310,15 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   (`components/Dashboard.tsx`, `lib/dashboard.ts`); tidak memanggil Google, jadi jam blok = jam tersimpan terakhir.
   Issue tidak punya status "terbuka" (semua issue adalah catatan yang sudah diselesaikan), jadi yang ditampilkan adalah
   yang menunggu tindakan di sisi pencatatan. Tanpa migrasi.
+- **Lampiran** (issue, entri KB, catatan; `components/AttachmentPanel.tsx`, `lib/attachments.ts`): klik untuk memilih file, seret-lepas,
+  atau **tempel screenshot dari clipboard** (Ctrl/Cmd+V; di editor catatan dan form edit issue tempelan diterima di mana pun di
+  halaman; di panel lain, klik dulu kotak lampirannya). Jenis: gambar (PNG/JPG/WebP/GIF), PDF, Excel, Word, CSV, teks; SVG dan file
+  program ditolak. Maks. 10 MB per file dan 10 lampiran per item. Gambar besar dikecilkan di browser sebelum diunggah (sisi terpanjang
+  2000 px, JPEG). File diunggah langsung dari browser ke Supabase Storage (jalur `<id pengguna>/<uuid>.<ext>`, dijaga policy Storage)
+  lalu didaftarkan lewat server action yang memeriksa ulang jenis (dari ekstensi), ukuran (dari Storage), jalur, induk, dan batas jumlah.
+  Tampil lewat tautan bertanda tangan yang berlaku ±1 jam. **Tidak pernah dikirim ke Gemini dan tidak ikut pencarian.** Menghapus issue
+  atau catatan membersihkan file-nya dari Storage. **Catatan backup:** file lampiran hanya ada di Supabase Storage dan tidak ikut backup
+  mingguan (daftarnya ikut); lihat `docs/BACKUP.md`.
 - **Notes** (`/notes`): catatan cepat ala Notes iPhone. Satu kotak teks; baris pertama jadi judul; simpan otomatis 0,7 detik
   setelah berhenti mengetik (juga saat fokus pindah atau tab disembunyikan). Catatan baru dibuat pada simpan pertama, jadi
   catatan kosong tidak tersimpan. Bisa disematkan (Pin), ditautkan ke satu klien, dan dicari (kotak cari di daftar, atau
