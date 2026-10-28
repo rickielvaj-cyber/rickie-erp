@@ -1,6 +1,7 @@
 "use server";
 
 import { safeReturnPath, withFrom } from "@/lib/return-to";
+import { BATCH_MAX, parseBatchInput, patchForLinked } from "@/lib/todo-batch";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -273,4 +274,72 @@ export async function placeTodo(todoId: unknown, date: unknown, orderedIds: unkn
 
   revalidateTodoViews();
   return { ok: true };
+}
+
+// ---- Edit massal ---------------------------------------------------------------------------------------------------
+
+export type BatchResult = { ok: true; updated: number; keptDate: number } | { ok: false; error: string };
+
+/**
+ * Ubah beberapa to-do sekaligus. Masukan divalidasi di server (parseBatchInput). To-do yang tertaut ke blok kalender
+ * tetap mengikuti blok untuk tanggalnya: tanggalnya tidak diubah (dihitung di `keptDate`), kolom lain tetap berubah.
+ * Proyek/fase baru harus ada dan fase harus milik proyek itu.
+ */
+export async function batchUpdateTodos(raw: unknown): Promise<BatchResult> {
+  const user = await getAuthUser();
+  if (!user) return { ok: false, error: "Your session has expired. Log in again." };
+  const parsed = parseBatchInput(raw);
+  if (!parsed.ok) return parsed;
+  const { ids, patch } = parsed;
+  const supabase = await createClient();
+
+  if (patch.goal_id) {
+    const { data } = await supabase.from("goals").select("id").eq("id", patch.goal_id).maybeSingle();
+    if (!data) return { ok: false, error: "That goal no longer exists." };
+  }
+  if (patch.project_id) {
+    const { data } = await supabase.from("projects").select("id").eq("id", patch.project_id).maybeSingle();
+    if (!data) return { ok: false, error: "That project no longer exists." };
+    if (patch.phase_id) {
+      const { data: phase } = await supabase.from("project_phases").select("id").eq("id", patch.phase_id).eq("project_id", patch.project_id).maybeSingle();
+      if (!phase) return { ok: false, error: "That phase does not belong to the chosen project." };
+    }
+  }
+
+  const { data: rows, error: readError } = await supabase.from("todos").select("id, calendar_event_id").in("id", ids);
+  if (readError) return { ok: false, error: readError.message };
+  const found = rows ?? [];
+  if (found.length === 0) return { ok: false, error: "The selected tasks no longer exist." };
+  const linked = found.filter((r) => r.calendar_event_id).map((r) => r.id);
+  const free = found.filter((r) => !r.calendar_event_id).map((r) => r.id);
+
+  if (free.length > 0) {
+    const { error } = await supabase.from("todos").update(patch).in("id", free);
+    if (error) return { ok: false, error: error.message };
+  }
+  let keptDate = 0;
+  if (linked.length > 0) {
+    if ("due_date" in patch) keptDate = linked.length;
+    const rest = patchForLinked(patch);
+    if (rest) {
+      const { error } = await supabase.from("todos").update(rest).in("id", linked);
+      if (error) return { ok: false, error: error.message };
+    }
+  }
+
+  revalidateTodoViews();
+  return { ok: true, updated: found.length, keptDate };
+}
+
+export async function batchDeleteTodos(raw: unknown): Promise<{ ok: true; deleted: number } | { ok: false; error: string }> {
+  const user = await getAuthUser();
+  if (!user) return { ok: false, error: "Your session has expired. Log in again." };
+  const ids = Array.isArray(raw) ? Array.from(new Set(raw.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)))) : [];
+  if (ids.length === 0) return { ok: false, error: "Select at least one task." };
+  if (ids.length > BATCH_MAX) return { ok: false, error: `Select at most ${BATCH_MAX} tasks at a time.` };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("todos").delete().in("id", ids).select("id");
+  if (error) return { ok: false, error: error.message };
+  revalidateTodoViews();
+  return { ok: true, deleted: (data ?? []).length };
 }
