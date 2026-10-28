@@ -13,7 +13,7 @@ export default async function NotePage({ params }: { params: Promise<{ id: strin
 
   const supabase = await createClient();
   const [noteResult, clientsResult] = await Promise.all([
-    supabase.from("notes").select("id, body, client_id, pinned, updated_at").eq("id", id).maybeSingle(),
+    supabase.from("notes").select("id, body, client_id, pinned, ai_blocked, updated_at").eq("id", id).maybeSingle(),
     supabase.from("clients").select("id, canonical_name, active").order("canonical_name"),
   ]);
   const note = noteResult.data;
@@ -26,7 +26,7 @@ export default async function NotePage({ params }: { params: Promise<{ id: strin
   return (
     <div className="mx-auto max-w-3xl">
       <NoteEditor
-        initial={{ id: note.id, body: note.body, clientId: note.client_id, pinned: note.pinned, updatedAt: note.updated_at }}
+        initial={{ id: note.id, body: note.body, clientId: note.client_id, pinned: note.pinned, aiBlocked: note.ai_blocked, updatedAt: note.updated_at }}
         clients={clients.map((c) => ({ id: c.id, name: c.canonical_name }))}
         userId={user?.id ?? ""}
         attachments={attachments}

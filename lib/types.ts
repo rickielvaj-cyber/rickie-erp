@@ -138,6 +138,8 @@ export type Note = {
   body: string;
   client_id: string | null;
   pinned: boolean;
+  /** true = server tidak pernah mengirim catatan ini ke AI. */
+  ai_blocked: boolean;
   created_at: string;
   updated_at: string;
 };
