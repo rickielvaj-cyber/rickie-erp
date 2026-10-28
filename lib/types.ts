@@ -142,6 +142,17 @@ export type Note = {
   updated_at: string;
 };
 
+export type WeeklySummary = {
+  id: string;
+  user_id: string;
+  /** Senin minggu itu (YYYY-MM-DD); satu baris per minggu. */
+  week_start: string;
+  summary_text: string;
+  plan_text: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Attachment = {
   id: string;
   user_id: string;
@@ -290,6 +301,13 @@ export type Database = {
         Insert: Pick<Attachment, "storage_path" | "file_name" | "mime_type" | "size_bytes"> &
           Partial<Pick<Attachment, "id" | "user_id" | "issue_id" | "kb_entry_id" | "note_id" | "created_at">>;
         Update: Partial<Omit<Attachment, "id">>;
+        Relationships: [];
+      };
+      weekly_summaries: {
+        Row: WeeklySummary;
+        Insert: Pick<WeeklySummary, "week_start"> &
+          Partial<Pick<WeeklySummary, "id" | "user_id" | "summary_text" | "plan_text" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<WeeklySummary, "id">>;
         Relationships: [];
       };
       notes: {
