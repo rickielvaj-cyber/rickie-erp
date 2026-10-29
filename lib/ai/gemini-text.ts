@@ -3,7 +3,7 @@ import { geminiBaseUrl, readApiError } from "@/lib/search/gemini";
 // Pembuatan teks dengan Gemini (generateContent). Dipakai hanya oleh AI notes, dan hanya atas permintaan pengguna.
 
 /** Nama model bisa diganti lewat GEMINI_TEXT_MODEL bila Google mengubah/menghentikan modelnya. */
-export const DEFAULT_TEXT_MODEL = "gemini-2.5-flash-lite";
+export const DEFAULT_TEXT_MODEL = "gemini-3.5-flash-lite";
 export const textModel = () => process.env.GEMINI_TEXT_MODEL?.trim() || DEFAULT_TEXT_MODEL;
 
 export class AiError extends Error {
