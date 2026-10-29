@@ -1,7 +1,8 @@
 import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL } from "./text";
 
 // GEMINI_BASE_URL hanya untuk pengujian lokal dengan server tiruan; produksi memakai alamat resmi.
-const baseUrl = () => process.env.GEMINI_BASE_URL?.replace(/\/$/, "") ?? "https://generativelanguage.googleapis.com/v1beta";
+export const geminiBaseUrl = () => process.env.GEMINI_BASE_URL?.replace(/\/$/, "") ?? "https://generativelanguage.googleapis.com/v1beta";
+const baseUrl = geminiBaseUrl;
 
 /** Berapa teks per permintaan. Kecil sengaja: aman dari batas ukuran dan 429 hanya mengulang satu potong. */
 export const EMBED_BATCH_SIZE = 20;

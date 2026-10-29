@@ -64,9 +64,14 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
           <h1 className="text-4xl font-semibold tracking-tight">Notes</h1>
           <p className="mt-1 text-base text-muted">Quick notes that save as you type.</p>
         </div>
-        <Link href="/notes/new" className="rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover">
-          + New note
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/notes/ask" className="rounded-full border border-foreground px-4 py-2 text-base transition-colors hover:bg-surface">
+            Ask AI
+          </Link>
+          <Link href="/notes/new" className="rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover">
+            + New note
+          </Link>
+        </div>
       </div>
 
       <form action="/notes" role="search" className="mt-6">

@@ -103,6 +103,8 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0026_notes_ai_blocked.sql` — kolom `notes.ai_blocked` (boolean, bawaan false) untuk catatan yang tidak boleh dikirim ke AI. Hanya
+  menambah satu kolom. Aman diulang. **Jalankan sebelum kode ini live.**
 - `0025_weekly_summaries.sql` — tabel `weekly_summaries` (teks Summary dan Plan per minggu; satu baris per pengguna per Senin; maks.
   50.000 karakter per kolom; RLS pemilik; trigger `updated_at`). Tidak mengubah data lain. Aman diulang. **Jalankan sebelum kode ini live.**
 - `0024_attachments.sql` — tabel `attachments` (metadata; tepat satu induk: issue, entri KB, atau catatan; cascade), bucket Storage privat
@@ -326,7 +328,8 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   catatan kosong tidak tersimpan. Bisa disematkan (Pin), ditautkan ke satu klien, dan dicari (kotak cari di daftar, atau
   pencarian global dengan chip Notes). Kalau catatan yang sama diubah dari perangkat lain, simpan otomatis berhenti dan muncul
   peringatan + tombol Reload (tulisan di perangkat lain tidak tertimpa). Catatan masuk indeks pencarian **kata persis** langsung
-  saat disimpan (`lib/search/note-index.ts`), **tidak di-embed dan tidak dikirim ke Gemini**. Ikut Export JSON.
+  saat disimpan (`lib/search/note-index.ts`), **tidak di-embed dan tidak pernah dikirim ke Gemini oleh pencarian**. Satu-satunya jalan
+  catatan ke Gemini adalah tombol **AI** yang kamu tekan sendiri (bagian AI notes di bawah). Ikut Export JSON.
   **Sinkron antar-perangkat** (`components/AutoRefresh.tsx`, polling, bukan push real time): daftar Notes diperbarui tiap 8 detik dan
   dashboard tiap 15 detik selama tab terlihat (plus saat tab difokuskan lagi); editor yang terbuka memeriksa perubahan dari
   perangkat lain tiap 4 detik dan menampilkannya sendiri ("Updated from another device") selama di layar itu tidak ada
@@ -354,6 +357,21 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   pilih dengan klik atau panah + Enter; wajib memilih dari daftar.
 - **Hapus langsung**: tombol Delete (dengan konfirmasi) di daftar Notes dan di tiap to-do pada halaman Proyek.
 - Pilihan kosong di form ("No goal", "No project", "No phase") tampil abu-abu (`lib/ui.ts`).
+- **AI notes** (panel "AI" di bawah editor catatan, dan `/notes/ask`; `lib/ai/*`, `app/(dashboard)/notes/ai-actions.ts`): **Tidy meeting
+  notes** (ringkasan, keputusan, action item, pertanyaan terbuka), **Summarize**, **Add action items to To-Do** (hanya yang kamu
+  centang), dan **Ask AI** (tanya sampai 5 catatan pilihanmu). Prinsip privasi: (1) tidak ada yang dikirim kecuali kamu menekan
+  tombol; tidak ada proses otomatis atau latar belakang; (2) teks dibaca ulang dari database di server dan **disensor sebelum keluar
+  server**: nama klien/partner (+alias) dan proyek, email, tautan, nomor telepon, NPWP, nominal/angka besar (≥5 digit atau berawalan
+  Rp/IDR/USD), dan kode campuran huruf-angka diganti penanda (`[CLIENT_1]`, `[NUM_2]`, ...), lalu hasil Gemini dikembalikan ke
+  aslinya di server; tanggal dan angka kecil tetap. **Nama orang tidak terdeteksi**: pakai **Preview what is sent** untuk melihat
+  persis teks yang akan keluar; (3) tombol **Never send this note to AI** menandai catatan privat (`notes.ai_blocked`, migrasi
+  `0026`); server menolaknya apa pun yang diminta browser, dan catatan itu tidak bisa dipilih di Ask AI; (4) hasil tidak
+  otomatis masuk catatan: kamu memilih **Append to note**, **Copy**, atau membuang. Batas: 30.000 karakter per catatan, 40.000 total
+  untuk Ask AI. Issue dan klien tetap tidak pernah dikirim. Memakai `GEMINI_API_KEY` yang sama dengan pencarian; model teks
+  diatur lewat `GEMINI_TEXT_MODEL` (bawaan `gemini-2.5-flash-lite`, **belum diverifikasi ke dokumentasi resmi Google**; bila Google
+  mengganti/menghentikan modelnya, aplikasi menampilkan pesan dan cukup mengisi variabel ini). **Catatan tier gratis:** menurut
+  sumber pihak ketiga, Google dapat memakai konten tier gratis untuk memperbaiki produknya (tier berbayar tidak); periksa syarat
+  resminya sebelum memasukkan isi yang sensitif. Kuota gratis terbatas; bila habis muncul pesan "quota reached".
 - **Ringkasan Mingguan** (`/summary`): pilih minggu (Senin–Jumat). Menghasilkan "Summary of This
   Week" (tugas selesai per Goal + issue per klien) dan "Next Week Plan" (tugas belum selesai,
   termasuk yang terlewat, sampai Jumat minggu depan). Kedua kolom bisa diedit lalu disalin ke

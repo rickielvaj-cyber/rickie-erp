@@ -78,7 +78,7 @@ export async function saveNote(id: string | null, baseUpdatedAt: string | null, 
 }
 
 /** Menyematkan juga menaikkan updated_at (trigger), jadi nilai baru dikembalikan agar simpan otomatis berikutnya tidak dianggap bentrok. */
-export type RemoteNote = { updatedAt: string; body: string; clientId: string | null; pinned: boolean };
+export type RemoteNote = { updatedAt: string; body: string; clientId: string | null; pinned: boolean; aiBlocked: boolean };
 
 /** Versi terbaru satu catatan untuk editor yang sedang terbuka. null = catatan sudah dihapus (dari perangkat lain). */
 export async function fetchNote(id: string): Promise<{ ok: true; note: RemoteNote | null } | { ok: false }> {
@@ -86,9 +86,9 @@ export async function fetchNote(id: string): Promise<{ ok: true; note: RemoteNot
   const user = await getAuthUser();
   if (!user) return { ok: false };
   const db = await createClient();
-  const { data, error } = await db.from("notes").select("body, client_id, pinned, updated_at").eq("id", id).maybeSingle();
+  const { data, error } = await db.from("notes").select("body, client_id, pinned, ai_blocked, updated_at").eq("id", id).maybeSingle();
   if (error) return { ok: false };
-  return { ok: true, note: data ? { updatedAt: data.updated_at, body: data.body, clientId: data.client_id, pinned: data.pinned } : null };
+  return { ok: true, note: data ? { updatedAt: data.updated_at, body: data.body, clientId: data.client_id, pinned: data.pinned, aiBlocked: data.ai_blocked } : null };
 }
 
 export async function setNotePinned(id: string, pinned: boolean): Promise<{ ok: true; updatedAt: string } | { ok: false }> {

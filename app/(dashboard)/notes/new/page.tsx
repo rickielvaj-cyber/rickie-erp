@@ -11,7 +11,7 @@ export default async function NewNotePage() {
   return (
     <div className="mx-auto max-w-3xl">
       <NoteEditor
-        initial={{ id: null, body: "", clientId: null, pinned: false, updatedAt: null }}
+        initial={{ id: null, body: "", clientId: null, pinned: false, aiBlocked: false, updatedAt: null }}
         clients={(data ?? []).map((c) => ({ id: c.id, name: c.canonical_name }))}
         userId={user?.id ?? ""}
         attachments={[]}

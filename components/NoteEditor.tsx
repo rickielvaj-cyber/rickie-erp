@@ -6,9 +6,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deleteNote, fetchNote, saveNote, setNotePinned, type SaveResult } from "@/app/(dashboard)/notes/actions";
+import { setNoteAiBlocked } from "@/app/(dashboard)/notes/ai-actions";
+import { NoteAiPanel } from "@/components/NoteAiPanel";
 import { NOTE_MAX_CHARS } from "@/lib/notes";
 
-export type NoteDraft = { id: string | null; body: string; clientId: string | null; pinned: boolean; updatedAt: string | null };
+export type NoteDraft = { id: string | null; body: string; clientId: string | null; pinned: boolean; aiBlocked: boolean; updatedAt: string | null };
 export type ClientOption = { id: string; name: string };
 
 type Status = "idle" | "saving" | "saved" | "error" | "conflict";
@@ -36,6 +38,7 @@ export function NoteEditor({
   const [body, setBody] = useState(initial.body);
   const [clientId, setClientId] = useState(initial.clientId ?? "");
   const [pinned, setPinned] = useState(initial.pinned);
+  const [aiBlocked, setAiBlocked] = useState(initial.aiBlocked);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -154,6 +157,7 @@ export function NoteEditor({
         setBody(remote.note.body);
         setClientId(remote.note.clientId ?? "");
         setPinned(remote.note.pinned);
+        setAiBlocked(remote.note.aiBlocked);
         setNotice("Updated from another device");
         setTimeout(() => setNotice(null), 4000);
         if (el && document.activeElement === el) requestAnimationFrame(() => el.setSelectionRange(caret, caret));
@@ -195,6 +199,27 @@ export function NoteEditor({
       setStatus("error");
       setMessage("Could not pin the note.");
     }
+  };
+
+  const toggleAiBlocked = async () => {
+    flush();
+    await chain.current;
+    if (!idRef.current) return;
+    const next = !aiBlocked;
+    const result = await setNoteAiBlocked(idRef.current, next);
+    if (result.ok) {
+      baseRef.current = result.updatedAt;
+      setAiBlocked(next);
+    } else {
+      setStatus("error");
+      setMessage("Could not change the AI setting.");
+    }
+  };
+
+  /** Tambahkan hasil AI di akhir catatan (lewat jalur ketik biasa, jadi ikut tersimpan otomatis). */
+  const appendToBody = (text: string) => {
+    const current = latest.current.body;
+    onBody(`${current}${current === "" || current.endsWith("\n\n") ? "" : current.endsWith("\n") ? "\n" : "\n\n"}${text}\n`);
   };
 
   const remove = async () => {
@@ -271,6 +296,14 @@ export function NoteEditor({
         placeholder="Start typing. The first line becomes the title."
         className="mt-5 block w-full resize-none rounded-none border-0 bg-transparent p-0 text-lg leading-relaxed placeholder:text-muted focus:outline-none"
         style={{ minHeight: "20rem" }}
+      />
+
+      <NoteAiPanel
+        noteId={noteId}
+        blocked={aiBlocked}
+        saving={status === "saving" || status === "conflict" || status === "error"}
+        onToggleBlocked={toggleAiBlocked}
+        onAppend={appendToBody}
       />
 
       {noteId ? (
