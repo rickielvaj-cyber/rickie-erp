@@ -368,7 +368,7 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   `0026`); server menolaknya apa pun yang diminta browser, dan catatan itu tidak bisa dipilih di Ask AI; (4) hasil tidak
   otomatis masuk catatan: kamu memilih **Append to note**, **Copy**, atau membuang. Batas: 30.000 karakter per catatan, 40.000 total
   untuk Ask AI. Issue dan klien tetap tidak pernah dikirim. Memakai `GEMINI_API_KEY` yang sama dengan pencarian; model teks
-  diatur lewat `GEMINI_TEXT_MODEL` (bawaan `gemini-2.5-flash-lite`, **belum diverifikasi ke dokumentasi resmi Google**; bila Google
+  diatur lewat `GEMINI_TEXT_MODEL` (bawaan `gemini-3.5-flash-lite`, nama yang disarankan Google sendiri dalam pesan error 404 untuk `gemini-2.5-flash-lite`, yang sudah tidak tersedia untuk pengguna baru; belum diuji dengan kunci asli; bila Google
   mengganti/menghentikan modelnya, aplikasi menampilkan pesan dan cukup mengisi variabel ini). **Catatan tier gratis:** menurut
   sumber pihak ketiga, Google dapat memakai konten tier gratis untuk memperbaiki produknya (tier berbayar tidak); periksa syarat
   resminya sebelum memasukkan isi yang sensitif. Kuota gratis terbatas; bila habis muncul pesan "quota reached".
