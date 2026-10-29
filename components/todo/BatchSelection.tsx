@@ -168,7 +168,7 @@ export function BatchSelection({
         </p>
       )}
       {selected.size > 0 && (
-        <div role="region" aria-label="Edit selected tasks" className="fixed inset-x-0 bottom-0 z-40 border-t border-foreground bg-background/95 backdrop-blur">
+        <div role="region" aria-label="Edit selected tasks" data-pause-refresh className="fixed inset-x-0 bottom-0 z-40 border-t border-foreground bg-background/95 backdrop-blur">
           <form onSubmit={apply} className="mx-auto flex max-w-4xl flex-col gap-3 px-6 py-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <span className="text-base font-medium">{selected.size} selected</span>

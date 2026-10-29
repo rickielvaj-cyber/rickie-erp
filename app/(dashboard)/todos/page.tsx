@@ -3,6 +3,7 @@ import { groupByProject, startsOpen, type GroupMeta } from "@/lib/todo-groups";
 import { EMPTY_MUTED } from "@/lib/ui";
 import { safeReturnPath } from "@/lib/return-to";
 import { Suspense } from "react";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
@@ -191,6 +192,8 @@ export default async function TodosPage({
 
   return (
     <div className="mx-auto">
+      {/* Sinkron antar perangkat (to-do dari HP muncul di PC). Lebih jarang dari Notes karena halaman ini juga membaca Google Calendar. */}
+      <AutoRefresh intervalMs={20000} pauseParams={["new", "edit"]} />
       {(isNew || editingTodo) && (
         <div className="mx-auto mb-10 max-w-2xl">
           <TodoForm key={editingTodo?.id ?? "new"} todo={editingTodo} goals={goals} projects={projectOptions} error={params.error} from={safeReturnPath(params.from)} />
