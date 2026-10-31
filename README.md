@@ -321,8 +321,7 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   2000 px, JPEG). File diunggah langsung dari browser ke Supabase Storage (jalur `<id pengguna>/<uuid>.<ext>`, dijaga policy Storage)
   lalu didaftarkan lewat server action yang memeriksa ulang jenis (dari ekstensi), ukuran (dari Storage), jalur, induk, dan batas jumlah.
   Tampil lewat tautan bertanda tangan yang berlaku ±1 jam. **Tidak pernah dikirim ke Gemini dan tidak ikut pencarian.** Menghapus issue
-  atau catatan membersihkan file-nya dari Storage. **Catatan backup:** file lampiran hanya ada di Supabase Storage dan tidak ikut backup
-  mingguan (daftarnya ikut); lihat `docs/BACKUP.md`.
+  atau catatan membersihkan file-nya dari Storage. **Catatan backup:** file lampiran ikut backup mingguan terenkripsi sebagai job terpisah (`scripts/backup-attachments.sh`, butuh rahasia GitHub `SUPABASE_SERVICE_ROLE_KEY`; lihat `docs/BACKUP.md`); sebelum rahasia itu dipasang, file lampiran tidak ikut backup (daftarnya di tabel `attachments` selalu ikut).
 - **Notes** (`/notes`): catatan cepat ala Notes iPhone. Satu kotak teks; baris pertama jadi judul; simpan otomatis 0,7 detik
   setelah berhenti mengetik (juga saat fokus pindah atau tab disembunyikan). Catatan baru dibuat pada simpan pertama, jadi
   catatan kosong tidak tersimpan. Bisa disematkan (Pin), ditautkan ke satu klien, dan dicari (kotak cari di daftar, atau

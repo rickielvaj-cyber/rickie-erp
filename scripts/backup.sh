@@ -6,7 +6,8 @@
 #
 # Isi backup = data klien, jadi file keluaran SELALU terenkripsi (AES-256, passphrase).
 # Repo ini publik: jangan pernah menyimpan dump mentah di repo, log, atau artifact.
-# Yang TIDAK ikut: auth.users (akun login) dan file di Storage (gambar KB); lihat docs/BACKUP.md.
+# Yang TIDAK ikut: auth.users (akun login) dan gambar KB di Storage; file lampiran dibackup terpisah oleh
+# scripts/backup-attachments.sh. Lihat docs/BACKUP.md.
 set -euo pipefail
 
 : "${SUPABASE_DB_URL:?Set SUPABASE_DB_URL (connection string Session pooler)}"
