@@ -330,7 +330,7 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   peringatan + tombol Reload (tulisan di perangkat lain tidak tertimpa). Catatan masuk indeks pencarian **kata persis** langsung
   saat disimpan (`lib/search/note-index.ts`), **tidak di-embed dan tidak pernah dikirim ke Gemini oleh pencarian**. Satu-satunya jalan
   catatan ke Gemini adalah tombol **AI** yang kamu tekan sendiri (bagian AI notes di bawah). Ikut Export JSON.
-  **Sinkron antar-perangkat** (`components/AutoRefresh.tsx`, polling, bukan push real time): daftar Notes diperbarui tiap 8 detik dan
+  **Sinkron antar-perangkat** (`components/AutoRefresh.tsx`, polling, bukan push real time; halaman **To-Do** ikut, tiap 20 detik, lebih jarang karena halaman itu juga membaca Google Calendar). Refresh otomatis **menunggu** selama kamu mengerjakan sesuatu (`lib/auto-refresh.ts`): kolom teks sedang fokus, form New/Edit terbuka, ada dialog atau seleksi batch, atau mouse/jari sedang menyeret: daftar Notes diperbarui tiap 8 detik dan
   dashboard tiap 15 detik selama tab terlihat (plus saat tab difokuskan lagi); editor yang terbuka memeriksa perubahan dari
   perangkat lain tiap 4 detik dan menampilkannya sendiri ("Updated from another device") selama di layar itu tidak ada
   ketikan yang belum tersimpan. Tab yang tersembunyi tidak memanggil server. Halaman lain (To-Do, Issue Log, KB, dst.) belum
