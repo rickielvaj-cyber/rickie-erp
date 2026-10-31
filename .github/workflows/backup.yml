@@ -1,8 +1,8 @@
 name: Backup database
 
-# Backup mingguan database Supabase (free tier tidak punya backup otomatis).
-# Hasilnya terenkripsi (AES-256) dan disimpan sebagai artifact 90 hari. Repo ini PUBLIK,
-# jadi dump mentah tidak boleh keluar dari langkah "Dump dan enkripsi".
+# Backup mingguan Supabase (free tier tidak punya backup otomatis): database (job `backup`) dan file lampiran
+# di Storage (job `attachments`). Hasilnya terenkripsi (AES-256) dan disimpan sebagai artifact. Repo ini PUBLIK,
+# jadi dump atau file mentah tidak boleh keluar dari langkah yang mengenkripsinya, dan log hanya boleh berisi angka.
 # Pengaturan satu kali dan cara restore: docs/BACKUP.md
 
 on:
@@ -50,3 +50,37 @@ jobs:
           path: out/*.sql.gz.gpg
           retention-days: 90
           if-no-files-found: error
+
+  # Dua job terpisah: kegagalan satu tidak membatalkan yang lain (mis. kunci Storage belum dipasang tidak boleh
+  # menghentikan backup database).
+  attachments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Pasang dependensi
+        run: npm ci --ignore-scripts
+
+      # Mengunduh semua file lampiran, mengemas, lalu mengenkripsi dengan passphrase yang sama dengan backup database.
+      # Gagal (kode 1) bila ada file hilang/rusak atau ukuran total melewati batas, tetapi yang berhasil tetap dikemas.
+      - name: Unduh, kemas, dan enkripsi lampiran
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: ./scripts/backup-attachments.sh "out/attachments-$(date -u +%F).tar.gz.gpg"
+
+      - name: Simpan artifact (terenkripsi)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: attachments-${{ github.run_id }}
+          path: out/attachments-*.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: ignore
