@@ -290,6 +290,7 @@ export default async function TodosPage({
         )}
 
         <BatchSelection
+          canSelect={todayTodos.length > 0}
           today={today}
           goals={activeGoals.map((g) => ({ id: g.id, title: g.title }))}
           projects={projectOptions.filter((p) => !p.done).map((p) => ({ id: p.id, label: p.label, phases: p.phases }))}

@@ -1,17 +1,21 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { batchDeleteTodos, batchUpdateTodos } from "@/app/(dashboard)/todos/actions";
 import { addDaysISO, formatDayMonth, mondayOfISO } from "@/lib/date";
+import { isTextEntry } from "@/lib/auto-refresh";
 
-// Edit massal di daftar Hari ini: kotak centang di tiap to-do (dan di tiap kelompok proyek), lalu bar aksi di bawah layar
-// untuk mengubah tanggal, prioritas, status, goal, proyek/fase atau menghapus semuanya sekaligus.
+// Edit massal di daftar Hari ini. Kotak pilihan TIDAK tampil secara bawaan (supaya tidak tertukar dengan kotak "selesai");
+// tombol Select di atas daftar membuka mode memilih: kotak muncul di tiap to-do (dan tiap kelompok), lalu bar aksi di bawah layar
+// mengubah tanggal, prioritas, status, goal, proyek/fase atau menghapus semuanya sekaligus. Done / Esc / selesai mengedit = keluar mode.
 
 export type BatchGoal = { id: string; title: string };
 export type BatchProject = { id: string; label: string; phases: { id: string; name: string }[] };
 
 type Ctx = {
+  /** Mode memilih aktif: hanya saat itu kotak pilihan ditampilkan. */
+  selecting: boolean;
   selected: ReadonlySet<string>;
   toggle: (id: string) => void;
   setMany: (ids: string[], on: boolean) => void;
@@ -23,7 +27,7 @@ const box = "h-4 w-4 shrink-0 cursor-pointer rounded border border-foreground ac
 /** Kotak centang satu to-do. Di luar BatchSelection tidak menampilkan apa pun. */
 export function SelectBox({ id, title }: { id: string; title: string }) {
   const ctx = useContext(SelectionContext);
-  if (!ctx) return null;
+  if (!ctx || !ctx.selecting) return null;
   return (
     <input
       type="checkbox"
@@ -38,7 +42,7 @@ export function SelectBox({ id, title }: { id: string; title: string }) {
 /** Kotak centang satu kelompok (semua to-do di dalamnya); setengah terpilih tampil indeterminate. */
 export function SelectGroup({ ids, label }: { ids: string[]; label: string }) {
   const ctx = useContext(SelectionContext);
-  if (!ctx) return null;
+  if (!ctx || !ctx.selecting) return null;
   const count = ids.filter((id) => ctx.selected.has(id)).length;
   return (
     <input
@@ -61,13 +65,17 @@ export function BatchSelection({
   today,
   goals,
   projects,
+  canSelect = true,
 }: {
   children: React.ReactNode;
   today: string;
   goals: BatchGoal[];
   projects: BatchProject[];
+  /** Ada to-do yang bisa dipilih; bila tidak, tombol Select disembunyikan. */
+  canSelect?: boolean;
 }) {
   const router = useRouter();
+  const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [dueDate, setDueDate] = useState(""); // "" = tidak diubah, "none" = hapus tanggal, selain itu YYYY-MM-DD
@@ -82,6 +90,7 @@ export function BatchSelection({
 
   const ctx = useMemo<Ctx>(
     () => ({
+      selecting,
       selected,
       toggle: (id) =>
         setSelected((prev) => {
@@ -100,10 +109,11 @@ export function BatchSelection({
           return next;
         }),
     }),
-    [selected],
+    [selecting, selected],
   );
 
   const reset = () => {
+    setSelecting(false);
     setSelected(new Set());
     setOpen(false);
     setDueDate("");
@@ -113,6 +123,25 @@ export function BatchSelection({
     setProject("");
     setPhase("");
   };
+
+  const stopSelecting = () => {
+    reset();
+    setMessage(null);
+  };
+
+  // Esc keluar dari mode memilih (kecuali saat mengetik di sebuah kolom).
+  useEffect(() => {
+    if (!selecting) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      // Setelah mencentang kotak, fokus tetap di kotak itu: Esc harus tetap berlaku. Hanya kolom teks dan daftar pilihan yang dikecualikan.
+      const typing = isTextEntry(el?.tagName, el instanceof HTMLInputElement ? el.type : null) || el?.tagName === "SELECT";
+      if (e.key === "Escape" && !typing) stopSelecting();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selecting]);
 
   const apply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,6 +188,21 @@ export function BatchSelection({
 
   return (
     <SelectionContext.Provider value={ctx}>
+      {(canSelect || selecting) && (
+        <div className="mb-3 flex items-center justify-end gap-3">
+          {selecting && selected.size === 0 && <span className="text-sm text-muted">Tick the tasks to edit together.</span>}
+          <button
+            type="button"
+            onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+            aria-pressed={selecting}
+            className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+              selecting ? "border-foreground bg-foreground text-background" : "border-foreground hover:bg-surface"
+            }`}
+          >
+            {selecting ? "Done" : "Select"}
+          </button>
+        </div>
+      )}
       {children}
       {/* Ruang kosong di bawah daftar supaya baris terakhir tidak tertutup bar aksi. */}
       {selected.size > 0 && <div aria-hidden="true" className={open ? "h-[28rem] sm:h-48" : "h-28 sm:h-48"} />}
