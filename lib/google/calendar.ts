@@ -38,26 +38,43 @@ export function normalizeEvent(raw: RawEvent): CalendarEvent | null {
   return null;
 }
 
-/** Acara kalender utama untuk minggu (Senin..Minggu WIB) yang dimulai di `weekStart`. Tidak disimpan di mana pun. */
-export async function listWeekEvents(accessToken: string, weekStart: string): Promise<CalendarEvent[]> {
-  const url = new URL(`${API()}/calendars/primary/events`);
-  url.search = new URLSearchParams({
-    timeMin: `${weekStart}T00:00:00+07:00`,
-    timeMax: `${addDaysISO(weekStart, 7)}T00:00:00+07:00`,
-    singleEvents: "true",
-    orderBy: "startTime",
-    maxResults: "250",
-    timeZone: "Asia/Jakarta",
-    fields: "items(id,status,summary,htmlLink,start,end,reminders)",
-  }).toString();
+/** Halaman paling banyak yang diambil per permintaan rentang: 4 x 250 acara cukup untuk satu bulan; lebih dari itu dipotong. */
+const MAX_PAGES = 4;
 
-  const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10_000), cache: "no-store" });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new CalendarApiError(`Google Calendar request failed (${response.status}${body.error?.message ? `: ${body.error.message}` : ""}).`);
+/** Acara kalender utama dari `start` (inklusif) sampai `endExclusive` (tanggal YYYY-MM-DD WIB). Tidak disimpan di mana pun. */
+export async function listEventsInRange(accessToken: string, start: string, endExclusive: string): Promise<CalendarEvent[]> {
+  const events: CalendarEvent[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = new URL(`${API()}/calendars/primary/events`);
+    const params = new URLSearchParams({
+      timeMin: `${start}T00:00:00+07:00`,
+      timeMax: `${endExclusive}T00:00:00+07:00`,
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "250",
+      timeZone: "Asia/Jakarta",
+      fields: "nextPageToken,items(id,status,summary,htmlLink,start,end,reminders)",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+    url.search = params.toString();
+
+    const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10_000), cache: "no-store" });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+      throw new CalendarApiError(`Google Calendar request failed (${response.status}${body.error?.message ? `: ${body.error.message}` : ""}).`);
+    }
+    const json = (await response.json()) as { items?: RawEvent[]; nextPageToken?: string };
+    events.push(...(json.items ?? []).map(normalizeEvent).filter((e): e is CalendarEvent => e !== null));
+    pageToken = json.nextPageToken;
+    if (!pageToken) break;
   }
-  const json = (await response.json()) as { items?: RawEvent[] };
-  return (json.items ?? []).map(normalizeEvent).filter((e): e is CalendarEvent => e !== null);
+  return events;
+}
+
+/** Acara kalender utama untuk minggu (Senin..Minggu WIB) yang dimulai di `weekStart`. */
+export function listWeekEvents(accessToken: string, weekStart: string): Promise<CalendarEvent[]> {
+  return listEventsInRange(accessToken, weekStart, addDaysISO(weekStart, 7));
 }
 
 // ---- Menulis acara (time blocking) ----------------------------------------------------------------

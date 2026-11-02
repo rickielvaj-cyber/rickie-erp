@@ -259,6 +259,13 @@ pengingat yang diatur di Google dengan cara lain (email, atau beberapa sekaligus
 tidak diubah kecuali kamu memilih nilai lain. Menggeser atau mengubah ukuran blok tidak menyentuh pengingat. To-do tanpa
 blok tidak punya pengingat. Tanpa migrasi, tanpa scope Google baru.
 
+**Tampilan bulan** (`/todos/month`, tombol **Month view** di bagian Calendar): grid Senin–Minggu untuk satu bulan, berisi acara Google
+(seharian hitam, berjam abu-abu dengan jam WIB; acara lintas hari tampil di tiap harinya) dan to-do jatuh tempo (berbingkai; yang
+selesai dicoret). Tiap hari menampilkan 3 item pertama dan "+N more"; di layar HP hanya jumlah. Klik satu hari membuka minggunya di
+halaman To-Do. To-do yang tertaut ke acara yang terbaca ditampilkan sekali, sebagai acaranya. Hanya membaca: tidak menyinkronkan
+to-do dengan Google (itu terjadi saat bagian Calendar minggu dibuka). Bila Google tidak tersambung atau gagal dibaca, halaman tetap
+tampil dengan to-do saja plus catatan. Logika di `lib/month-grid.ts`; tanpa migrasi dan tanpa izin Google baru.
+
 1. **Google Cloud Console** → proyek baru → *APIs & Services → Library* → **Google Calendar API → Enable**.
 2. *OAuth consent screen*: tipe **External**, isi nama aplikasi dan email. Di **Test users** tambahkan email Google Anda. Setelah
    semuanya jalan, ubah *Publishing status* ke **In production** supaya login tidak kedaluwarsa tiap 7 hari (aplikasi

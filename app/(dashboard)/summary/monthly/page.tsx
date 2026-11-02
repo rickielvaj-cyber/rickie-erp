@@ -3,15 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { endOfMonthISO, isYearMonth, todayISO } from "@/lib/date";
 import { buildMonthlyText, monthTitle } from "@/lib/summary";
 import { currentPhase, sortPhases } from "@/lib/projects";
+import { shiftMonth } from "@/lib/month-grid";
 import { CopyBox } from "./CopyBox";
 
 const WIB = "+07:00";
-
-const shiftMonth = (yyyyMm: string, delta: number) => {
-  const [y, m] = yyyyMm.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-  return d.toISOString().slice(0, 7);
-};
 
 export default async function MonthlyRecapPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const params = await searchParams;
