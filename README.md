@@ -344,7 +344,7 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **Pasang di HP (PWA)**: situs punya manifest dan ikon, jadi bisa dipasang ke layar utama dan dibuka layar penuh. iPhone: Safari →
   Share → **Add to Home Screen**; Android: menu Chrome → **Install app / Add to Home screen**. Jalan pintas "New note" dan "To-Do
   List" muncul saat ikon ditekan lama (Android). Tidak ada service worker: situs tetap butuh koneksi (tidak ada mode offline).
-- **Edit massal to-do** (panel Today di `/todos`, `components/todo/BatchSelection.tsx`, `lib/todo-batch.ts`): kotak centang di tiap to-do
+- **Edit massal to-do** (panel Today di `/todos`, `components/todo/BatchSelection.tsx`, `lib/todo-batch.ts`): kotak pilihan **tidak tampil secara bawaan** (supaya tidak tertukar dengan kotak "tandai selesai"); tombol **Select** di atas daftar membuka mode memilih, dan **Done** atau **Esc** (atau selesai menerapkan perubahan) menutupnya dan mengosongkan pilihan. Dalam mode itu ada kotak centang di tiap to-do
   dan di tiap grup (Overdue, Today, proyek). Setelah ada yang dipilih, bar di bawah layar mengubah sekaligus: tanggal (Today /
   Tomorrow / Next Mon / No date / tanggal bebas), prioritas, status, goal, proyek + fase, atau menghapus. Pilihan yang dibiarkan
   "no change" tidak disentuh; mengganti proyek tanpa memilih fase mengosongkan fasenya. To-do yang tertaut ke blok kalender

@@ -20,11 +20,16 @@ export type RefreshGuard = {
 /** <input> yang bukan isian teks (kotak centang, tombol, dsb.) tetap fokus setelah diklik, jadi tidak boleh menahan refresh. */
 const NON_TEXT_INPUT = new Set(["checkbox", "radio", "button", "submit", "reset", "image", "file", "range", "color"]);
 
+/** Elemen fokus tempat orang mengetik teks: textarea, atau input teks (bukan kotak centang, tombol, dsb.). */
+export function isTextEntry(tag: string | null | undefined, type?: string | null): boolean {
+  const t = tag?.toUpperCase();
+  if (t === "TEXTAREA") return true;
+  return t === "INPUT" && !NON_TEXT_INPUT.has((type ?? "text").toLowerCase());
+}
+
 export function shouldPauseRefresh(g: RefreshGuard): boolean {
   if (g.pointerDown || g.hasPauseElement || g.activeEditable) return true;
-  const tag = g.activeTag?.toUpperCase();
-  if (tag === "TEXTAREA") return true;
-  if (tag === "INPUT" && !NON_TEXT_INPUT.has((g.activeType ?? "text").toLowerCase())) return true;
+  if (isTextEntry(g.activeTag, g.activeType)) return true;
   const params = new URLSearchParams(g.search);
   return g.pauseParams.some((p) => params.has(p));
 }

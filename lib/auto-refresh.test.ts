@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { shouldPauseRefresh, type RefreshGuard } from "./auto-refresh";
+import { isTextEntry, shouldPauseRefresh, type RefreshGuard } from "./auto-refresh";
 
 const idle: RefreshGuard = { activeTag: "BODY", activeEditable: false, search: "", pauseParams: ["new", "edit"], hasPauseElement: false, pointerDown: false };
 
@@ -34,4 +34,14 @@ test("an open form (new/edit in the URL) pauses", () => {
 test("pause markers and dragging pause", () => {
   assert.equal(shouldPauseRefresh({ ...idle, hasPauseElement: true }), true);
   assert.equal(shouldPauseRefresh({ ...idle, pointerDown: true }), true);
+});
+
+test("isTextEntry is true only where you type text", () => {
+  assert.equal(isTextEntry("TEXTAREA"), true);
+  assert.equal(isTextEntry("input", "text"), true);
+  assert.equal(isTextEntry("INPUT", "search"), true);
+  assert.equal(isTextEntry("INPUT", null), true);
+  assert.equal(isTextEntry("INPUT", "checkbox"), false);
+  assert.equal(isTextEntry("BUTTON"), false);
+  assert.equal(isTextEntry(null), false);
 });
