@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { addDaysISO, formatDayMonth } from "@/lib/date";
 import { listWeekEvents } from "@/lib/google/calendar";
 import { initialScrollHour, layoutWeek, type DayLayout } from "@/lib/google/layout";
@@ -17,12 +18,17 @@ const NOTICE: Record<string, string> = {
   unconfigured: "Google Calendar is not set up on the server yet.",
 };
 
-function Shell({ notice, children }: { notice?: string; children: React.ReactNode }) {
+function Shell({ notice, weekStart, children }: { notice?: string; weekStart: string; children: React.ReactNode }) {
   return (
     <section id="calendar" aria-labelledby="calendar-heading" className="mt-16 scroll-mt-24 border-t border-foreground pt-12">
-      <h2 id="calendar-heading" className="text-3xl font-semibold tracking-tight">
-        Calendar
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="calendar-heading" className="text-3xl font-semibold tracking-tight">
+          Calendar
+        </h2>
+        <Link href={`/todos/month?month=${weekStart.slice(0, 7)}`} className="rounded-full border border-foreground px-4 py-1.5 text-sm hover:bg-surface">
+          Month view
+        </Link>
+      </div>
       {notice && NOTICE[notice] && (
         <p className="mt-4 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm">{NOTICE[notice]}</p>
       )}
@@ -95,7 +101,7 @@ export async function CalendarSection({
 
   if (state.kind === "unconfigured") {
     return (
-      <Shell notice={notice}>
+      <Shell notice={notice} weekStart={weekStart}>
         <Hint>
           Google Calendar is not set up on the server yet. Add <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, and{" "}
           <code>GOOGLE_TOKEN_SECRET</code> in Vercel (see the README), then come back here to connect.
@@ -105,7 +111,7 @@ export async function CalendarSection({
   }
   if (state.kind === "disconnected") {
     return (
-      <Shell notice={notice}>
+      <Shell notice={notice} weekStart={weekStart}>
         <p className="mb-4 text-base text-muted">
           Connect your Google account to see your calendar for the week next to your to-dos. The site only reads and writes calendar events
           (never email or files), and events are not stored here.
@@ -116,7 +122,7 @@ export async function CalendarSection({
   }
   if (state.kind === "reconnect") {
     return (
-      <Shell notice={notice}>
+      <Shell notice={notice} weekStart={weekStart}>
         <p className="mb-4 text-base text-muted">Google access has expired or was removed. Connect again to continue.</p>
         <ConnectButton label="Reconnect Google Calendar" />
       </Shell>
@@ -124,7 +130,7 @@ export async function CalendarSection({
   }
   if (state.kind === "error") {
     return (
-      <Shell notice={notice}>
+      <Shell notice={notice} weekStart={weekStart}>
         <p role="alert" className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
           Could not load the calendar right now ({state.message}). The rest of the page is unaffected.
         </p>
@@ -134,7 +140,7 @@ export async function CalendarSection({
 
   const count = state.days.reduce((n, d) => n + d.allDay.length + d.blocks.length, 0);
   return (
-    <Shell notice={notice}>
+    <Shell notice={notice} weekStart={weekStart}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-base text-muted">
           {formatDayMonth(weekStart)} – {formatDayMonth(addDaysISO(weekStart, 6))} · {count} {count === 1 ? "event" : "events"} · primary calendar
