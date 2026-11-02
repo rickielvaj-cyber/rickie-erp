@@ -5,6 +5,8 @@ import { addDaysISO, formatLongDay, isYearMonth, mondayOfISO, todayISO } from "@
 import { monthTitle } from "@/lib/summary";
 import { buildDayItems, countDistinct, describeDay, gridRange, limitItems, monthWeeks, shiftMonth, type DayItem } from "@/lib/month-grid";
 import { listEventsInRange } from "@/lib/google/calendar";
+import { loadExtraEvents } from "@/lib/google/extra-calendars";
+import { mergeExtraEvents } from "@/lib/google/calendar-sources";
 import { GoogleAuthError, googleConfigured } from "@/lib/google/oauth";
 import { getAccessToken, isConnected } from "@/lib/google/store";
 import type { CalendarEvent } from "@/lib/google/layout";
@@ -14,16 +16,19 @@ export const metadata = { title: "Month" };
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_VISIBLE = 3;
 
-type EventsResult = { events: CalendarEvent[] | null; note: string | null };
+type EventsResult = { events: CalendarEvent[] | null; note: string | null; notes?: string[] };
 
 /** Acara Google untuk rentang grid. Gagal apa pun = tanpa acara plus catatan; to-do tetap tampil. Hanya membaca, tidak menyinkronkan to-do. */
-async function loadEvents(userId: string, start: string, endExclusive: string): Promise<EventsResult> {
+async function loadEvents(db: Awaited<ReturnType<typeof createClient>>, userId: string, start: string, endExclusive: string): Promise<EventsResult> {
   if (!googleConfigured()) return { events: null, note: "Google Calendar is not set up on the server, so only to-dos are shown." };
   try {
     if (!(await isConnected(userId))) return { events: null, note: "Google Calendar is not connected, so only to-dos are shown." };
     const token = await getAccessToken(userId);
     if (!token) return { events: null, note: "Google access has expired. Reconnect it in the Calendar section; only to-dos are shown for now." };
-    return { events: await listEventsInRange(token, start, endExclusive), note: null };
+    const primary = await listEventsInRange(token, start, endExclusive);
+    // Kalender tambahan (hanya baca); gagal satu kalender = catatan, bukan error halaman.
+    const { extras, notes } = await loadExtraEvents(db, token, start, endExclusive).catch(() => ({ extras: [], notes: [] as string[] }));
+    return { events: mergeExtraEvents(primary, extras), note: null, notes };
   } catch (error) {
     if (error instanceof GoogleAuthError && error.reconnect) return { events: null, note: "Google access has expired. Reconnect it in the Calendar section; only to-dos are shown for now." };
     return { events: null, note: "Google Calendar could not be read right now, so only to-dos are shown." };
@@ -35,6 +40,14 @@ function Item({ item }: { item: DayItem }) {
   const done = item.done ? " line-through opacity-60" : "";
   if (item.kind === "todo") {
     return <span className={`${base} border border-foreground${done}`}>{item.title}</span>;
+  }
+  if (item.source) {
+    return (
+      <span className={`${base} border border-dashed border-foreground${done}`} title={`${item.title} · ${item.source}`}>
+        {item.time ? <span className="mr-1 tabular-nums text-muted">{item.time}</span> : null}
+        {item.title}
+      </span>
+    );
   }
   return (
     <span className={`${base} ${item.allDay ? "bg-foreground text-background" : "bg-surface"}${done}`}>
@@ -63,7 +76,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
       .lte("due_date", range.end)
       .order("due_date", { ascending: true })
       .limit(1000),
-    authUser ? loadEvents(authUser.id, range.start, addDaysISO(range.end, 1)) : Promise.resolve<EventsResult>({ events: null, note: null }),
+    authUser ? loadEvents(supabase, authUser.id, range.start, addDaysISO(range.end, 1)) : Promise.resolve<EventsResult>({ events: null, note: null }),
   ]);
 
   const todos = todosResult.data ?? [];
@@ -99,6 +112,11 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
       </div>
 
       {eventsResult.note && <p className="mt-5 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm">{eventsResult.note}</p>}
+      {(eventsResult.notes ?? []).map((n) => (
+        <p key={n} role="status" className="mt-3 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm">
+          {n}
+        </p>
+      ))}
       {todosResult.error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load to-dos: {todosResult.error.message}</p>}
 
       <table className="mt-6 w-full table-fixed border-collapse">
@@ -160,6 +178,9 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
         </span>
         <span>
           <span className="mr-1.5 inline-block h-3 w-5 rounded border border-foreground align-middle" /> to-do due
+        </span>
+        <span>
+          <span className="mr-1.5 inline-block h-3 w-5 rounded border border-dashed border-foreground align-middle" /> other calendar (read-only)
         </span>
         <span>A to-do linked to a calendar block shows once, as the block.</span>
       </p>

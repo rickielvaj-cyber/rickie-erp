@@ -48,7 +48,7 @@ const inputClass =
 
 /** Acara berjam yang bisa diubah di sini = mulai dan selesai di hari WIB yang sama. Selain itu dibuka di Google Calendar. */
 function panelFor(event: CalendarEvent): Panel | null {
-  if (event.allDay) return null;
+  if (event.allDay || event.source) return null; // acara kalender tambahan: hanya baca
   const s = toWib(event.start);
   const e = toWib(event.end);
   if (s.date !== e.date) return null;
@@ -316,8 +316,8 @@ export function CalendarGrid({
                       href={ev.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="truncate rounded bg-surface px-1.5 py-0.5 text-xs hover:underline"
-                      title={`${ev.title} (open in Google Calendar)`}
+                      className={`truncate rounded px-1.5 py-0.5 text-xs hover:underline ${ev.source ? "border border-dashed border-foreground" : "bg-surface"}`}
+                      title={ev.source ? `${ev.title} · ${ev.source} (open in Google Calendar)` : `${ev.title} (open in Google Calendar)`}
                     >
                       {ev.title}
                     </a>
@@ -381,7 +381,7 @@ export function CalendarGrid({
                   };
                   // Blok pendek (<= 45 menit) satu baris saja supaya jamnya tidak terpotong di baris kedua.
                   const short = b.endMin - b.startMin <= 45;
-                  const className = `absolute z-10 overflow-hidden rounded-md border border-foreground bg-background px-1.5 py-0.5 text-left text-xs leading-tight hover:bg-surface ${
+                  const className = `absolute z-10 overflow-hidden rounded-md border ${b.event.source ? "border-dashed bg-surface/70" : "bg-background"} border-foreground px-1.5 py-0.5 text-left text-xs leading-tight hover:bg-surface ${
                     short ? "truncate whitespace-nowrap" : ""
                   } ${ghost?.id === b.event.id ? "opacity-40" : ""}`;
                   const linked = linkedTitles[b.event.id];
@@ -429,7 +429,11 @@ export function CalendarGrid({
                       rel="noopener noreferrer"
                       className={className}
                       style={style}
-                      title={`${b.event.title} (spans several days: edit in Google Calendar)`}
+                      title={
+                        b.event.source
+                          ? `${b.event.title} · ${b.event.source} (read-only: open in Google Calendar)`
+                          : `${b.event.title} (spans several days: edit in Google Calendar)`
+                      }
                       onPointerDown={(e) => e.stopPropagation()}
                     >
                       {body}

@@ -13,6 +13,10 @@ export type CalendarEvent = {
   start: string;
   end: string;
   link?: string;
+  /** Label kalender TAMBAHAN asal acara ini (hanya baca); kosong = kalender utama. */
+  source?: string;
+  /** iCalUID Google: acara yang sama di dua kalender punya UID yang sama (untuk membuang duplikat). */
+  uid?: string;
   /** Pengingat acara berjam (lihat lib/google/reminder.ts). */
   reminder?: ReminderChoice;
 };

@@ -155,6 +155,15 @@ export type WeeklySummary = {
   updated_at: string;
 };
 
+export type CalendarSource = {
+  id: string;
+  user_id: string;
+  /** ID kalender Google yang ditempel pengguna (mis. alamat email kalender); hanya dibaca. */
+  calendar_id: string;
+  label: string;
+  created_at: string;
+};
+
 export type Attachment = {
   id: string;
   user_id: string;
@@ -303,6 +312,12 @@ export type Database = {
         Insert: Pick<Attachment, "storage_path" | "file_name" | "mime_type" | "size_bytes"> &
           Partial<Pick<Attachment, "id" | "user_id" | "issue_id" | "kb_entry_id" | "note_id" | "created_at">>;
         Update: Partial<Omit<Attachment, "id">>;
+        Relationships: [];
+      };
+      calendar_sources: {
+        Row: CalendarSource;
+        Insert: Pick<CalendarSource, "calendar_id"> & Partial<Pick<CalendarSource, "id" | "user_id" | "label" | "created_at">>;
+        Update: Partial<Omit<CalendarSource, "id">>;
         Relationships: [];
       };
       weekly_summaries: {
