@@ -103,6 +103,9 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0028_focus_sessions.sql` — tabel `focus_sessions` (satu baris per sesi fokus yang selesai: waktu mulai, menit, label, poin; unik per
+  pengguna dan waktu mulai; RLS pemilik; menit 5–120, label maks. 80). Tidak mengubah data lain. Policy dibuat tanpa DROP (jalankan sekali).
+  **Jalankan sebelum kode ini live** (halaman Focus membaca tabelnya).
 - `0027_calendar_sources.sql` — tabel `calendar_sources` (ID kalender Google tambahan yang ditempel pengguna + label; RLS pemilik; unik per
   pengguna dan ID; maks. 3 per pengguna dijaga aplikasi). Tidak mengubah data lain. Policy dibuat tanpa DROP (jalankan sekali).
   **Jalankan sebelum kode ini live** (halaman Settings, minggu, dan bulan membaca tabelnya).
@@ -261,6 +264,17 @@ seperti sebelumnya: pengaturan bawaan kalendermu). Saat mengubah blok, pilihan m
 pengingat yang diatur di Google dengan cara lain (email, atau beberapa sekaligus) tampil sebagai "Custom (set in Google)" dan
 tidak diubah kecuali kamu memilih nilai lain. Menggeser atau mengubah ukuran blok tidak menyentuh pengingat. To-do tanpa
 blok tidak punya pengingat. Tanpa migrasi, tanpa scope Google baru.
+
+**Focus / Pomodoro** (`/focus`, menu akun → Focus timer; `lib/focus.ts`, `components/focus/*`): timer bebas (tidak terikat to-do) dengan
+pilihan 15/25/45/60 menit dan label opsional. **Poin: 10 per sesi fokus yang SELESAI**; menghentikan di tengah = tidak ada poin. Setelah sesi
+selesai ada istirahat 5 menit (15 menit setiap sesi ke-4 pada hari yang sama) yang bisa dilewati; istirahat tidak dicatat. Timer yang sedang
+berjalan hanya disimpan di browser (localStorage), jadi tetap jalan saat pindah halaman atau memuat ulang, tetapi tidak dibagi antar perangkat;
+**hanya sesi selesai yang disimpan di database**, jadi poin dan riwayat sama di PC dan HP. Lencana kecil di menu atas menampilkan hitung mundur
+di halaman mana pun dan menjadi satu-satunya yang mencatat sesi saat timer habis (tidak dobel). Aturan antikecurangan sederhana, ditegakkan
+di server (`parseFocusInput`): lama harus salah satu pilihan, sesi harus sudah benar-benar lewat, selesainya tidak lebih dari 15 menit lalu
+(buka situs lagi setelah itu = tidak dihitung), dan poinnya ditentukan server (bukan dikirim browser); sesi yang sama dicatat dua kali (dua tab)
+tetap satu baris. Halaman menampilkan poin hari ini/minggu ini/total, sesi per hari 7 hari terakhir, dan 10 sesi terakhir (bisa dihapus; poinnya
+ikut hilang). Bunyi dua nada saat selesai (bisa diblokir browser bila halaman belum pernah disentuh) dan hitung mundur di judul tab. Perlu migrasi `0028`.
 
 **Kalender tambahan** (Settings → Other calendars; `lib/google/calendar-sources.ts`, `lib/google/extra-calendars.ts`): sampai 3 kalender
 Google lain (mis. kantor atau proyek) ikut tampil di grid minggu dan tampilan bulan, **hanya baca** dan bergaris putus-putus. Cara

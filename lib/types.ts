@@ -155,6 +155,16 @@ export type WeeklySummary = {
   updated_at: string;
 };
 
+export type FocusSession = {
+  id: string;
+  user_id: string;
+  started_at: string;
+  minutes: number;
+  label: string;
+  points: number;
+  created_at: string;
+};
+
 export type CalendarSource = {
   id: string;
   user_id: string;
@@ -312,6 +322,12 @@ export type Database = {
         Insert: Pick<Attachment, "storage_path" | "file_name" | "mime_type" | "size_bytes"> &
           Partial<Pick<Attachment, "id" | "user_id" | "issue_id" | "kb_entry_id" | "note_id" | "created_at">>;
         Update: Partial<Omit<Attachment, "id">>;
+        Relationships: [];
+      };
+      focus_sessions: {
+        Row: FocusSession;
+        Insert: Pick<FocusSession, "started_at" | "minutes"> & Partial<Pick<FocusSession, "id" | "user_id" | "label" | "points" | "created_at">>;
+        Update: Partial<Omit<FocusSession, "id">>;
         Relationships: [];
       };
       calendar_sources: {

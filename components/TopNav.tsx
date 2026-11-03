@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions";
 import { SearchBox } from "@/components/SearchBox";
+import { FocusBadge } from "@/components/focus/FocusBadge";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -114,6 +115,13 @@ function UserMenu({ email }: { email: string }) {
               Export issue log (CSV)
             </a>
             <Link
+              href="/focus"
+              role="menuitem"
+              className="block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface"
+            >
+              Focus timer
+            </Link>
+            <Link
               href="/settings"
               role="menuitem"
               className="block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface"
@@ -150,6 +158,7 @@ export function TopNav({ email }: { email: string | null }) {
         <NavLinks pathname={pathname} className="hidden items-center gap-5 lg:flex xl:gap-7" />
 
         <div className="flex items-center justify-end gap-2">
+          {email && <FocusBadge />}
           {email && (
             // Suspense: SearchBox membaca ?q= di URL (useSearchParams).
             <Suspense fallback={null}>

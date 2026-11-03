@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = await createClient();
 
   try {
-    const [todos, goals, goalItems, issues, clients, projects, projectPhases, projectPartners, kbEntries, notes, attachments, weeklySummaries, calendarSources] = await Promise.all([
+    const [todos, goals, goalItems, issues, clients, projects, projectPhases, projectPartners, kbEntries, notes, attachments, weeklySummaries, calendarSources, focusSessions] = await Promise.all([
       fetchAll((from, to) =>
         supabase.from("todos").select("*").order("created_at").order("id").range(from, to),
       ),
@@ -52,6 +52,7 @@ export async function GET() {
       fetchAll((from, to) => supabase.from("attachments").select("*").order("created_at").order("id").range(from, to)),
       fetchAll((from, to) => supabase.from("weekly_summaries").select("*").order("week_start").order("id").range(from, to)),
       fetchAll((from, to) => supabase.from("calendar_sources").select("*").order("created_at").order("id").range(from, to)),
+      fetchAll((from, to) => supabase.from("focus_sessions").select("*").order("started_at").order("id").range(from, to)),
     ]);
 
     const payload = {
@@ -72,6 +73,7 @@ export async function GET() {
         attachments: attachments.length,
         weekly_summaries: weeklySummaries.length,
         calendar_sources: calendarSources.length,
+        focus_sessions: focusSessions.length,
       },
       todos,
       goals,
@@ -86,6 +88,7 @@ export async function GET() {
       attachments,
       weekly_summaries: weeklySummaries,
       calendar_sources: calendarSources,
+      focus_sessions: focusSessions,
     };
 
     return new NextResponse(JSON.stringify(payload, null, 2), {
