@@ -39,6 +39,8 @@ export type DayItem = {
   /** Id acara atau to-do asalnya; sama untuk setiap hari yang dilalui acara lintas hari (untuk menghitung yang unik). */
   ref: string;
   kind: "event" | "todo";
+  /** Label kalender tambahan (hanya baca) asal acara ini; null = kalender utama atau to-do. */
+  source: string | null;
   title: string;
   /** "09:00" untuk acara berjam pada hari mulainya; null untuk acara seharian, hari lanjutan, dan to-do. */
   time: string | null;
@@ -60,15 +62,18 @@ export function buildDayItems(events: CalendarEvent[] | null, todos: MonthTodo[]
     days.set(date, [...(days.get(date) ?? []), { ...item, order }]);
   };
 
+  // To-do hanya bisa tertaut ke acara kalender UTAMA; acara kalender tambahan tidak ikut aturan tautan.
   const todoByEvent = new Map<string, MonthTodo>();
   for (const t of todos) if (t.calendar_event_id) todoByEvent.set(t.calendar_event_id, t);
-  const eventIds = new Set((events ?? []).map((e) => e.id));
+  const eventIds = new Set((events ?? []).filter((e) => !e.source).map((e) => e.id));
 
   for (const e of events ?? []) {
-    const done = todoByEvent.get(e.id)?.status === "done";
+    const done = !e.source && todoByEvent.get(e.id)?.status === "done";
+    const ref = `${e.source ?? ""}|${e.id}`;
+    const src = e.source ?? null;
     if (e.allDay) {
       for (let date = e.start; date < e.end; date = addDaysISO(date, 1)) {
-        push(date, { key: `e-${e.id}-${date}`, ref: e.id, kind: "event", title: e.title, time: null, allDay: true, done }, -1);
+        push(date, { key: `e-${ref}-${date}`, ref, kind: "event", source: src, title: e.title, time: null, allDay: true, done }, -1);
       }
       continue;
     }
@@ -77,7 +82,7 @@ export function buildDayItems(events: CalendarEvent[] | null, todos: MonthTodo[]
     for (let date = s.date; date <= f.date; date = addDaysISO(date, 1)) {
       if (date === f.date && f.minutes === 0 && date !== s.date) continue; // berakhir tepat 00:00: bukan hari ini
       const first = date === s.date;
-      push(date, { key: `e-${e.id}-${date}`, ref: e.id, kind: "event", title: e.title, time: first ? hhmm(s.minutes) : null, allDay: false, done }, first ? s.minutes : 0);
+      push(date, { key: `e-${ref}-${date}`, ref, kind: "event", source: src, title: e.title, time: first ? hhmm(s.minutes) : null, allDay: false, done }, first ? s.minutes : 0);
     }
   }
 
@@ -85,7 +90,7 @@ export function buildDayItems(events: CalendarEvent[] | null, todos: MonthTodo[]
     if (!t.due_date) continue;
     if (t.calendar_event_id && eventIds.has(t.calendar_event_id)) continue;
     const done = t.status === "done";
-    push(t.due_date, { key: `t-${t.id}`, ref: t.id, kind: "todo", title: t.title, time: null, allDay: false, done }, 2000 + (done ? 1 : 0));
+    push(t.due_date, { key: `t-${t.id}`, ref: t.id, kind: "todo", source: null, title: t.title, time: null, allDay: false, done }, 2000 + (done ? 1 : 0));
   }
 
   const out = new Map<string, DayItem[]>();

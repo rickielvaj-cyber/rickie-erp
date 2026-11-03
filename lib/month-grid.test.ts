@@ -91,7 +91,7 @@ test("items outside the grid and to-dos without a date are ignored", () => {
 test("limitItems and describeDay", () => {
   assert.deepEqual(limitItems([1, 2, 3], 3), { shown: [1, 2, 3], more: 0 });
   assert.deepEqual(limitItems([1, 2, 3, 4, 5], 3), { shown: [1, 2, 3], more: 2 });
-  const item = (kind: "event" | "todo") => ({ key: kind, ref: kind, kind, title: "x", time: null, allDay: false, done: false });
+  const item = (kind: "event" | "todo") => ({ key: kind, ref: kind, source: null, kind, title: "x", time: null, allDay: false, done: false });
   assert.equal(describeDay([item("event"), item("event"), item("todo")]), "2 events, 1 to-do");
   assert.equal(describeDay([]), "nothing scheduled");
 });
@@ -107,4 +107,16 @@ test("countDistinct counts a multi-day event once and only inside the chosen dat
   );
   assert.deepEqual(countDistinct(map, (d) => d.startsWith("2026-10")), { events: 1, todos: 2 });
   assert.deepEqual(countDistinct(map, () => true), { events: 2, todos: 2 });
+});
+
+test("events from another calendar are tagged, never merged with a to-do link, and counted separately by calendar", () => {
+  const events = [
+    ev({ id: "same", title: "Primary event", start: "2026-10-22T02:00:00.000Z", end: "2026-10-22T03:00:00.000Z" }),
+    ev({ id: "same", title: "Office event", source: "Kantor", start: "2026-10-22T04:00:00.000Z", end: "2026-10-22T05:00:00.000Z" }),
+  ];
+  // a to-do linked to the PRIMARY event "same": only that one is replaced, the other calendar's event with the same id stays
+  const map = buildDayItems(events, [todo({ id: "t", title: "Linked to-do", due_date: "2026-10-22", calendar_event_id: "same", status: "done" })], range);
+  const day = map.get("2026-10-22") ?? [];
+  assert.deepEqual(day.map((i) => `${i.title}|${i.source}|${i.done}`), ["Primary event|null|true", "Office event|Kantor|false"]);
+  assert.equal(countDistinct(map, () => true).events, 2, "same id in two calendars = two events");
 });

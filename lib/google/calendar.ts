@@ -5,13 +5,22 @@ import { reminderFromApi, reminderToApi, type RawReminders } from "./reminder";
 
 const API = () => process.env.GOOGLE_CALENDAR_API ?? "https://www.googleapis.com/calendar/v3";
 
-export class CalendarApiError extends Error {}
+export class CalendarApiError extends Error {
+  constructor(
+    message: string,
+    /** Kode HTTP dari Google (mis. 404 = kalender tidak ada, 403 = tanpa akses); kosong bila bukan dari respons. */
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
 
 type RawEvent = {
   id?: string;
   status?: string;
   summary?: string;
   htmlLink?: string;
+  iCalUID?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   reminders?: RawReminders;
@@ -29,11 +38,12 @@ export function normalizeEvent(raw: RawEvent): CalendarEvent | null {
       start: raw.start.dateTime,
       end: raw.end.dateTime,
       link: raw.htmlLink,
+      uid: raw.iCalUID,
       reminder: reminderFromApi(raw.reminders),
     };
   }
   if (raw.start?.date && raw.end?.date) {
-    return { id: raw.id, title, allDay: true, start: raw.start.date, end: raw.end.date, link: raw.htmlLink };
+    return { id: raw.id, title, allDay: true, start: raw.start.date, end: raw.end.date, link: raw.htmlLink, uid: raw.iCalUID };
   }
   return null;
 }
@@ -41,12 +51,21 @@ export function normalizeEvent(raw: RawEvent): CalendarEvent | null {
 /** Halaman paling banyak yang diambil per permintaan rentang: 4 x 250 acara cukup untuk satu bulan; lebih dari itu dipotong. */
 const MAX_PAGES = 4;
 
-/** Acara kalender utama dari `start` (inklusif) sampai `endExclusive` (tanggal YYYY-MM-DD WIB). Tidak disimpan di mana pun. */
-export async function listEventsInRange(accessToken: string, start: string, endExclusive: string): Promise<CalendarEvent[]> {
+/**
+ * Acara dari satu kalender (`calendarId` = "primary" atau ID kalender tambahan) dari `start` (inklusif) sampai `endExclusive`
+ * (tanggal YYYY-MM-DD WIB), beserta judul kalendernya. Tidak disimpan di mana pun. Hanya membaca.
+ */
+export async function listCalendarEvents(
+  accessToken: string,
+  calendarId: string,
+  start: string,
+  endExclusive: string,
+): Promise<{ title: string | null; events: CalendarEvent[] }> {
   const events: CalendarEvent[] = [];
+  let title: string | null = null;
   let pageToken: string | undefined;
   for (let page = 0; page < MAX_PAGES; page++) {
-    const url = new URL(`${API()}/calendars/primary/events`);
+    const url = new URL(`${API()}/calendars/${encodeURIComponent(calendarId)}/events`);
     const params = new URLSearchParams({
       timeMin: `${start}T00:00:00+07:00`,
       timeMax: `${endExclusive}T00:00:00+07:00`,
@@ -54,7 +73,7 @@ export async function listEventsInRange(accessToken: string, start: string, endE
       orderBy: "startTime",
       maxResults: "250",
       timeZone: "Asia/Jakarta",
-      fields: "nextPageToken,items(id,status,summary,htmlLink,start,end,reminders)",
+      fields: "summary,nextPageToken,items(id,iCalUID,status,summary,htmlLink,start,end,reminders)",
     });
     if (pageToken) params.set("pageToken", pageToken);
     url.search = params.toString();
@@ -62,14 +81,20 @@ export async function listEventsInRange(accessToken: string, start: string, endE
     const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10_000), cache: "no-store" });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-      throw new CalendarApiError(`Google Calendar request failed (${response.status}${body.error?.message ? `: ${body.error.message}` : ""}).`);
+      throw new CalendarApiError(`Google Calendar request failed (${response.status}${body.error?.message ? `: ${body.error.message}` : ""}).`, response.status);
     }
-    const json = (await response.json()) as { items?: RawEvent[]; nextPageToken?: string };
+    const json = (await response.json()) as { summary?: string; items?: RawEvent[]; nextPageToken?: string };
+    if (typeof json.summary === "string") title = json.summary;
     events.push(...(json.items ?? []).map(normalizeEvent).filter((e): e is CalendarEvent => e !== null));
     pageToken = json.nextPageToken;
     if (!pageToken) break;
   }
-  return events;
+  return { title, events };
+}
+
+/** Acara kalender utama dari `start` (inklusif) sampai `endExclusive`. */
+export async function listEventsInRange(accessToken: string, start: string, endExclusive: string): Promise<CalendarEvent[]> {
+  return (await listCalendarEvents(accessToken, "primary", start, endExclusive)).events;
 }
 
 /** Acara kalender utama untuk minggu (Senin..Minggu WIB) yang dimulai di `weekStart`. */

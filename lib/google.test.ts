@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { decryptToken, encryptToken, safeEqual } from "./google/crypto";
 import { initialScrollHour, layoutWeek, toWib, type CalendarEvent } from "./google/layout";
-import { normalizeEvent, listWeekEvents, CalendarApiError } from "./google/calendar";
+import { normalizeEvent, listWeekEvents, listCalendarEvents, CalendarApiError } from "./google/calendar";
 import { buildAuthUrl, exchangeCode, GoogleAuthError, GOOGLE_SCOPE, refreshAccessToken } from "./google/oauth";
 
 const SECRET = Buffer.alloc(32, 7).toString("base64");
@@ -211,6 +211,39 @@ test("listWeekEvents turns a Google error into a CalendarApiError with the statu
       await assert.rejects(listWeekEvents("AT", "2026-10-19"), (e) => e instanceof CalendarApiError && /403/.test(e.message));
     },
   );
+});
+
+test("listCalendarEvents reads another calendar by an encoded ID, returns its title and keeps iCalUID", async () => {
+  let seenPath = "";
+  await withGoogle(
+    (url) => {
+      seenPath = new URL(`http://x${url}`).pathname;
+      return {
+        status: 200,
+        body: {
+          summary: "Kantor",
+          items: [{ id: "k1", iCalUID: "uid-1@google.com", summary: "Rapat", start: { dateTime: "2026-10-20T09:00:00+07:00" }, end: { dateTime: "2026-10-20T10:00:00+07:00" } }],
+        },
+      };
+    },
+    async () => {
+      const r = await listCalendarEvents("AT", "en.indonesian#holiday@group.v.calendar.google.com", "2026-10-01", "2026-11-01");
+      assert.equal(r.title, "Kantor");
+      assert.deepEqual(r.events.map((e) => [e.id, e.uid]), [["k1", "uid-1@google.com"]]);
+    },
+  );
+  assert.equal(seenPath, "/calendar/v3/calendars/en.indonesian%23holiday%40group.v.calendar.google.com/events");
+});
+
+test("listCalendarEvents carries the HTTP status so a missing or unshared calendar can be named", async () => {
+  for (const status of [404, 403]) {
+    await withGoogle(
+      () => ({ status, body: { error: { message: "nope" } } }),
+      async () => {
+        await assert.rejects(listCalendarEvents("AT", "x@y.com", "2026-10-01", "2026-11-01"), (e) => e instanceof CalendarApiError && e.status === status);
+      },
+    );
+  }
 });
 
 // ---- time blocking ----

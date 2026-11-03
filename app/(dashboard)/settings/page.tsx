@@ -3,6 +3,10 @@ import { formatDate } from "@/lib/date";
 import { hasEmbeddingKey } from "@/lib/search/gemini";
 import { SOURCE_LABEL, SOURCE_TYPES } from "@/lib/search/types";
 import { ReindexForm } from "@/components/ReindexForm";
+import { CalendarSourcesForm } from "@/components/CalendarSourcesForm";
+import { ConfirmButton } from "@/components/ConfirmButton";
+import { removeCalendarSource } from "./calendar-sources-actions";
+import { MAX_EXTRA_CALENDARS } from "@/lib/google/calendar-sources";
 
 export const metadata = { title: "Settings" };
 // Reindex memanggil layanan embedding untuk ratusan teks; beri waktu lebih dari default.
@@ -23,10 +27,48 @@ export default async function SettingsPage() {
   const counts = new Map(Array.from(seen, ([type, ids]) => [type, ids.size]));
   const last = rows[0]?.updated_at;
   const keySet = hasEmbeddingKey();
+  const { data: calendars } = await supabase.from("calendar_sources").select("id, calendar_id, label").order("created_at", { ascending: true });
+  const extraCalendars = calendars ?? [];
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-4xl font-semibold tracking-tight">Settings</h1>
+
+      <section aria-labelledby="calendars-heading" className="mt-10 rounded-3xl border border-border bg-surface p-6">
+        <h2 id="calendars-heading" className="text-xl font-semibold tracking-tight">
+          Other calendars
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Show events from up to {MAX_EXTRA_CALENDARS} more Google calendars (for example an office or project calendar) next to your main one on the
+          week and month views. They are read-only and dashed; the site never edits them, never links to-dos to them, and never stores their
+          events. Your Google account must already have access to the calendar. Find its ID in Google Calendar: Settings → pick the
+          calendar → <em>Integrate calendar</em> → <em>Calendar ID</em>. Connect Google Calendar first under To-Do → Calendar.
+        </p>
+
+        {extraCalendars.length > 0 && (
+          <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-background">
+            {extraCalendars.map((c) => (
+              <li key={c.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-medium">{c.label || c.calendar_id}</p>
+                  <p className="truncate text-sm text-muted">{c.calendar_id}</p>
+                </div>
+                <form action={removeCalendarSource.bind(null, c.id)}>
+                  <ConfirmButton
+                    label="Remove"
+                    confirmText={`Stop showing “${c.label || c.calendar_id}”? Nothing is deleted in Google.`}
+                    className="rounded-full border border-border px-3.5 py-1.5 text-sm text-muted transition-colors hover:border-danger hover:text-danger"
+                  />
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-5">
+          <CalendarSourcesForm full={extraCalendars.length >= MAX_EXTRA_CALENDARS} />
+        </div>
+      </section>
 
       <section aria-labelledby="search-heading" className="mt-10 rounded-3xl border border-border bg-surface p-6">
         <h2 id="search-heading" className="text-xl font-semibold tracking-tight">

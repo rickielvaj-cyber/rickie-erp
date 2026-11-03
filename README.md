@@ -103,6 +103,9 @@ supabase db push
 - `0016_search_clients_and_scores.sql` — jenis hasil `client`, kolom `hub`, fungsi `search_refresh_hub()`, dan
   `search_semantic` yang mengembalikan skor tersesuaikan hub. **Jalankan sebelum kode ini live** (kode memanggil
   fungsi baru dan menulis baris `client`), lalu tekan Reindex Search sekali supaya `hub` terisi.
+- `0027_calendar_sources.sql` — tabel `calendar_sources` (ID kalender Google tambahan yang ditempel pengguna + label; RLS pemilik; unik per
+  pengguna dan ID; maks. 3 per pengguna dijaga aplikasi). Tidak mengubah data lain. Policy dibuat tanpa DROP (jalankan sekali).
+  **Jalankan sebelum kode ini live** (halaman Settings, minggu, dan bulan membaca tabelnya).
 - `0026_notes_ai_blocked.sql` — kolom `notes.ai_blocked` (boolean, bawaan false) untuk catatan yang tidak boleh dikirim ke AI. Hanya
   menambah satu kolom. Aman diulang. **Jalankan sebelum kode ini live.**
 - `0025_weekly_summaries.sql` — tabel `weekly_summaries` (teks Summary dan Plan per minggu; satu baris per pengguna per Senin; maks.
@@ -258,6 +261,18 @@ seperti sebelumnya: pengaturan bawaan kalendermu). Saat mengubah blok, pilihan m
 pengingat yang diatur di Google dengan cara lain (email, atau beberapa sekaligus) tampil sebagai "Custom (set in Google)" dan
 tidak diubah kecuali kamu memilih nilai lain. Menggeser atau mengubah ukuran blok tidak menyentuh pengingat. To-do tanpa
 blok tidak punya pengingat. Tanpa migrasi, tanpa scope Google baru.
+
+**Kalender tambahan** (Settings → Other calendars; `lib/google/calendar-sources.ts`, `lib/google/extra-calendars.ts`): sampai 3 kalender
+Google lain (mis. kantor atau proyek) ikut tampil di grid minggu dan tampilan bulan, **hanya baca** dan bergaris putus-putus. Cara
+menambah: tempel **Calendar ID** (Google Calendar → Settings → pilih kalender → *Integrate calendar* → *Calendar ID*; bentuknya
+`nama@gmail.com` atau `abc123@group.calendar.google.com`); akun Google yang tersambung harus sudah punya akses ke kalender itu (dibagikan
+kepadamu). Sebelum disimpan, ID diuji dengan membaca satu hari acaranya, jadi ID salah (404) atau tanpa akses (403) langsung ditolak dengan
+pesan jelas. **Tanpa izin Google baru:** izin `calendar.events` yang sudah ada cukup untuk membaca acara kalender lain bila ID-nya diketahui
+(itu sebabnya ID ditempel, bukan dipilih dari daftar, karena daftar kalender butuh izin tambahan). Situs tidak pernah menulis ke kalender
+ini, tidak menautkan to-do ke acaranya, dan tidak menyimpan acaranya; sinkronisasi to-do dan Ringkasan Mingguan hanya memakai kalender
+utama. Acara yang sama di dua kalender (iCalUID sama) tampil sekali, sebagai acara kalender utama. Kalender yang gagal dibaca (ID salah,
+akses dicabut) jadi satu catatan singkat dan tidak mengganggu yang lain. Tiap kalender tambahan = satu permintaan Google lagi per muat
+halaman. Perlu migrasi `0027`.
 
 **Tampilan bulan** (`/todos/month`, tombol **Month view** di bagian Calendar): grid Senin–Minggu untuk satu bulan, berisi acara Google
 (seharian hitam, berjam abu-abu dengan jam WIB; acara lintas hari tampil di tiap harinya) dan to-do jatuh tempo (berbingkai; yang

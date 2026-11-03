@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { addDaysISO, formatDayMonth } from "@/lib/date";
 import { listWeekEvents } from "@/lib/google/calendar";
+import { loadExtraEvents } from "@/lib/google/extra-calendars";
+import { mergeExtraEvents } from "@/lib/google/calendar-sources";
 import { initialScrollHour, layoutWeek, type DayLayout } from "@/lib/google/layout";
 import { CalendarGrid, type LinkOption, type Prefill } from "@/components/CalendarGrid";
 import { RefreshOnMount } from "@/components/RefreshOnMount";
@@ -54,7 +56,7 @@ type CalendarState =
   | { kind: "disconnected" }
   | { kind: "reconnect" }
   | { kind: "error"; message: string }
-  | { kind: "ready"; days: DayLayout[]; changed: number };
+  | { kind: "ready"; days: DayLayout[]; changed: number; extraCount: number; notes: string[] };
 
 /** Semua pemanggilan jaringan/database ada di sini (dengan try/catch); JSX dirender di luar. */
 async function loadState(userId: string, weekStart: string): Promise<CalendarState> {
@@ -65,8 +67,11 @@ async function loadState(userId: string, weekStart: string): Promise<CalendarSta
     if (!token) return { kind: "reconnect" };
     const events = await listWeekEvents(token, weekStart);
     // To-do yang tertaut mengikuti acaranya (digeser/dihapus di Google). Gagal di sini tidak menggagalkan tampilan kalender.
-    const changed = await syncLinkedTodos(await createClient(), token, events).catch(() => 0);
-    return { kind: "ready", days: layoutWeek(events, weekStart), changed };
+    const db = await createClient();
+    const changed = await syncLinkedTodos(db, token, events).catch(() => 0);
+    // Kalender tambahan (hanya baca): ikut tampil di grid, tetapi TIDAK ikut sinkron ke to-do (di atas hanya acara kalender utama).
+    const { extras, notes } = await loadExtraEvents(db, token, weekStart, addDaysISO(weekStart, 7)).catch(() => ({ extras: [], notes: [] as string[] }));
+    return { kind: "ready", days: layoutWeek(mergeExtraEvents(events, extras), weekStart), changed, extraCount: extras.length, notes };
   } catch (error) {
     if (error instanceof GoogleAuthError && error.reconnect) return { kind: "reconnect" };
     return { kind: "error", message: error instanceof Error ? error.message : "unknown error" };
@@ -144,6 +149,7 @@ export async function CalendarSection({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-base text-muted">
           {formatDayMonth(weekStart)} – {formatDayMonth(addDaysISO(weekStart, 6))} · {count} {count === 1 ? "event" : "events"} · primary calendar
+          {state.extraCount > 0 ? ` + ${state.extraCount} other (read-only)` : ""}
         </p>
         <form action={disconnectGoogleCalendar}>
           <button type="submit" className="rounded-full border border-foreground px-4 py-1.5 text-sm hover:bg-surface">
@@ -151,6 +157,11 @@ export async function CalendarSection({
           </button>
         </form>
       </div>
+      {state.notes.map((n) => (
+        <p key={n} role="status" className="mb-3 rounded-xl border border-border bg-surface px-4 py-2 text-sm">
+          {n}
+        </p>
+      ))}
       <CalendarGrid
         key={prefill?.todoId ?? "none"}
         days={state.days}

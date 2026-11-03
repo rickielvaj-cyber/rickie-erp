@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = await createClient();
 
   try {
-    const [todos, goals, goalItems, issues, clients, projects, projectPhases, projectPartners, kbEntries, notes, attachments, weeklySummaries] = await Promise.all([
+    const [todos, goals, goalItems, issues, clients, projects, projectPhases, projectPartners, kbEntries, notes, attachments, weeklySummaries, calendarSources] = await Promise.all([
       fetchAll((from, to) =>
         supabase.from("todos").select("*").order("created_at").order("id").range(from, to),
       ),
@@ -51,6 +51,7 @@ export async function GET() {
       // Hanya metadata (nama, jenis, ukuran, induk); file-nya sendiri ada di Supabase Storage dan tidak ikut export.
       fetchAll((from, to) => supabase.from("attachments").select("*").order("created_at").order("id").range(from, to)),
       fetchAll((from, to) => supabase.from("weekly_summaries").select("*").order("week_start").order("id").range(from, to)),
+      fetchAll((from, to) => supabase.from("calendar_sources").select("*").order("created_at").order("id").range(from, to)),
     ]);
 
     const payload = {
@@ -70,6 +71,7 @@ export async function GET() {
         notes: notes.length,
         attachments: attachments.length,
         weekly_summaries: weeklySummaries.length,
+        calendar_sources: calendarSources.length,
       },
       todos,
       goals,
@@ -83,6 +85,7 @@ export async function GET() {
       notes,
       attachments,
       weekly_summaries: weeklySummaries,
+      calendar_sources: calendarSources,
     };
 
     return new NextResponse(JSON.stringify(payload, null, 2), {
