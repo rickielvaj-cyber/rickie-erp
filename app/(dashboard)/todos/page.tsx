@@ -355,14 +355,21 @@ export default async function TodosPage({
           </nav>
         </div>
 
-        <WeekBoard
-          todos={weekTodos}
-          days={weekDays}
+        <BatchSelection
+          canSelect={weekTodos.length > 0}
           today={today}
-          week={weekParam ?? undefined}
-          goalTitles={Object.fromEntries(goalTitles)}
-          projectTitles={Object.fromEntries(projectTitles)}
-        />
+          goals={activeGoals.map((g) => ({ id: g.id, title: g.title }))}
+          projects={projectOptions.filter((p) => !p.done).map((p) => ({ id: p.id, label: p.label, phases: p.phases }))}
+        >
+          <WeekBoard
+            todos={weekTodos}
+            days={weekDays}
+            today={today}
+            week={weekParam ?? undefined}
+            goalTitles={Object.fromEntries(goalTitles)}
+            projectTitles={Object.fromEntries(projectTitles)}
+          />
+        </BatchSelection>
       </section>
 
       {authUser && (

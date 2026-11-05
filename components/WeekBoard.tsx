@@ -26,6 +26,7 @@ import { formatScheduled } from "@/lib/google/layout";
 import { applyDrag, buildBoard, findContainer, placementChanged, type BoardItems } from "@/lib/todo-board";
 import type { Todo, TodoPriority } from "@/lib/types";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
+import { SelectBox, SelectGroup } from "@/components/todo/BatchSelection";
 import { createTodoForDay, placeTodo, toggleTodoDone } from "@/app/(dashboard)/todos/actions";
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = { low: "Low", medium: "Medium", high: "High" };
@@ -100,6 +101,7 @@ function SortableTask({ todo, week, goalTitle, projectTitle }: { todo: Todo; wee
       >
         ⋮⋮
       </button>
+      <SelectBox id={todo.id} title={todo.title} className="mt-0.5" />
       <TaskBody todo={todo} week={week} goalTitle={goalTitle} projectTitle={projectTitle} />
     </li>
   );
@@ -133,7 +135,10 @@ function DayCard({
       } ${isOver ? "ring-2 ring-accent/40" : ""}`}
     >
       <div className="flex items-baseline justify-between border-b border-border pb-2">
-        <span className="text-base font-medium">{formatWeekdayShort(day)}</span>
+        <span className="flex items-center gap-2">
+          <SelectGroup ids={ids} label={formatLongDay(day)} />
+          <span className="text-base font-medium">{formatWeekdayShort(day)}</span>
+        </span>
         <span className="text-sm text-muted">{formatDayMonth(day)}</span>
       </div>
 

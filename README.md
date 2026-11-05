@@ -378,6 +378,9 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   Tomorrow / Next Mon / No date / tanggal bebas), prioritas, status, goal, proyek + fase, atau menghapus. Pilihan yang dibiarkan
   "no change" tidak disentuh; mengganti proyek tanpa memilih fase mengosongkan fasenya. To-do yang tertaut ke blok kalender
   tetap mengikuti bloknya untuk tanggal (kolom lain tetap berubah; pesan hasil menyebut berapa yang tanggalnya dipertahankan).
+  **Papan mingguan** punya tombol **Select** sendiri (instance `BatchSelection` terpisah): kotak di tiap to-do plus kotak "pilih
+  semua" di header tiap hari, dengan bar aksi dan aturan yang sama. Membuka mode memilih di Today menutup yang di papan, dan
+  sebaliknya (event `batch-select-start`). Menyeret to-do tetap bisa, juga saat mode memilih aktif.
   Maksimal 200 to-do per aksi; masukan divalidasi di server. Di HP, kolom ubah terlipat di balik tombol "Edit…". Belum ada di
   pelacak mingguan (seret-lepas) dan halaman Proyek.
 - **To-do proyek dikelompokkan** di panel Today (`lib/todo-groups.ts`): to-do tanpa proyek tetap daftar biasa; to-do proyek masuk
