@@ -381,6 +381,9 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   **Papan mingguan** punya tombol **Select** sendiri (instance `BatchSelection` terpisah): kotak di tiap to-do plus kotak "pilih
   semua" di header tiap hari, dengan bar aksi dan aturan yang sama. Membuka mode memilih di Today menutup yang di papan, dan
   sebaliknya (event `batch-select-start`). Menyeret to-do tetap bisa, juga saat mode memilih aktif.
+  **Halaman proyek** (`/projects/[id]`) juga punya tombol **Select**: kotak di tiap to-do dan kotak "pilih semua" di tiap fase
+  (serta grup "Not in any phase"); fase atau hari tanpa to-do tidak menampilkan kotak. Tujuan pindah proyek/fase dan goal
+  diambil dari semua proyek yang belum selesai dan goal aktif; to-do yang dipindah ke proyek lain hilang dari halaman ini.
   Maksimal 200 to-do per aksi; masukan divalidasi di server. Di HP, kolom ubah terlipat di balik tombol "Edit…". Belum ada di
   pelacak mingguan (seret-lepas) dan halaman Proyek.
 - **To-do proyek dikelompokkan** di panel Today (`lib/todo-groups.ts`): to-do tanpa proyek tetap daftar biasa; to-do proyek masuk

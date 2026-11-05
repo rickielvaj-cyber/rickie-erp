@@ -7,6 +7,7 @@ import { kindOf } from "@/lib/clients";
 import { PHASE_STATUSES, PHASE_STATUS_LABEL, groupTodosByPhase, isOverdue, phaseProgress, sortPhases } from "@/lib/projects";
 import type { Client, Project, ProjectPhase, Todo } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { BatchSelection, SelectBox, SelectGroup } from "@/components/todo/BatchSelection";
 import { ProgressBar, ProjectStatusPill, phasePillClass, phasePillText } from "@/components/projects/ProjectBits";
 import { removeTodo, toggleTodoDone } from "../../todos/actions";
 import {
@@ -39,7 +40,7 @@ export default async function ProjectDetailPage({
   const today = todayISO();
 
   const supabase = await createClient();
-  const [projectResult, phasesResult, partnersResult, clientsResult, todosResult, issuesResult] = await Promise.all([
+  const [projectResult, phasesResult, partnersResult, clientsResult, todosResult, issuesResult, goalsResult, allProjectsResult, allPhasesResult] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).maybeSingle(),
     supabase.from("project_phases").select("*").eq("project_id", id),
     supabase.from("project_partners").select("*").eq("project_id", id),
@@ -55,6 +56,10 @@ export default async function ProjectDetailPage({
       .select("id, title, module, date_resolved, client_name")
       .eq("project_id", id)
       .order("date_resolved", { ascending: false, nullsFirst: false }),
+    // Untuk edit massal: goal aktif serta proyek lain (+ fasenya) sebagai tujuan pindah.
+    supabase.from("goals").select("id, title").eq("status", "active").order("created_at", { ascending: true }),
+    supabase.from("projects").select("id, name, client_id, status").order("created_at", { ascending: false }),
+    supabase.from("project_phases").select("id, project_id, name, position, created_at, status"),
   ]);
 
   const project: Project | null = projectResult.data;
@@ -76,6 +81,14 @@ export default async function ProjectDetailPage({
   const editing = query.edit === "1";
   const editingPhaseId = UUID_RE.test(query.phase ?? "") ? query.phase : null;
   const overdue = isOverdue(project.target_date, today, project.status === "done");
+  const batchGoals = (goalsResult.data ?? []).map((g) => ({ id: g.id, title: g.title }));
+  const batchProjects = (allProjectsResult.data ?? [])
+    .filter((p) => p.status !== "done" || p.id === id)
+    .map((p) => ({
+      id: p.id,
+      label: `${clientName.get(p.client_id) ?? "Client"} — ${p.name}`,
+      phases: sortPhases((allPhasesResult.data ?? []).filter((ph) => ph.project_id === p.id)).map((ph) => ({ id: ph.id, name: ph.name })),
+    }));
   const fetchError =
     projectResult.error ?? phasesResult.error ?? partnersResult.error ?? clientsResult.error ?? todosResult.error ?? issuesResult.error;
 
@@ -155,6 +168,7 @@ export default async function ProjectDetailPage({
           set it by hand; it updates again the next time one of its to-dos changes.
         </p>
 
+        <BatchSelection canSelect={todos.length > 0} today={today} goals={batchGoals} projects={batchProjects}>
         {phases.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
             No phases yet. Add the first one below, then add to-dos under it.
@@ -176,6 +190,7 @@ export default async function ProjectDetailPage({
                       today={today}
                       isFirst={index === 0}
                       isLast={index === phases.length - 1}
+                      todoIds={list.map((t) => t.id)}
                       todoCount={list.length}
                       todoDone={list.filter((t) => t.status === "done").length}
                     />
@@ -206,7 +221,8 @@ export default async function ProjectDetailPage({
 
         {(unphased.length > 0 || phases.length === 0) && (
           <div className="mt-8">
-            <h3 className="mb-2 text-sm font-medium text-muted">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-muted">
+              <SelectGroup ids={unphased.map((t) => t.id)} label={phases.length === 0 ? "To-dos" : "Not in any phase"} />
               {phases.length === 0 ? "To-dos" : "Not in any phase"} · {unphased.length}
             </h3>
             <div className="overflow-hidden rounded-2xl border border-border">
@@ -215,6 +231,7 @@ export default async function ProjectDetailPage({
             </div>
           </div>
         )}
+        </BatchSelection>
       </section>
 
       {/* ---- Issue ---- */}
@@ -259,6 +276,7 @@ function PhaseRow({
   today,
   isFirst,
   isLast,
+  todoIds,
   todoCount,
   todoDone,
 }: {
@@ -267,6 +285,7 @@ function PhaseRow({
   today: string;
   isFirst: boolean;
   isLast: boolean;
+  todoIds: string[];
   todoCount: number;
   todoDone: number;
 }) {
@@ -276,6 +295,7 @@ function PhaseRow({
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface px-4 py-3.5">
+      <SelectGroup ids={todoIds} label={phase.name} />
       <form action={cyclePhaseStatus.bind(null, projectId, phase.id, phase.status)}>
         <button
           type="submit"
@@ -378,6 +398,7 @@ function TodoRow({ todo, today, projectId }: { todo: Todo; today: string; projec
   const overdue = isOverdue(todo.due_date, today, done);
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border py-3 pl-8 pr-4 last:border-b-0">
+      <SelectBox id={todo.id} title={todo.title} />
       <form action={toggleTodoDone.bind(null, todo.id, todo.status)} className="flex">
         <button
           type="submit"
