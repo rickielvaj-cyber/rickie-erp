@@ -43,7 +43,7 @@ export function SelectBox({ id, title, className = "" }: { id: string; title: st
 /** Kotak centang satu kelompok (semua to-do di dalamnya); setengah terpilih tampil indeterminate. */
 export function SelectGroup({ ids, label, className = "" }: { ids: string[]; label: string; className?: string }) {
   const ctx = useContext(SelectionContext);
-  if (!ctx || !ctx.selecting) return null;
+  if (!ctx || !ctx.selecting || ids.length === 0) return null;
   const count = ids.filter((id) => ctx.selected.has(id)).length;
   return (
     <input
