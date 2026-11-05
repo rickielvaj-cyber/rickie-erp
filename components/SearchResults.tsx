@@ -35,7 +35,7 @@ function Group({ type, hits }: { type: SearchSourceType; hits: SearchHit[] }) {
       <h2 id={`group-${type}`} className="mb-3 text-sm font-medium text-muted">
         {SOURCE_LABEL[type]} · {hits.length}
       </h2>
-      <ul className="overflow-hidden rounded-2xl border border-foreground">
+      <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">
         {hits.map((hit) => (
           <li key={hit.id} className="border-b border-border last:border-b-0">
             <Link href={hit.urlPath} className="block px-5 py-4 transition-colors hover:bg-surface">
@@ -79,7 +79,7 @@ export function SearchResults({ query, debug = false, type }: { query: string; d
   if (state.status === "loading") return <Skeleton />;
   if (state.status === "error") {
     return (
-      <p role="alert" className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+      <p role="alert" className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
         {state.message}
       </p>
     );
@@ -90,7 +90,7 @@ export function SearchResults({ query, debug = false, type }: { query: string; d
     <div className="space-y-8">
       {warning && <p className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-muted">{warning}</p>}
       {results.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+        <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
           Nothing found for “{query}”{type ? ` in ${SOURCE_LABEL[type]}` : ""}. Try other words, or describe what you are looking for.
         </p>
       ) : (

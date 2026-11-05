@@ -44,7 +44,7 @@ type Gesture = {
 };
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-border bg-background px-3 text-base placeholder:text-muted focus:border-foreground focus:outline-none";
+  "h-11 w-full rounded-xl border border-border bg-background px-3 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
 /** Acara berjam yang bisa diubah di sini = mulai dan selesai di hari WIB yang sama. Selain itu dibuka di Google Calendar. */
 function panelFor(event: CalendarEvent): Panel | null {
@@ -289,19 +289,19 @@ export function CalendarGrid({
         </button>
       </div>
       {banner && (
-        <p role="alert" className="mb-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p role="alert" className="mb-3 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           {banner}
         </p>
       )}
 
-      <div ref={scrollRef} className="max-h-[40rem] overflow-auto rounded-2xl border border-foreground">
+      <div ref={scrollRef} className="max-h-[40rem] overflow-auto rounded-2xl border border-border bg-background shadow-card">
         <div className="min-w-[56rem]">
           <div className="sticky top-0 z-30 bg-background">
           <div className={`${cols} border-b border-border`}>
             <div />
             {days.map((d) => (
-              <div key={d.date} className={`border-l border-border px-2 py-2 text-center ${d.date === today ? "bg-surface font-medium" : ""}`}>
-                <span className="text-sm">{formatWeekdayShort(d.date)}</span> <span className="text-xs text-muted">{formatDayMonth(d.date)}</span>
+              <div key={d.date} className={`border-l border-border px-2 py-2 text-center ${d.date === today ? "bg-accent-soft font-semibold text-accent-ink" : ""}`}>
+                <span className="text-sm">{formatWeekdayShort(d.date)}</span> <span className={`text-xs ${d.date === today ? "text-accent-ink/80" : "text-muted"}`}>{formatDayMonth(d.date)}</span>
               </div>
             ))}
           </div>
@@ -316,7 +316,7 @@ export function CalendarGrid({
                       href={ev.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`truncate rounded px-1.5 py-0.5 text-xs hover:underline ${ev.source ? "border border-dashed border-foreground" : "bg-surface"}`}
+                      className={`truncate rounded px-1.5 py-0.5 text-xs hover:underline ${ev.source ? "border border-dashed border-border-strong bg-surface text-muted" : "bg-accent-soft text-accent-ink"}`}
                       title={ev.source ? `${ev.title} · ${ev.source} (open in Google Calendar)` : `${ev.title} (open in Google Calendar)`}
                     >
                       {ev.title}
@@ -350,7 +350,7 @@ export function CalendarGrid({
                   dragRef.current = null;
                   setDrag(null);
                 }}
-                className={`relative cursor-crosshair select-none border-l border-border ${d.date === today ? "bg-surface/60" : ""}`}
+                className={`relative cursor-crosshair select-none border-l border-border ${d.date === today ? "bg-accent-soft/40" : ""}`}
                 style={{ height: `${hours.length * HOUR_REM}rem`, touchAction: "pan-y" }}
               >
                 {hours.map((h, i) => (
@@ -358,13 +358,13 @@ export function CalendarGrid({
                 ))}
                 {drag && drag.date === d.date && (
                   <div
-                    className="pointer-events-none absolute inset-x-0.5 rounded-md border-2 border-dashed border-foreground bg-foreground/10"
+                    className="pointer-events-none absolute inset-x-0.5 rounded-md border-2 border-dashed border-accent bg-accent/10"
                     style={{ top: `${topRem(Math.min(drag.a, drag.b))}rem`, height: `${(Math.max(Math.abs(drag.b - drag.a), 15) / 60) * HOUR_REM}rem` }}
                   />
                 )}
                 {ghost && ghost.slot.date === d.date && (
                   <div
-                    className="pointer-events-none absolute inset-x-0.5 z-20 rounded-md border-2 border-dashed border-foreground bg-foreground/10 px-1 text-[10px]"
+                    className="pointer-events-none absolute inset-x-0.5 z-20 rounded-md border-2 border-dashed border-accent bg-accent/10 px-1 text-[10px]"
                     style={{ top: `${topRem(ghost.slot.startMin)}rem`, height: `${((ghost.slot.endMin - ghost.slot.startMin) / 60) * HOUR_REM}rem` }}
                   >
                     {minutesToTime(ghost.slot.startMin)}–{minutesToTime(ghost.slot.endMin)}
@@ -381,7 +381,9 @@ export function CalendarGrid({
                   };
                   // Blok pendek (<= 45 menit) satu baris saja supaya jamnya tidak terpotong di baris kedua.
                   const short = b.endMin - b.startMin <= 45;
-                  const className = `absolute z-10 overflow-hidden rounded-md border ${b.event.source ? "border-dashed bg-surface/70" : "bg-background"} border-foreground px-1.5 py-0.5 text-left text-xs leading-tight hover:bg-surface ${
+                  const className = `absolute z-10 overflow-hidden rounded-md border ${
+                    b.event.source ? "border-dashed border-border-strong bg-surface text-muted hover:bg-surface" : "border-accent/40 border-l-4 border-l-accent bg-accent-soft text-foreground hover:bg-accent-soft"
+                  } px-1.5 py-0.5 text-left text-xs leading-tight ${
                     short ? "truncate whitespace-nowrap" : ""
                   } ${ghost?.id === b.event.id ? "opacity-40" : ""}`;
                   const linked = linkedTitles[b.event.id];
@@ -447,14 +449,14 @@ export function CalendarGrid({
       </div>
 
       {panel && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-4 sm:items-center" onClick={close}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={close}>
           <form
             onSubmit={submit}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label={panel.mode === "edit" ? "Edit time block" : "New time block"}
-            className="max-h-full w-full max-w-md space-y-4 overflow-y-auto rounded-3xl border border-foreground bg-background p-6 shadow-xl"
+            className="max-h-full w-full max-w-md space-y-4 overflow-y-auto rounded-3xl border border-border bg-background shadow-pop bg-background p-6 shadow-pop"
           >
             <h3 className="text-xl font-semibold tracking-tight">{panel.mode === "edit" ? "Edit block" : "New time block"}</h3>
             {panel.mode === "create" && linkable.length > 0 && (
@@ -513,7 +515,7 @@ export function CalendarGrid({
               <span className="mt-1 block text-xs text-muted">Sent by the Google Calendar app on your phone.</span>
             </label>
             {error && (
-              <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-danger">
+              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
                 {error}
               </p>
             )}
@@ -525,7 +527,7 @@ export function CalendarGrid({
               >
                 {pending ? "Saving…" : "Save"}
               </button>
-              <button type="button" onClick={close} className="rounded-full border border-foreground px-5 py-2.5 text-base hover:bg-surface">
+              <button type="button" onClick={close} className="rounded-full border border-border-strong px-5 py-2.5 text-base hover:bg-surface">
                 Cancel
               </button>
               {panel.mode === "edit" && (
@@ -533,7 +535,7 @@ export function CalendarGrid({
                   type="button"
                   onClick={remove}
                   disabled={pending}
-                  className="ml-auto rounded-full border border-danger px-5 py-2.5 text-base text-danger hover:bg-red-50 disabled:opacity-60"
+                  className="ml-auto rounded-full border border-danger px-5 py-2.5 text-base text-danger hover:bg-danger-soft disabled:opacity-60"
                 >
                   Delete
                 </button>

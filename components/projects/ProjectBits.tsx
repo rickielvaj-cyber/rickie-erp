@@ -1,12 +1,12 @@
 import type { PhaseStatus, ProjectStatus } from "@/lib/types";
 import { PHASE_STATUS_LABEL, PROJECT_STATUS_LABEL } from "@/lib/projects";
 
-// Hitam-putih: status dibedakan lewat isi pill, bukan warna (sama dengan prioritas di To-Do).
+// Status proyek: aktif = aksen lembut, perencanaan = abu netral, ditahan = kuning lembut, selesai = hijau lembut.
 const PROJECT_PILL: Record<ProjectStatus, string> = {
-  active: "border-foreground bg-foreground text-background",
-  planning: "border-foreground",
-  on_hold: "border-border text-muted",
-  done: "border-border text-muted line-through",
+  active: "border-accent/30 bg-accent-soft text-accent-ink",
+  planning: "border-border bg-surface text-muted",
+  on_hold: "border-warning/30 bg-warning-soft text-warning-ink",
+  done: "border-success/30 bg-success-soft text-success-ink",
 };
 
 export function ProjectStatusPill({ status }: { status: ProjectStatus }) {
@@ -18,9 +18,9 @@ export function ProjectStatusPill({ status }: { status: ProjectStatus }) {
 }
 
 const PHASE_PILL: Record<PhaseStatus, string> = {
-  in_progress: "border-foreground bg-foreground text-background",
+  in_progress: "border-accent/30 bg-accent-soft text-accent-ink",
   not_started: "border-border text-muted",
-  done: "border-foreground",
+  done: "border-success/30 bg-success-soft text-success-ink",
 };
 
 export function phasePillClass(status: PhaseStatus) {
@@ -43,7 +43,7 @@ export function ProgressBar({ done, total, label }: { done: number; total: numbe
         aria-label={label}
         className="h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-border"
       >
-        <div className="h-full bg-foreground" style={{ width: `${percent}%` }} />
+        <div className="h-full bg-accent" style={{ width: `${percent}%` }} />
       </div>
       <span className="whitespace-nowrap text-muted">
         {total === 0 ? "No phases yet" : `${done} of ${total} phases`}

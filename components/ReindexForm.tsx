@@ -29,7 +29,7 @@ export function ReindexForm() {
       {state && !pending && (
         <p
           role={state.ok ? "status" : "alert"}
-          className={`rounded-xl px-4 py-2.5 text-sm ${state.ok ? "border border-border bg-surface" : "bg-red-50 text-danger"}`}
+          className={`rounded-xl px-4 py-2.5 text-sm ${state.ok ? "border border-border bg-surface" : "bg-danger-soft text-danger"}`}
         >
           {state.message}
         </p>

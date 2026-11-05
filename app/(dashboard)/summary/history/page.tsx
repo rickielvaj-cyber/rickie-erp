@@ -22,7 +22,7 @@ export default async function SummaryHistoryPage() {
         Weekly summaries you saved. <Link href="/summary" className="underline underline-offset-4">Back to this week</Link>
       </p>
 
-      {error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load history: {error.message}</p>}
+      {error && <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load history: {error.message}</p>}
 
       {rows.length === 0 && !error && (
         <p className="mt-8 rounded-2xl border border-border px-5 py-8 text-center text-base text-muted">

@@ -22,7 +22,7 @@ type Ctx = {
 };
 const SelectionContext = createContext<Ctx | null>(null);
 
-const box = "h-4 w-4 shrink-0 cursor-pointer rounded border border-foreground accent-foreground";
+const box = "h-4 w-4 shrink-0 cursor-pointer rounded border border-border-strong accent-accent";
 
 /** Kotak centang satu to-do. Di luar BatchSelection tidak menampilkan apa pun. */
 export function SelectBox({ id, title }: { id: string; title: string }) {
@@ -58,7 +58,7 @@ export function SelectGroup({ ids, label }: { ids: string[]; label: string }) {
   );
 }
 
-const field = "h-9 rounded-lg border border-border bg-background px-2.5 text-sm focus:border-foreground focus:outline-none";
+const field = "h-9 rounded-lg border border-border bg-background px-2.5 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
 export function BatchSelection({
   children,
@@ -179,7 +179,7 @@ export function BatchSelection({
       onClick={() => setDueDate(dueDate === value ? "" : value)}
       aria-pressed={dueDate === value}
       className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-        dueDate === value ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground"
+        dueDate === value ? "border-accent bg-accent text-white" : "border-border hover:border-accent"
       }`}
     >
       {label}
@@ -196,7 +196,7 @@ export function BatchSelection({
             onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
             aria-pressed={selecting}
             className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
-              selecting ? "border-foreground bg-foreground text-background" : "border-foreground hover:bg-surface"
+              selecting ? "border-accent bg-accent text-white" : "border-border-strong hover:bg-surface"
             }`}
           >
             {selecting ? "Done" : "Select"}
@@ -212,7 +212,7 @@ export function BatchSelection({
         </p>
       )}
       {selected.size > 0 && (
-        <div role="region" aria-label="Edit selected tasks" data-pause-refresh className="fixed inset-x-0 bottom-0 z-40 border-t border-foreground bg-background/95 backdrop-blur">
+        <div role="region" aria-label="Edit selected tasks" data-pause-refresh className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 shadow-[0_-10px_30px_rgb(20_22_26/0.10)] backdrop-blur">
           <form onSubmit={apply} className="mx-auto flex max-w-4xl flex-col gap-3 px-6 py-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <span className="text-base font-medium">{selected.size} selected</span>
@@ -228,7 +228,7 @@ export function BatchSelection({
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
-                className="rounded-full border border-foreground px-3 py-1 text-sm sm:hidden"
+                className="rounded-full border border-border-strong px-3 py-1 text-sm sm:hidden"
               >
                 {open ? "Hide" : "Edit…"}
               </button>
@@ -314,7 +314,7 @@ export function BatchSelection({
                 type="button"
                 onClick={remove}
                 disabled={pending}
-                className="rounded-full border border-danger px-4 py-2 text-sm text-danger transition-colors hover:bg-red-50 disabled:opacity-60"
+                className="rounded-full border border-danger px-4 py-2 text-sm text-danger transition-colors hover:bg-danger-soft disabled:opacity-60"
               >
                 Delete selected
               </button>

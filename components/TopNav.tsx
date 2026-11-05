@@ -35,7 +35,7 @@ function NavLinks({ pathname, className }: { pathname: string; className?: strin
             aria-current={active ? "page" : undefined}
             className={`whitespace-nowrap border-b-2 py-1 text-sm transition-colors ${
               active
-                ? "border-foreground font-medium text-foreground"
+                ? "border-accent font-medium text-foreground"
                 : "border-transparent text-muted hover:text-foreground"
             }`}
           >
@@ -77,7 +77,7 @@ function UserMenu({ email }: { email: string }) {
         aria-label="Account menu"
         className="flex items-center gap-1.5 rounded-full p-0.5 pr-2 transition-colors hover:bg-surface"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-foreground text-xs font-medium uppercase">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-accent/30 bg-accent-soft text-xs font-semibold uppercase text-accent-ink">
           {email.slice(0, 2)}
         </span>
         <span aria-hidden="true" className="text-[10px] text-muted">
@@ -88,7 +88,7 @@ function UserMenu({ email }: { email: string }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-background p-2 shadow-lg"
+          className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-background p-2 shadow-pop"
         >
           <div className="border-b border-border px-3 pb-2 pt-1">
             <p className="text-xs text-muted">Signed in as</p>
@@ -149,9 +149,10 @@ export function TopNav({ email }: { email: string | null }) {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/85 shadow-[0_1px_8px_rgb(20_22_26/0.04)] backdrop-blur">
       <div className="mx-auto grid h-14 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-6 lg:grid-cols-[1fr_auto_1fr]">
-        <Link href="/" className="text-base font-semibold tracking-tight">
+        <Link href="/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[3px] bg-accent" />
           Personal Workspace
         </Link>
 
@@ -173,7 +174,7 @@ export function TopNav({ email }: { email: string | null }) {
               className={`rounded-full border px-4 py-1 text-sm font-medium transition-colors ${
                 pathname.startsWith("/login")
                   ? "border-accent bg-accent text-white"
-                  : "border-foreground hover:bg-surface"
+                  : "border-border-strong hover:bg-surface"
               }`}
             >
               Login

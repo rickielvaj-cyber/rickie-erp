@@ -22,7 +22,7 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const field =
-  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
 type SearchParams = { edit?: string; phase?: string; error?: string };
 
@@ -134,10 +134,10 @@ export default async function ProjectDetailPage({
       )}
 
       {!editing && query.error && !editingPhaseId && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{query.error}</p>
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{query.error}</p>
       )}
       {fetchError && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load data: {fetchError.message}</p>
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load data: {fetchError.message}</p>
       )}
 
       {/* ---- Fase, masing-masing dengan daftar to-do sendiri ---- */}
@@ -156,7 +156,7 @@ export default async function ProjectDetailPage({
         </p>
 
         {phases.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+          <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
             No phases yet. Add the first one below, then add to-dos under it.
           </p>
         ) : (
@@ -164,7 +164,7 @@ export default async function ProjectDetailPage({
             {phases.map((phase, index) => {
               const list = byPhase.get(phase.id) ?? [];
               return (
-                <div key={phase.id} className="overflow-hidden rounded-2xl border border-foreground">
+                <div key={phase.id} className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">
                   {editingPhaseId === phase.id ? (
                     <div className="border-b border-border bg-surface p-4">
                       <PhaseEditForm projectId={project.id} phase={phase} error={query.error} />
@@ -188,13 +188,13 @@ export default async function ProjectDetailPage({
           </div>
         )}
 
-        <form action={addPhase.bind(null, project.id)} className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-muted/60 p-3">
+        <form action={addPhase.bind(null, project.id)} className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-border-strong p-3">
           <input
             name="name"
             required
             placeholder="+ Add a phase (e.g. Data migration)"
             aria-label="New phase name"
-            className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+            className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
           <button
             type="submit"
@@ -232,9 +232,9 @@ export default async function ProjectDetailPage({
         </p>
 
         {issues.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">No linked issues yet.</p>
+          <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">No linked issues yet.</p>
         ) : (
-          <ul className="overflow-hidden rounded-2xl border border-foreground">
+          <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">
             {issues.map((issue) => (
               <li key={issue.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border px-4 py-3.5 last:border-b-0">
                 <Link href={withFrom(`/issues?edit=${issue.id}`, `/projects/${project.id}`)} className="min-w-0 flex-1 basis-60 text-lg hover:underline">
@@ -354,14 +354,14 @@ function AddTodoForm({ projectId, phaseId, placeholder, today }: { projectId: st
         required
         placeholder={placeholder}
         aria-label={placeholder.replace(/^\+ /, "")}
-        className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+        className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
       />
       <input
         name="due_date"
         type="date"
         defaultValue={today}
         aria-label="To-do date"
-        className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
+        className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
       />
       <button
         type="submit"
@@ -384,8 +384,8 @@ function TodoRow({ todo, today, projectId }: { todo: Todo; today: string; projec
           role="checkbox"
           aria-checked={done}
           aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
-            done ? "bg-foreground text-background" : "hover:bg-surface"
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition-colors ${
+            done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"
           }`}
         >
           {done ? "✓" : ""}
@@ -453,7 +453,7 @@ function ProjectEditForm({
     <form action={updateProject.bind(null, project.id)} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">Edit project</h2>
 
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
@@ -528,7 +528,7 @@ function ProjectEditForm({
         </button>
         <Link
           href={`/projects/${project.id}`}
-          className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>
@@ -540,7 +540,7 @@ function ProjectEditForm({
 function PhaseEditForm({ projectId, phase, error }: { projectId: string; phase: ProjectPhase; error?: string }) {
   return (
     <form action={updatePhase.bind(null, projectId, phase.id)} className="space-y-3">
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={`name-${phase.id}`} className="block text-sm font-medium">
@@ -588,7 +588,7 @@ function PhaseEditForm({ projectId, phase, error }: { projectId: string; phase: 
         </button>
         <Link
           href={`/projects/${projectId}`}
-          className="rounded-full border border-foreground px-5 py-2 text-sm font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-5 py-2 text-sm font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>

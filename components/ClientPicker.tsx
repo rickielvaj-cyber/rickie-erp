@@ -106,7 +106,7 @@ export function ClientPicker({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-foreground bg-background py-1 shadow-lg"
+          className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-background py-1 shadow-pop"
         >
           {matches.length === 0 && <li className="px-3.5 py-2 text-sm text-muted">No match. Use “Add a client or partner” below.</li>}
           {matches.map((o, i) => (

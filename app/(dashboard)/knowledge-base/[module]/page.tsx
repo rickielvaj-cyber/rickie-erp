@@ -24,7 +24,7 @@ function positionLabel(module: KbModuleSlug): string {
 
 function PrevNext({ module }: { module: KbModuleSlug }) {
   const links = kbPrevNext(module);
-  const card = "block rounded-md border border-border p-3 transition-colors hover:border-foreground";
+  const card = "block rounded-md border border-border p-3 transition-colors hover:border-accent";
 
   if (!links) {
     return (
@@ -97,13 +97,13 @@ export default async function KbChapterPage({ params }: { params: Promise<{ modu
         </div>
 
         {error && (
-          <p className="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
+          <p className="mt-6 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">
             Failed to load entries: {error.message}
           </p>
         )}
 
         {!error && chapter.sections.length === 0 && (
-          <p className="mt-6 rounded-md border border-dashed border-border p-8 text-center text-sm text-muted">
+          <p className="mt-6 rounded-md border border-dashed border-border-strong bg-surface/50 p-8 text-center text-sm text-subtle">
             No entries for this module yet.
           </p>
         )}

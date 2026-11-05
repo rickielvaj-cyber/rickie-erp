@@ -9,7 +9,7 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-surface px-4 py-12">
-      <div className="w-full max-w-md rounded-3xl border border-foreground bg-background p-10">
+      <div className="w-full max-w-md rounded-3xl border border-border bg-background shadow-pop bg-background p-10">
         <h1 className="text-center text-3xl font-semibold tracking-tight">Welcome back</h1>
         <p className="mt-2 text-center text-base text-muted">Sign in to your workspace.</p>
 
@@ -25,7 +25,7 @@ export default async function LoginPage({
               required
               autoComplete="email"
               placeholder="you@email.com"
-              className="mt-1.5 h-11 w-full rounded-xl border border-foreground px-4 text-base placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              className="mt-1.5 h-11 w-full rounded-xl border border-border-strong px-4 text-base placeholder:text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
           <div>
@@ -38,12 +38,12 @@ export default async function LoginPage({
               type="password"
               required
               autoComplete="current-password"
-              className="mt-1.5 h-11 w-full rounded-xl border border-foreground px-4 text-base focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              className="mt-1.5 h-11 w-full rounded-xl border border-border-strong px-4 text-base focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
 
           {error ? (
-            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>
+            <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>
           ) : null}
 
           <button

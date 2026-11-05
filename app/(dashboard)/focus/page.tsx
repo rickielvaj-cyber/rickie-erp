@@ -11,9 +11,9 @@ const hours = (minutes: number) => (minutes < 60 ? `${minutes} min` : `${(minute
 
 function Stat({ title, totals }: { title: string; totals: Totals }) {
   return (
-    <div className="rounded-2xl border border-border bg-background px-5 py-4">
+    <div className="rounded-2xl border border-border bg-background px-5 py-4 shadow-card">
       <p className="text-sm text-muted">{title}</p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">{totals.points}</p>
+      <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-accent">{totals.points}</p>
       <p className="text-sm text-muted">
         points · {totals.sessions} {totals.sessions === 1 ? "session" : "sessions"} · {hours(totals.minutes)}
       </p>
@@ -47,7 +47,7 @@ export default async function FocusPage() {
         <FocusTimer sessionsToday={summary.today.sessions} />
       </div>
 
-      {error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load your sessions: {error.message}</p>}
+      {error && <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load your sessions: {error.message}</p>}
 
       <section aria-labelledby="focus-stats" className="mt-10">
         <h2 id="focus-stats" className="text-xl font-semibold tracking-tight">
@@ -65,7 +65,7 @@ export default async function FocusPage() {
             <li key={d.date} className="flex flex-col items-center gap-1.5">
               <div className="flex h-20 w-full items-end rounded-lg bg-surface">
                 <div
-                  className="w-full rounded-lg bg-foreground"
+                  className="w-full rounded-lg bg-accent"
                   style={{ height: `${(d.sessions / maxDay) * 100}%` }}
                   role="img"
                   aria-label={`${formatWeekdayShort(d.date)} ${formatDayMonth(d.date)}: ${d.sessions} ${d.sessions === 1 ? "session" : "sessions"}`}
@@ -83,7 +83,7 @@ export default async function FocusPage() {
           Recent sessions
         </h2>
         {recent.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-border p-6 text-center text-base text-muted">No sessions yet. Start your first focus above.</p>
+          <p className="mt-3 rounded-2xl border border-dashed border-border-strong bg-surface/50 p-6 text-center text-base text-subtle">No sessions yet. Start your first focus above.</p>
         ) : (
           <ul className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border">
             {recent.map((s) => (

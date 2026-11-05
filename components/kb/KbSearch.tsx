@@ -108,7 +108,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
           type="button"
           onClick={openPalette}
           aria-label="Search Knowledge Base"
-          className="flex h-12 w-full max-w-xl items-center gap-3 rounded-full border border-foreground bg-background px-5 text-left text-base text-muted transition-colors hover:bg-surface"
+          className="flex h-12 w-full max-w-xl items-center gap-3 rounded-full border border-border-strong bg-background px-5 text-left text-base text-muted transition-colors hover:bg-surface"
         >
           <span aria-hidden="true" className="text-lg leading-none text-foreground">
             ⌕
@@ -120,7 +120,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
         <button
           type="button"
           onClick={openPalette}
-          className="inline-flex items-center gap-2 rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface"
+          className="inline-flex items-center gap-2 rounded-full border border-border-strong px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface"
         >
           Search
           <kbd className="hidden rounded border border-border px-1 font-sans text-[10px] text-muted sm:inline">Ctrl K</kbd>
@@ -138,7 +138,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
             role="dialog"
             aria-modal="true"
             aria-label="Search Knowledge Base"
-            className="w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-background shadow-xl"
+            className="w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-background shadow-pop"
           >
             <input
               ref={inputRef}
@@ -167,7 +167,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
                 <p className="px-4 py-6 text-center text-sm text-muted">Type a keyword to start searching.</p>
               )}
               {status === "ready" && query.trim() && hits.length === 0 && (
-                <p className="px-4 py-6 text-center text-sm text-muted">No matching results.</p>
+                <p className="px-4 py-6 text-center text-sm text-subtle">No matching results.</p>
               )}
 
               {status === "ready" && hits.length > 0 && (

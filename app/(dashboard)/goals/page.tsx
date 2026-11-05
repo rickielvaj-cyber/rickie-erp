@@ -49,7 +49,7 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
 
   const tabClass = (active: boolean) =>
     `rounded-full border px-4 py-1 text-sm transition-colors ${
-      active ? "border-accent bg-accent text-white" : "border-foreground hover:bg-surface"
+      active ? "border-accent bg-accent text-white" : "border-border-strong hover:bg-surface"
     }`;
 
   return (
@@ -89,13 +89,13 @@ export default async function GoalsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {fetchError && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           Failed to load data: {fetchError.message}
         </p>
       )}
 
       {goals.length === 0 ? (
-        <p className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+        <p className="mt-6 rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
           {allGoals.length === 0
             ? "No goals yet. Click “+ Add goal” to create your first one."
             : show === "done"
@@ -131,7 +131,7 @@ function GoalCard({
   const percent = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100);
 
   return (
-    <li className="flex items-start gap-4 rounded-2xl border border-foreground p-5">
+    <li className="flex items-start gap-4 rounded-2xl border border-border bg-background shadow-card p-5">
       <form action={toggleGoalDone.bind(null, goal.id, goal.status)} className="mt-1 flex">
         <button
           type="submit"
@@ -139,8 +139,8 @@ function GoalCard({
           aria-checked={done}
           aria-label={done ? `Mark goal as not done: ${goal.title}` : `Mark goal as done: ${goal.title}`}
           title={done ? "Reopen goal" : "Mark goal as done"}
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
-            done ? "bg-foreground text-background" : "hover:bg-surface"
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition-colors ${
+            done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"
           }`}
         >
           {done ? "✓" : ""}
@@ -175,7 +175,7 @@ function GoalCard({
                 aria-label={`Progress: ${goal.title}`}
                 className="h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-border"
               >
-                <div className="h-full bg-foreground" style={{ width: `${percent}%` }} />
+                <div className="h-full bg-accent" style={{ width: `${percent}%` }} />
               </div>
               <span className="text-muted">{percent}%</span>
             </>
@@ -198,13 +198,13 @@ function GoalCard({
 
 function GoalForm({ error }: { error?: string }) {
   const field =
-    "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
+    "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
   return (
     <form action={createGoal} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">New goal</h2>
 
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
@@ -239,7 +239,7 @@ function GoalForm({ error }: { error?: string }) {
         </button>
         <Link
           href="/goals"
-          className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>

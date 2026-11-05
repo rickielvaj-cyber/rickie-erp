@@ -64,7 +64,7 @@ export function SearchBox() {
           placeholder="Search everything"
           aria-label="Search everything"
           maxLength={200}
-          className="h-9 w-48 rounded-full border border-border bg-background pl-9 pr-3 text-sm placeholder:text-muted transition-[width] focus:w-64 focus:border-foreground focus:outline-none"
+          className="h-9 w-48 rounded-full border border-border bg-background pl-9 pr-3 text-sm placeholder:text-subtle transition-[width] focus:w-64 focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
         />
       </form>
     </>

@@ -14,9 +14,9 @@ function NodePill({
   variant?: "step" | "start" | "reference";
 }) {
   const styles = {
-    step: "border-border bg-background hover:border-foreground",
+    step: "border-border bg-background hover:border-accent",
     start: "border-accent bg-accent text-white hover:bg-accent-hover",
-    reference: "border-dashed border-muted/60 bg-surface text-muted hover:border-foreground hover:text-foreground",
+    reference: "border-dashed border-border-strong bg-surface text-muted hover:border-accent hover:text-foreground",
   }[variant];
 
   return (

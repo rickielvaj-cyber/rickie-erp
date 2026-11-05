@@ -23,7 +23,7 @@ export function CopyBox({ text }: { text: string }) {
         <label htmlFor="monthly-text" className="text-xl font-semibold tracking-tight">
           Recap
         </label>
-        <button type="button" onClick={copy} className="rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface">
+        <button type="button" onClick={copy} className="rounded-full border border-border-strong px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface">
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
@@ -32,7 +32,7 @@ export function CopyBox({ text }: { text: string }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         rows={Math.min(36, Math.max(10, value.split("\n").length + 1))}
-        className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 font-mono text-sm leading-relaxed focus:border-foreground focus:outline-none"
+        className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 font-mono text-sm leading-relaxed focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
       />
     </div>
   );

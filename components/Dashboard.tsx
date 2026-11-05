@@ -12,14 +12,14 @@ import { createTodoForDay } from "@/app/(dashboard)/todos/actions";
 const WIB = "+07:00";
 const VISIBLE_TODAY = 8;
 
-const card = "rounded-3xl border border-border bg-surface p-6";
+const card = "rounded-3xl border border-border bg-background p-6 shadow-card";
 const cardTitle = "text-xl font-semibold tracking-tight";
 
-function Stat({ label, value, href }: { label: string; value: string | number; href: string }) {
+function Stat({ label, value, href, tone }: { label: string; value: string | number; href: string; tone?: "success" | "warning" }) {
   return (
     <Link href={href} className="flex items-baseline justify-between gap-3 py-2.5 transition-colors hover:text-muted">
       <span className="text-base text-muted">{label}</span>
-      <span className="text-lg font-semibold tracking-tight">{value}</span>
+      <span className={`text-lg font-semibold tracking-tight ${tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : ""}`}>{value}</span>
     </Link>
   );
 }
@@ -94,14 +94,14 @@ export async function Dashboard() {
           <Link href="/notes/new" className="rounded-full bg-accent px-4 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover">
             New note
           </Link>
-          <Link href="/summary" className="rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface">
+          <Link href="/summary" className="rounded-full border border-border-strong px-4 py-2 text-base font-medium transition-colors hover:bg-surface">
             Weekly Summary
           </Link>
         </div>
       </div>
 
       {fetchError && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load some data: {fetchError.message}</p>
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load some data: {fetchError.message}</p>
       )}
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -116,14 +116,14 @@ export async function Dashboard() {
           </div>
 
           {shown.length === 0 ? (
-            <p className="mt-4 text-base text-muted">Nothing left for today. Enjoy your day.</p>
+            <p className="mt-4 text-base text-subtle">Nothing left for today. Enjoy your day.</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
               {shown.map((t) => (
                 <li key={t.id}>
                   <Link href="/todos" className="flex items-baseline gap-3 py-2.5 transition-colors hover:text-muted">
                     <span className="min-w-0 flex-1 truncate text-base">{t.title}</span>
-                    {t.priority === "high" && <span className="shrink-0 rounded-full border border-foreground px-2 py-0.5 text-xs">High</span>}
+                    {t.priority === "high" && <span className="shrink-0 rounded-full border border-danger/30 bg-danger-soft px-2 py-0.5 text-xs text-danger">High</span>}
                     {t.overdue && t.due_date ? (
                       <span className="shrink-0 text-sm text-danger">{formatDate(t.due_date)}</span>
                     ) : t.time ? (
@@ -146,7 +146,7 @@ export async function Dashboard() {
               required
               placeholder="+ Write a new task, then press Enter"
               aria-label="New task for today"
-              className="h-11 w-full rounded-2xl border border-dashed border-muted/60 bg-background px-4 text-base placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
+              className="h-11 w-full rounded-2xl border border-dashed border-border-strong bg-background px-4 text-base placeholder:text-subtle focus:border-solid focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
             />
           </form>
         </section>
@@ -157,7 +157,7 @@ export async function Dashboard() {
               This week
             </h2>
             <div className="mt-2 divide-y divide-border">
-              <Stat label="Tasks completed" value={doneWeek.count ?? 0} href="/summary" />
+              <Stat label="Tasks completed" value={doneWeek.count ?? 0} href="/summary" tone={(doneWeek.count ?? 0) > 0 ? "success" : undefined} />
               <Stat label="Due later this week" value={laterThisWeek.count ?? 0} href="/todos" />
               <Stat label="Time blocked" value={blockedLabel(blocked)} href="/todos#calendar" />
               <Stat label="Issues handled" value={issuesWeek.count ?? 0} href="/issues" />
@@ -170,8 +170,8 @@ export async function Dashboard() {
                 Needs attention
               </h2>
               <div className="mt-2 divide-y divide-border">
-                {attention.notInSheet > 0 && <Stat label="Issues not marked in the sheet" value={attention.notInSheet} href="/issues" />}
-                {attention.canAddToKb > 0 && <Stat label="Issues you could add to the KB" value={attention.canAddToKb} href="/issues" />}
+                {attention.notInSheet > 0 && <Stat label="Issues not marked in the sheet" value={attention.notInSheet} href="/issues" tone="warning" />}
+                {attention.canAddToKb > 0 && <Stat label="Issues you could add to the KB" value={attention.canAddToKb} href="/issues" tone="warning" />}
               </div>
             </section>
           )}
@@ -188,7 +188,7 @@ export async function Dashboard() {
           </Link>
         </div>
         {projects.length === 0 ? (
-          <p className="mt-4 text-base text-muted">No running projects.</p>
+          <p className="mt-4 text-base text-subtle">No running projects.</p>
         ) : (
           <ul className="mt-3 divide-y divide-border">
             {projects.map((p) => (
@@ -215,7 +215,7 @@ export async function Dashboard() {
                           aria-valuenow={p.done}
                           className="h-1.5 min-w-12 max-w-48 flex-1 overflow-hidden rounded-full bg-border"
                         >
-                          <span className="block h-full bg-foreground" style={{ width: `${p.percent}%` }} />
+                          <span className="block h-full bg-accent" style={{ width: `${p.percent}%` }} />
                         </span>
                         <span className="shrink-0">
                           {p.done}/{p.total}
@@ -238,8 +238,8 @@ export function DashboardFallback() {
     <div aria-hidden="true" className="mx-auto max-w-5xl animate-pulse px-6 py-10">
       <div className="h-10 w-40 rounded bg-surface" />
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="h-72 rounded-3xl border border-border bg-surface lg:col-span-3" />
-        <div className="h-72 rounded-3xl border border-border bg-surface lg:col-span-2" />
+        <div className="h-72 rounded-3xl border border-border bg-surface/60 lg:col-span-3" />
+        <div className="h-72 rounded-3xl border border-border bg-surface/60 lg:col-span-2" />
       </div>
     </div>
   );

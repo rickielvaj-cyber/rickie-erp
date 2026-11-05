@@ -259,7 +259,7 @@ export function NoteEditor({
             onClick={togglePin}
             aria-pressed={pinned}
             className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-              pinned ? "border-foreground bg-foreground text-background" : "border-border text-muted hover:border-foreground hover:text-foreground"
+              pinned ? "border-accent bg-accent text-white" : "border-border text-muted hover:border-accent hover:text-foreground"
             }`}
           >
             {pinned ? "Pinned" : "Pin"}
@@ -275,7 +275,7 @@ export function NoteEditor({
       </div>
 
       {message && (
-        <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           <span>{message}</span>
           {status === "conflict" && (
             <button type="button" onClick={() => window.location.reload()} className="rounded-full border border-danger px-3 py-1">
@@ -294,7 +294,7 @@ export function NoteEditor({
         maxLength={NOTE_MAX_CHARS}
         aria-label="Note"
         placeholder="Start typing. The first line becomes the title."
-        className="mt-5 block w-full resize-none rounded-none border-0 bg-transparent p-0 text-lg leading-relaxed placeholder:text-muted focus:outline-none"
+        className="mt-5 block w-full resize-none rounded-none border-0 bg-transparent p-0 text-lg leading-relaxed placeholder:text-subtle focus:outline-none"
         style={{ minHeight: "20rem" }}
       />
 
@@ -322,7 +322,7 @@ export function NoteEditor({
           id="note-client"
           value={clientId}
           onChange={(e) => onClient(e.target.value)}
-          className="h-10 min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-base focus:border-foreground focus:outline-none"
+          className="h-10 min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
         >
           <option value="">None</option>
           {clients.map((c) => (

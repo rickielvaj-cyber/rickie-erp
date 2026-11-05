@@ -49,7 +49,7 @@ const components: Partial<Components> = {
       <table className="w-full border-collapse text-left text-[15px] leading-6" {...props} />
     </div>
   ),
-  th: (props) => <th className="border-b border-foreground px-3 py-2 align-bottom font-semibold" {...props} />,
+  th: (props) => <th className="border-b border-border-strong px-3 py-2 align-bottom font-semibold" {...props} />,
   td: (props) => <td className="border-b border-border px-3 py-2 align-top" {...props} />,
 };
 

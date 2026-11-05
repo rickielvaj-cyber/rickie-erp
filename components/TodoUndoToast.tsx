@@ -42,7 +42,7 @@ export function TodoUndoToast() {
   return (
     <div
       role="status"
-      className="fixed bottom-6 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-4 rounded-full bg-foreground py-2.5 pl-5 pr-2.5 text-sm text-background shadow-lg"
+      className="fixed bottom-6 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-4 rounded-full bg-foreground py-2.5 pl-5 pr-2.5 text-sm text-background shadow-pop"
     >
       <span className="truncate">
         {error ? `Failed to undo: ${error}` : `Task deleted: ${deleted.title}`}

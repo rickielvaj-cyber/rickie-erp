@@ -472,9 +472,18 @@ legacy-kb/                arsip situs KB lama, sudah diganti modul KB di atas
 
 ## Desain
 
-Gaya hitam-putih ala Apple: menu atas sticky, konten di tengah, banyak ruang kosong.
-Warna aksen (tombol utama, nav aktif) = CSS variable `--accent` (hitam) di
-`app/globals.css`. Merah (`--danger`) cuma buat pesan error dan aksi hapus.
+Gaya minimalis ala Apple: menu atas sticky, konten di tengah, banyak ruang kosong, halaman tetap putih.
+Semua warna adalah CSS variable di `app/globals.css` (dipetakan ke kelas Tailwind lewat `@theme inline`),
+jadi mengganti palet = mengubah satu blok `:root`:
+
+- **Netral**: `foreground` (teks utama), `muted` (teks sekunder), `subtle` (teks kosong/default/placeholder),
+  `border` / `border-strong`, `surface` (abu sangat muda untuk hover dan area diam). Bayangan kartu lembut
+  (`shadow-card`, `shadow-pop` untuk menu/dialog).
+- **Aksen tunggal indigo** (`accent`, `accent-soft`, `accent-ink`): tombol utama, menu aktif, item terpilih,
+  progres, fokus input, dan acara kalender utama.
+- **Semantik** (versi lembut `*-soft` + teks gelap): hijau = selesai/berhasil, kuning-oranye = perlu perhatian,
+  merah (`danger`) = error, prioritas tinggi, lewat tenggat, aksi hapus. Kalender tambahan = abu-abu putus-putus.
+- Semua pasangan teks/latar sudah diperiksa kontrasnya (WCAG AA). Pakai token, jangan hex mentah di komponen.
 
 Ukuran: di layar >= 1024px skala dasar 14px (bukan 16px) supaya tidak terasa penuh; semua teks dan jarak memakai rem
 jadi mengecil serempak, dan lebar kolom (`--container-*`) dikalikan 16/14 supaya lebarnya dalam piksel tetap. Ponsel dan

@@ -20,7 +20,7 @@ export default async function AskNotesPage() {
       </Link>
       <h1 className="mt-3 text-4xl font-semibold tracking-tight">Ask AI</h1>
       <p className="mt-1 text-base text-muted">Ask a question about up to 5 notes you choose.</p>
-      {error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load notes: {error.message}</p>}
+      {error && <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load notes: {error.message}</p>}
       <AskNotes notes={(data ?? []).map((n) => ({ id: n.id, title: displayTitle(n.title), blocked: n.ai_blocked }))} />
     </div>
   );
