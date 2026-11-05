@@ -36,7 +36,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           aria-label="Search everything"
           maxLength={200}
           autoFocus={!query}
-          className="h-12 min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+          className="h-12 min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
         />
         <button
           type="submit"
@@ -55,8 +55,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               aria-current={type === t ? "page" : undefined}
               className={`rounded-full border px-3.5 py-1 text-sm transition-colors ${
                 type === t
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border text-muted hover:border-foreground hover:text-foreground"
+                  ? "border-accent bg-accent text-white"
+                  : "border-border text-muted hover:border-accent hover:text-foreground"
               }`}
             >
               {t ? SOURCE_LABEL[t] : "All"}

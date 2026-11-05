@@ -120,7 +120,7 @@ export function AttachmentPanel({
                   href={item.url ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-24 w-40 flex-col justify-between rounded-xl border border-border p-3 text-sm hover:border-foreground"
+                  className="flex h-24 w-40 flex-col justify-between rounded-xl border border-border p-3 text-sm hover:border-accent"
                 >
                   <span className="line-clamp-2 break-all">{item.fileName}</span>
                   <span className="text-xs text-muted">
@@ -164,8 +164,8 @@ export function AttachmentPanel({
           setOver(false);
           void upload(Array.from(e.dataTransfer.files));
         }}
-        className={`mt-2 cursor-pointer rounded-xl border border-dashed px-4 py-3 text-sm text-muted transition-colors hover:border-foreground focus:border-foreground focus:outline-none ${
-          over ? "border-foreground bg-surface" : "border-border"
+        className={`mt-2 cursor-pointer rounded-xl border border-dashed px-4 py-3 text-sm text-muted transition-colors hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none ${
+          over ? "border-accent bg-accent-soft" : "border-border"
         }`}
       >
         {busy.length > 0

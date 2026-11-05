@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_FOCUS, FOCUS_CHOICES, LABEL_MAX, POINTS_PER_SESSION, breakMinutes, formatClock, parseTimerState, remainingSeconds } from "@/lib/focus";
 import { useNow, useTimerRaw, writeTimer } from "@/components/focus/store";
 
-const button = "rounded-full border border-foreground px-5 py-2 text-base font-medium transition-colors hover:bg-surface";
+const button = "rounded-full border border-border-strong px-5 py-2 text-base font-medium transition-colors hover:bg-surface";
 const primary = "rounded-full bg-accent px-6 py-2.5 text-base font-medium text-white transition-colors hover:bg-accent-hover";
 
 /**
@@ -56,13 +56,13 @@ export function FocusTimer({ sessionsToday }: { sessionsToday: number }) {
     const ended = isFocus && left === 0;
     return (
       <section aria-label="Timer" className={`${card} text-center`}>
-        <p className="text-sm font-medium uppercase tracking-wide text-muted">{isFocus ? "Focus" : "Break"}</p>
+        <p className={`text-sm font-semibold uppercase tracking-wide ${isFocus ? "text-accent" : "text-success"}`}>{isFocus ? "Focus" : "Break"}</p>
         <p role="timer" aria-live="off" className="mt-2 text-7xl font-semibold tabular-nums tracking-tight sm:text-8xl">
           {left === null ? "--:--" : formatClock(left)}
         </p>
         {isFocus && state.label && <p className="mt-2 text-lg">{state.label}</p>}
         <div className="mx-auto mt-6 h-1.5 max-w-md overflow-hidden rounded-full bg-border" aria-hidden="true">
-          <div className="h-full bg-foreground transition-[width] duration-1000 ease-linear" style={{ width: `${done * 100}%` }} />
+          <div className={`h-full transition-[width] duration-1000 ease-linear ${isFocus ? "bg-accent" : "bg-success"}`} style={{ width: `${done * 100}%` }} />
         </div>
         <div className="mt-8 flex justify-center gap-3">
           {ended ? (
@@ -91,14 +91,14 @@ export function FocusTimer({ sessionsToday }: { sessionsToday: number }) {
         {state.error ? (
           <>
             <p className="text-2xl font-semibold tracking-tight">Session finished</p>
-            <p role="alert" className="mx-auto mt-3 max-w-md rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+            <p role="alert" className="mx-auto mt-3 max-w-md rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
               {state.error}
             </p>
           </>
         ) : (
           <>
-            <p className="text-sm font-medium uppercase tracking-wide text-muted">Session complete</p>
-            <p role="status" className="mt-2 text-6xl font-semibold tracking-tight">
+            <p className="text-sm font-semibold uppercase tracking-wide text-success">Session complete</p>
+            <p role="status" className="mt-2 text-6xl font-semibold tracking-tight text-accent">
               +{state.points}
             </p>
             <p className="mt-1 text-base text-muted">
@@ -137,7 +137,7 @@ export function FocusTimer({ sessionsToday }: { sessionsToday: number }) {
             onChange={(e) => setLabel(e.target.value)}
             maxLength={LABEL_MAX}
             placeholder="e.g. Blueprint review"
-            className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-base text-foreground placeholder:text-muted focus:border-foreground focus:outline-none"
+            className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-base text-foreground placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
         </label>
         <div>
@@ -152,7 +152,7 @@ export function FocusTimer({ sessionsToday }: { sessionsToday: number }) {
                 onClick={() => setMinutes(m)}
                 aria-pressed={minutes === m}
                 className={`h-11 rounded-xl border px-3 text-sm tabular-nums transition-colors ${
-                  minutes === m ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground"
+                  minutes === m ? "border-accent bg-accent text-white" : "border-border hover:border-accent"
                 }`}
               >
                 {m}

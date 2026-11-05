@@ -22,12 +22,12 @@ const NOTICE: Record<string, string> = {
 
 function Shell({ notice, weekStart, children }: { notice?: string; weekStart: string; children: React.ReactNode }) {
   return (
-    <section id="calendar" aria-labelledby="calendar-heading" className="mt-16 scroll-mt-24 border-t border-foreground pt-12">
+    <section id="calendar" aria-labelledby="calendar-heading" className="mt-16 scroll-mt-24 border-t border-border pt-12">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 id="calendar-heading" className="text-3xl font-semibold tracking-tight">
           Calendar
         </h2>
-        <Link href={`/todos/month?month=${weekStart.slice(0, 7)}`} className="rounded-full border border-foreground px-4 py-1.5 text-sm hover:bg-surface">
+        <Link href={`/todos/month?month=${weekStart.slice(0, 7)}`} className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-surface">
           Month view
         </Link>
       </div>
@@ -136,7 +136,7 @@ export async function CalendarSection({
   if (state.kind === "error") {
     return (
       <Shell notice={notice} weekStart={weekStart}>
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p role="alert" className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           Could not load the calendar right now ({state.message}). The rest of the page is unaffected.
         </p>
       </Shell>
@@ -152,7 +152,7 @@ export async function CalendarSection({
           {state.extraCount > 0 ? ` + ${state.extraCount} other (read-only)` : ""}
         </p>
         <form action={disconnectGoogleCalendar}>
-          <button type="submit" className="rounded-full border border-foreground px-4 py-1.5 text-sm hover:bg-surface">
+          <button type="submit" className="rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-surface">
             Disconnect
           </button>
         </form>
@@ -181,7 +181,7 @@ export async function CalendarSection({
 
 export function CalendarSkeleton() {
   return (
-    <section id="calendar" className="mt-16 border-t border-foreground pt-12" aria-busy="true">
+    <section id="calendar" className="mt-16 border-t border-border pt-12" aria-busy="true">
       <h2 className="text-3xl font-semibold tracking-tight">Calendar</h2>
       <div className="mt-4 h-72 animate-pulse rounded-2xl bg-surface" />
     </section>

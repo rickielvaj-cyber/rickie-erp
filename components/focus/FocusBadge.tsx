@@ -68,7 +68,7 @@ export function FocusBadge() {
 
   if (state.phase === "done") {
     return (
-      <Link href="/focus" className={`${base} border-foreground bg-foreground text-background`}>
+      <Link href="/focus" className={`${base} border-accent bg-accent text-white`}>
         {state.error ? "Focus ended" : `Focus done · +${state.points}`}
       </Link>
     );
@@ -77,8 +77,11 @@ export function FocusBadge() {
   const left = remainingSeconds(state.endsAt, now);
   const ended = state.phase === "focus" && left === 0;
   return (
-    <Link href="/focus" className={`${base} border-foreground hover:bg-surface`} aria-label={ended ? "Saving the focus session" : `${state.phase === "focus" ? "Focus" : "Break"} timer, ${formatClock(left)} left`}>
-      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${state.phase === "focus" ? "bg-foreground" : "border border-foreground"}`} />
+    <Link
+      href="/focus"
+      className={`${base} ${state.phase === "focus" ? "border-accent/30 bg-accent-soft text-accent-ink" : "border-success/30 bg-success-soft text-success-ink"}`}
+      aria-label={ended ? "Saving the focus session" : `${state.phase === "focus" ? "Focus" : "Break"} timer, ${formatClock(left)} left`}>
+      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${state.phase === "focus" ? "bg-accent" : "bg-success"}`} />
       {ended ? "Saving…" : `${state.phase === "focus" ? "Focus" : "Break"} ${formatClock(left)}`}
     </Link>
   );

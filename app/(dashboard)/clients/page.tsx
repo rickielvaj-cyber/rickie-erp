@@ -9,7 +9,7 @@ type SearchParams = { edit?: string; error?: string; show?: string; from?: strin
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const field =
-  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
 export default async function ClientsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -49,7 +49,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         {from && (
           <Link
             href={from}
-            className="shrink-0 rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
+            className="shrink-0 rounded-full border border-border-strong px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
           >
             ‹ {returnLabel(from)}
           </Link>
@@ -57,7 +57,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       </div>
 
       {fetchError && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           Failed to load data: {fetchError.message}
         </p>
       )}
@@ -96,7 +96,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
               {kind === "client" ? "Clients" : "Partners"}
               <span className="text-sm font-normal text-muted">{rows.length}</span>
             </h2>
-            <ul className="overflow-hidden rounded-2xl border border-foreground">
+            <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">
               {rows.map((client) => (
                 <ClientRow
                   key={client.id}
@@ -157,8 +157,8 @@ function ClientRow({ client, count, showInactive }: { client: Client; count: num
             title={client.verified_in_sheet ? "Mark as not verified" : "Mark as verified against the sheet"}
             className={`rounded-full border px-3 py-1 transition-colors ${
               client.verified_in_sheet
-                ? "border-foreground bg-foreground text-background"
-                : "border-border text-muted hover:border-foreground hover:text-foreground"
+                ? "border-accent bg-accent text-white"
+                : "border-border text-muted hover:border-accent hover:text-foreground"
             }`}
           >
             {client.verified_in_sheet ? "✓ Verified" : "Not verified"}
@@ -192,7 +192,7 @@ function ClientForm({ client, error, from }: { client: Client | null; error?: st
         {client ? "Edit" : "Add a client or partner"}
       </h2>
 
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
       {from && <input type="hidden" name="from" value={from} />}
 
       <div>
@@ -250,7 +250,7 @@ function ClientForm({ client, error, from }: { client: Client | null; error?: st
         {client && (
           <Link
             href={from ?? "/clients"}
-            className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
+            className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
           >
             Cancel
           </Link>

@@ -34,7 +34,7 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="text-4xl font-semibold tracking-tight">Settings</h1>
 
-      <section aria-labelledby="calendars-heading" className="mt-10 rounded-3xl border border-border bg-surface p-6">
+      <section aria-labelledby="calendars-heading" className="mt-10 rounded-3xl border border-border bg-background p-6 shadow-card">
         <h2 id="calendars-heading" className="text-xl font-semibold tracking-tight">
           Other calendars
         </h2>
@@ -70,7 +70,7 @@ export default async function SettingsPage() {
         </div>
       </section>
 
-      <section aria-labelledby="search-heading" className="mt-10 rounded-3xl border border-border bg-surface p-6">
+      <section aria-labelledby="search-heading" className="mt-10 rounded-3xl border border-border bg-background p-6 shadow-card">
         <h2 id="search-heading" className="text-xl font-semibold tracking-tight">
           Search index
         </h2>
@@ -82,7 +82,7 @@ export default async function SettingsPage() {
           minute.
         </p>
 
-        {error && <p className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error.message}</p>}
+        {error && <p className="mt-4 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error.message}</p>}
         {!keySet && (
           <p className="mt-4 rounded-xl border border-border bg-background px-4 py-2.5 text-sm">
             <code>GEMINI_API_KEY</code> is not set on the server, so meaning-based search is off. See the README.

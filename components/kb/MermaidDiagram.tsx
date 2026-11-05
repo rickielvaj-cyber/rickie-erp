@@ -52,7 +52,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
 
   if (error) {
     return (
-      <div className="mb-3 rounded-md border border-border bg-red-50 p-3 text-xs text-danger">
+      <div className="mb-3 rounded-md border border-border bg-danger-soft p-3 text-xs text-danger">
         Failed to render mermaid diagram: {error}
       </div>
     );

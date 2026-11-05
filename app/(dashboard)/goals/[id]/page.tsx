@@ -22,7 +22,7 @@ const TYPE_LABEL: Record<GoalType, string> = { learning: "Learning", work: "Work
 const PRIORITY_LABEL: Record<TodoPriority, string> = { low: "Low", medium: "Medium", high: "High" };
 
 const field =
-  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
 type SearchParams = { edit?: string; item?: string; error?: string };
 
@@ -106,8 +106,8 @@ export default async function GoalDetailPage({
                 aria-checked={done}
                 aria-label={done ? "Reopen this goal" : "Mark this goal as done"}
                 title={done ? "Reopen goal" : "Mark goal as done"}
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground text-sm transition-colors ${
-                  done ? "bg-foreground text-background" : "hover:bg-surface"
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-sm transition-colors ${
+                  done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"
                 }`}
               >
                 {done ? "✓" : ""}
@@ -158,7 +158,7 @@ export default async function GoalDetailPage({
                   aria-label="Checklist progress"
                   className="h-1.5 w-full max-w-64 overflow-hidden rounded-full bg-border"
                 >
-                  <div className="h-full bg-foreground" style={{ width: `${percent}%` }} />
+                  <div className="h-full bg-accent" style={{ width: `${percent}%` }} />
                 </div>
                 <span className="text-muted">{percent}%</span>
               </>
@@ -168,10 +168,10 @@ export default async function GoalDetailPage({
       )}
 
       {!editingGoal && !editingItemId && query.error && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{query.error}</p>
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{query.error}</p>
       )}
       {(goalResult.error || itemsResult.error || todosResult.error) && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           Failed to load data: {(goalResult.error ?? itemsResult.error ?? todosResult.error)?.message}
         </p>
       )}
@@ -195,7 +195,7 @@ export default async function GoalDetailPage({
         </summary>
 
         {items.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+          <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
             No items yet. Add the first step below.
           </p>
         ) : (
@@ -203,7 +203,7 @@ export default async function GoalDetailPage({
             {groups.map((group) => (
               <div key={group.name ?? "__none"}>
                 {group.name && <h3 className="mb-2 text-sm font-medium text-muted">{group.name}</h3>}
-                <ul className="overflow-hidden rounded-2xl border border-foreground">
+                <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">
                   {group.items.map((item, index) =>
                     editingItemId === item.id ? (
                       <li key={item.id} className="border-b border-border bg-surface p-4 last:border-b-0">
@@ -225,14 +225,14 @@ export default async function GoalDetailPage({
           </div>
         )}
 
-        <form action={addGoalItem.bind(null, goal.id)} className="mt-6 space-y-3 rounded-2xl border border-dashed border-muted/60 p-4">
+        <form action={addGoalItem.bind(null, goal.id)} className="mt-6 space-y-3 rounded-2xl border border-dashed border-border-strong p-4">
           <p className="text-sm font-medium">Add item</p>
           <input
             name="title"
             required
             placeholder="+ Write a new item"
             aria-label="New item title"
-            className="h-11 w-full rounded-xl border border-border bg-background px-4 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+            className="h-11 w-full rounded-xl border border-border bg-background px-4 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input
@@ -240,13 +240,13 @@ export default async function GoalDetailPage({
               list="group-options"
               placeholder="Group (e.g. Phase 1 — Foundation), optional"
               aria-label="Item group"
-              className="h-10 w-full rounded-xl border border-border bg-background px-3.5 text-sm placeholder:text-muted focus:border-foreground focus:outline-none"
+              className="h-10 w-full rounded-xl border border-border bg-background px-3.5 text-sm placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
             />
             <input
               name="note"
               placeholder="Note, optional"
               aria-label="Item note"
-              className="h-10 w-full rounded-xl border border-border bg-background px-3.5 text-sm placeholder:text-muted focus:border-foreground focus:outline-none"
+              className="h-10 w-full rounded-xl border border-border bg-background px-3.5 text-sm placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
             />
           </div>
           <datalist id="group-options">
@@ -285,11 +285,11 @@ export default async function GoalDetailPage({
         </p>
 
         {linkedTodos.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+          <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
             No linked to-dos yet. Pick this goal when writing a to-do, or add one directly below.
           </p>
         ) : (
-          <ul className="overflow-hidden rounded-2xl border border-foreground">
+          <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">
             {[...openTodos, ...doneTodos].map((todo) => (
               <LinkedTodoRow key={todo.id} todo={todo} />
             ))}
@@ -298,21 +298,21 @@ export default async function GoalDetailPage({
 
         <form
           action={createTodoForGoal.bind(null, goal.id)}
-          className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-muted/60 p-3"
+          className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-border-strong p-3"
         >
           <input
             name="title"
             required
             placeholder="+ Write a new to-do for this goal"
             aria-label="New to-do for this goal"
-            className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+            className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3.5 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
           <input
             name="due_date"
             type="date"
             defaultValue={todayISO()}
             aria-label="To-do date"
-            className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-foreground focus:outline-none"
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
           <button
             type="submit"
@@ -336,8 +336,8 @@ function LinkedTodoRow({ todo }: { todo: Todo }) {
           role="checkbox"
           aria-checked={done}
           aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
-            done ? "bg-foreground text-background" : "hover:bg-surface"
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition-colors ${
+            done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"
           }`}
         >
           {done ? "✓" : ""}
@@ -383,8 +383,8 @@ function ItemRow({
           role="checkbox"
           aria-checked={item.is_done}
           aria-label={item.is_done ? `Mark as not done: ${item.title}` : `Mark as done: ${item.title}`}
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-foreground text-xs transition-colors ${
-            item.is_done ? "bg-foreground text-background" : "hover:bg-surface"
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition-colors ${
+            item.is_done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"
           }`}
         >
           {item.is_done ? "✓" : ""}
@@ -438,7 +438,7 @@ function ItemEditForm({
 }) {
   return (
     <form action={updateGoalItem.bind(null, goalId, item.id)} className="space-y-3">
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
       <div>
         <label htmlFor={`title-${item.id}`} className="block text-sm font-medium">
           Item title
@@ -479,7 +479,7 @@ function ItemEditForm({
         </button>
         <Link
           href={`/goals/${goalId}`}
-          className="rounded-full border border-foreground px-5 py-2 text-sm font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-5 py-2 text-sm font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>
@@ -493,7 +493,7 @@ function GoalEditForm({ goal, error }: { goal: Goal; error?: string }) {
     <form action={updateGoal.bind(null, goal.id)} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">Edit goal</h2>
 
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
@@ -528,7 +528,7 @@ function GoalEditForm({ goal, error }: { goal: Goal; error?: string }) {
         </button>
         <Link
           href={`/goals/${goal.id}`}
-          className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>

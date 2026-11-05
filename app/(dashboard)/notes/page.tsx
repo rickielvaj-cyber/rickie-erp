@@ -65,7 +65,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
           <p className="mt-1 text-base text-muted">Quick notes that save as you type.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/notes/ask" className="rounded-full border border-foreground px-4 py-2 text-base transition-colors hover:bg-surface">
+          <Link href="/notes/ask" className="rounded-full border border-border-strong px-4 py-2 text-base transition-colors hover:bg-surface">
             Ask AI
           </Link>
           <Link href="/notes/new" className="rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover">
@@ -81,15 +81,15 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
           defaultValue={q ?? ""}
           placeholder="Search your notes"
           aria-label="Search notes"
-          className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+          className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
         />
       </form>
 
-      {notesResult.error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load notes: {notesResult.error.message}</p>}
+      {notesResult.error && <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load notes: {notesResult.error.message}</p>}
 
       <div className="mt-6 space-y-8">
         {notes.length === 0 && !notesResult.error && (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+          <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
             {term ? `No notes contain “${q}”.` : "No notes yet. Tap “New note” and start typing."}
           </p>
         )}
@@ -98,7 +98,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
             <h2 id="notes-pinned" className="mb-2 text-sm font-medium text-muted">
               Pinned
             </h2>
-            <ul className="overflow-hidden rounded-2xl border border-foreground">{pinned.map(row)}</ul>
+            <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">{pinned.map(row)}</ul>
           </section>
         )}
         {others.length > 0 && (
@@ -108,7 +108,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
                 Notes
               </h2>
             )}
-            <ul className="overflow-hidden rounded-2xl border border-foreground">{others.map(row)}</ul>
+            <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">{others.map(row)}</ul>
           </section>
         )}
       </div>

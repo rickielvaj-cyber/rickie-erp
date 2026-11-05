@@ -30,9 +30,9 @@ type SearchParams = {
 };
 
 const field =
-  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 const filterField =
-  "mt-1 rounded-xl border border-border bg-background px-3 py-1.5 text-sm focus:border-foreground focus:outline-none";
+  "mt-1 rounded-xl border border-border bg-background px-3 py-1.5 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
 function distinct(values: (string | null)[]) {
   return Array.from(new Set(values.filter((v): v is string => Boolean(v && v.trim())))).sort((a, b) =>
@@ -132,7 +132,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           <a
             href={exportHref}
             download
-            className="rounded-full border border-foreground px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
+            className="rounded-full border border-border-strong px-4 py-2 text-base font-medium transition-colors hover:bg-surface"
           >
             Export CSV{filtered ? " (filtered)" : ""}
           </a>
@@ -146,7 +146,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           )}
           <Link
             href={withFrom("/clients", "/issues")}
-            className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:border-foreground hover:text-foreground"
+            className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:border-accent hover:text-foreground"
           >
             Add new client
           </Link>
@@ -233,7 +233,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
         </div>
         <button
           type="submit"
-          className="rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-4 py-1.5 text-sm font-medium transition-colors hover:bg-background"
         >
           Apply
         </button>
@@ -245,12 +245,12 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
       </form>
 
       {fetchError && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           Failed to load data: {fetchError.message}
         </p>
       )}
 
-      <section aria-labelledby="stats-heading" className="mt-6 rounded-2xl border border-foreground p-5">
+      <section aria-labelledby="stats-heading" className="mt-6 rounded-2xl border border-border bg-background shadow-card p-5">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 id="stats-heading" className="text-lg font-semibold tracking-tight">
             Summary{filtered ? " (filtered)" : ""}
@@ -258,7 +258,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           <span className="text-sm text-muted">{issues.length} {issues.length === 1 ? "issue" : "issues"}</span>
         </div>
         {issues.length === 0 ? (
-          <p className="text-sm text-muted">No data to count yet.</p>
+          <p className="text-sm text-subtle">No data to count yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 text-sm sm:grid-cols-3">
             <CountList
@@ -274,7 +274,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
         )}
       </section>
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-foreground">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-border bg-background shadow-card">
         <table className="w-full text-left text-sm">
           <thead className="bg-surface text-xs uppercase text-muted">
             <tr>
@@ -348,8 +348,8 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
                       title={issue.copied_to_sheet_at ? "Mark as not in the sheet" : "Mark as entered in the sheet"}
                       className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
                         issue.copied_to_sheet_at
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border text-muted hover:border-foreground hover:text-foreground"
+                          ? "border-accent bg-accent text-white"
+                          : "border-border text-muted hover:border-accent hover:text-foreground"
                       }`}
                     >
                       {issue.copied_to_sheet_at ? "✓ In sheet" : "Not yet"}
@@ -440,7 +440,7 @@ function KbEntryForm({ issue, error }: { issue: IssueLog; error?: string }) {
       className="space-y-4 rounded-3xl border border-border bg-surface p-6"
     >
       <h2 className="text-xl font-semibold tracking-tight">Add to Knowledge Base</h2>
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
       <p className="text-sm text-muted">
         The draft leaves out the client and project. The Knowledge Base is also sent to Gemini for search, so read it once and
         remove any client names, people or amounts that slipped into the text.
@@ -476,7 +476,7 @@ function KbEntryForm({ issue, error }: { issue: IssueLog; error?: string }) {
         >
           Add to Knowledge Base
         </button>
-        <Link href="/issues" className="rounded-full border border-border px-6 py-2.5 text-base transition-colors hover:border-foreground">
+        <Link href="/issues" className="rounded-full border border-border px-6 py-2.5 text-base transition-colors hover:border-accent">
           Cancel
         </Link>
       </div>
@@ -518,7 +518,7 @@ function IssueForm({
       <h2 className="text-xl font-semibold tracking-tight">{issue ? "Edit issue" : "New issue"}</h2>
       {issue && from && <input type="hidden" name="from" value={from} />}
 
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <p className="text-sm text-muted">
         Fields below are in the same order as the Issue Tracker sheet. Use <span className="font-medium text-foreground">Copy D–G</span>{" "}
@@ -671,7 +671,7 @@ function IssueForm({
         </button>
         <Link
           href={issue && from ? from : "/issues"}
-          className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>

@@ -22,7 +22,7 @@ export function CopyForSheet({ dg, kl }: { dg: string; kl: string }) {
   }
 
   const button =
-    "rounded-full border border-foreground px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface";
+    "rounded-full border border-border-strong px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface";
 
   return (
     <div className="flex flex-wrap items-center gap-2">

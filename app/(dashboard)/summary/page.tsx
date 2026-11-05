@@ -129,7 +129,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
     })),
   });
 
-  const pill = "rounded-full border border-foreground px-4 py-1.5 text-sm hover:bg-surface";
+  const pill = "rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-surface";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -166,7 +166,7 @@ export default async function SummaryPage({ searchParams }: { searchParams: Prom
       {calendar.note && <p className="mt-5 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm">{calendar.note}</p>}
 
       {fetchError && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           Failed to load data: {fetchError.message}
         </p>
       )}

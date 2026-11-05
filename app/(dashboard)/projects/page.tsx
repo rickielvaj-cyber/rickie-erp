@@ -19,7 +19,7 @@ const FILTERS: [Show, string][] = [
 ];
 
 const field =
-  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
 export default async function ProjectsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -66,7 +66,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
 
   const tabClass = (active: boolean) =>
     `rounded-full border px-4 py-1 text-sm transition-colors ${
-      active ? "border-accent bg-accent text-white" : "border-foreground hover:bg-surface"
+      active ? "border-accent bg-accent text-white" : "border-border-strong hover:bg-surface"
     }`;
 
   return (
@@ -106,11 +106,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       </div>
 
       {fetchError && (
-        <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load data: {fetchError.message}</p>
+        <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load data: {fetchError.message}</p>
       )}
 
       {groups.length === 0 ? (
-        <p className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+        <p className="mt-6 rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
           {allProjects.length === 0
             ? "No projects yet. Click “+ New project” to add your first one."
             : show === "done"
@@ -138,7 +138,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                     <li key={project.id}>
                       <Link
                         href={`/projects/${project.id}`}
-                        className="group block rounded-2xl border border-foreground p-5 transition-colors hover:bg-surface"
+                        className="group block rounded-2xl border border-border bg-background shadow-card p-5 transition-colors hover:bg-surface"
                       >
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="text-xl font-semibold tracking-tight group-hover:underline">{project.name}</span>
@@ -189,7 +189,7 @@ function NewProjectForm({ clients, error, selectedClient }: { clients: Client[];
     <form action={createProject} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">New project</h2>
 
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
@@ -282,7 +282,7 @@ function NewProjectForm({ clients, error, selectedClient }: { clients: Client[];
         </button>
         <Link
           href="/projects"
-          className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>

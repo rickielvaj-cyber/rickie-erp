@@ -39,8 +39,8 @@ function Checkbox({ todo }: { todo: Todo }) {
       <button
         type="submit"
         aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
-        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border border-foreground text-[10px] transition-colors ${
-          done ? "bg-foreground text-background" : "hover:bg-surface"
+        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] transition-colors ${
+          done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"
         }`}
       >
         {done ? "✓" : ""}
@@ -129,8 +129,8 @@ function DayCard({
       ref={setNodeRef}
       aria-label={`${formatLongDay(day)}${isToday ? " (today)" : ""}`}
       className={`flex flex-col gap-3 rounded-2xl p-3.5 ${compact ? "min-h-[9rem]" : "min-h-[26rem]"} ${
-        isToday ? "border-2 border-foreground bg-surface" : "border border-border"
-      } ${isOver ? "ring-2 ring-foreground/40" : ""}`}
+        isToday ? "border-2 border-accent bg-accent-soft/60" : "border border-border bg-background shadow-card"
+      } ${isOver ? "ring-2 ring-accent/40" : ""}`}
     >
       <div className="flex items-baseline justify-between border-b border-border pb-2">
         <span className="text-base font-medium">{formatWeekdayShort(day)}</span>
@@ -154,7 +154,7 @@ function DayCard({
           required
           placeholder="+ Add"
           aria-label={`Add task for ${formatLongDay(day)}`}
-          className="w-full rounded-lg border border-dashed border-muted/60 bg-background px-2.5 py-1.5 text-center text-sm placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
+          className="w-full rounded-lg border border-dashed border-border-strong bg-background px-2.5 py-1.5 text-center text-sm placeholder:text-subtle focus:border-solid focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
         />
       </form>
     </div>
@@ -261,7 +261,7 @@ export function WeekBoard({
       onDragCancel={onDragCancel}
     >
       {error && (
-        <p role="alert" className="mb-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p role="alert" className="mb-3 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           {error}
         </p>
       )}
@@ -272,7 +272,7 @@ export function WeekBoard({
       </div>
       <DragOverlay>
         {active ? (
-          <ul className="rounded-lg border border-foreground bg-background p-2 text-sm shadow-lg">
+          <ul className="rounded-lg border border-border bg-background p-2 text-sm shadow-pop">
             <li className="flex items-start gap-1.5">
               <span className="text-xs text-muted">⋮⋮</span>
               <span className="min-w-0 flex-1 break-words">{active.title}</span>

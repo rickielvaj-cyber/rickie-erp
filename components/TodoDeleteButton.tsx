@@ -34,7 +34,7 @@ export function TodoDeleteButton({
         disabled={pending}
         title="Delete task"
         aria-label={`Delete task: ${todo.title}`}
-        className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border border-border text-[13px] leading-none text-muted transition-colors hover:border-foreground hover:bg-background hover:text-danger disabled:opacity-40"
+        className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border border-border text-[13px] leading-none text-muted transition-colors hover:border-accent hover:bg-background hover:text-danger disabled:opacity-40"
       >
         ×
       </button>

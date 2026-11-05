@@ -85,9 +85,9 @@ export function SummaryEditor({
   }
 
   const area =
-    "mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 font-mono text-sm leading-relaxed focus:border-foreground focus:outline-none";
+    "mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 font-mono text-sm leading-relaxed focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
   const button =
-    "rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface";
+    "rounded-full border border-border-strong px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface";
   const link = "text-sm text-muted underline underline-offset-4 hover:text-foreground";
 
   return (

@@ -31,11 +31,11 @@ const PRIORITY_LABEL: Record<TodoPriority, string> = {
   high: "High",
 };
 
-// Hitam-putih: prioritas dibedakan lewat isi pill, bukan warna.
+// Prioritas tinggi = merah lembut (perlu perhatian), sedang = abu netral (bawaan, jangan ramai), rendah = abu pucat.
 const PRIORITY_PILL: Record<TodoPriority, string> = {
-  high: "bg-foreground text-background border-foreground",
-  medium: "border-foreground",
-  low: "border-border text-muted",
+  high: "border-danger/30 bg-danger-soft text-danger",
+  medium: "border-border bg-surface text-muted",
+  low: "border-border text-subtle",
 };
 
 type SearchParams = {
@@ -187,7 +187,7 @@ export default async function TodosPage({
 
   const tabClass = (active: boolean) =>
     `rounded-full border px-4 py-1 text-sm transition-colors ${
-      active ? "border-accent bg-accent text-white" : "border-foreground hover:bg-surface"
+      active ? "border-accent bg-accent text-white" : "border-border-strong hover:bg-surface"
     }`;
 
   return (
@@ -253,7 +253,7 @@ export default async function TodosPage({
                 href={buildHref({ show, priority: value, goal, week: weekParam ?? undefined })}
                 aria-current={priority === value ? "true" : undefined}
                 className={
-                  priority === value ? "font-medium underline underline-offset-4" : "text-muted hover:text-foreground"
+                  priority === value ? "font-medium text-accent underline underline-offset-4" : "text-muted hover:text-foreground"
                 }
               >
                 {label}
@@ -273,7 +273,7 @@ export default async function TodosPage({
                   href={buildHref({ show, priority, goal: value, week: weekParam ?? undefined })}
                   aria-current={goal === value ? "true" : undefined}
                   className={
-                    goal === value ? "font-medium underline underline-offset-4" : "text-muted hover:text-foreground"
+                    goal === value ? "font-medium text-accent underline underline-offset-4" : "text-muted hover:text-foreground"
                   }
                 >
                   {label}
@@ -284,7 +284,7 @@ export default async function TodosPage({
         </div>
 
         {fetchError && (
-          <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+          <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
             Failed to load data: {fetchError.message}
           </p>
         )}
@@ -301,7 +301,7 @@ export default async function TodosPage({
           <TaskGroup title="No date" todos={undated} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} />
 
           {todayTodos.length === 0 && (
-            <p className="rounded-2xl border border-dashed border-border p-8 text-center text-base text-muted">
+            <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
               {show === "done" ? "No tasks completed today yet." : "No tasks for today. Enjoy your day."}
             </p>
           )}
@@ -316,13 +316,13 @@ export default async function TodosPage({
             required
             placeholder="+ Write a new task, then press Enter"
             aria-label="New task for today"
-            className="h-12 w-full rounded-2xl border border-dashed border-muted/60 px-5 text-base placeholder:text-muted focus:border-solid focus:border-foreground focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-dashed border-border-strong px-5 text-base placeholder:text-subtle focus:border-solid focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
         </form>
       </section>
 
       {/* ---- Pelacak mingguan ---- */}
-      <section aria-labelledby="week-heading" className="mt-16 border-t border-foreground pt-12">
+      <section aria-labelledby="week-heading" className="mt-16 border-t border-border pt-12">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 id="week-heading" className="text-3xl font-semibold tracking-tight">
@@ -336,19 +336,19 @@ export default async function TodosPage({
           <nav aria-label="Select week" className="flex gap-2 text-sm">
             <Link
               href={buildHref({ show, priority, goal, week: addDaysISO(weekStart, -7) })}
-              className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
+              className="rounded-full border border-border-strong px-4 py-1.5 hover:bg-surface"
             >
               ‹ Previous
             </Link>
             <Link
               href={buildHref({ show, priority, goal })}
-              className={`rounded-full border border-foreground px-4 py-1.5 ${isCurrentWeek ? "bg-surface font-medium" : "hover:bg-surface"}`}
+              className={`rounded-full border border-border-strong px-4 py-1.5 ${isCurrentWeek ? "bg-surface font-medium" : "hover:bg-surface"}`}
             >
               This week
             </Link>
             <Link
               href={buildHref({ show, priority, goal, week: addDaysISO(weekStart, 7) })}
-              className="rounded-full border border-foreground px-4 py-1.5 hover:bg-surface"
+              className="rounded-full border border-border-strong px-4 py-1.5 hover:bg-surface"
             >
               Next ›
             </Link>
@@ -388,9 +388,9 @@ function Checkbox({ todo, size = "md" }: { todo: Todo; size?: "md" | "sm" }) {
       <button
         type="submit"
         aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
-        className={`flex shrink-0 items-center justify-center border border-foreground transition-colors ${
+        className={`flex shrink-0 items-center justify-center border transition-colors ${
           size === "md" ? "h-5 w-5 rounded-md text-xs" : "h-4 w-4 rounded text-[10px]"
-        } ${done ? "bg-foreground text-background" : "hover:bg-surface"}`}
+        } ${done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"}`}
       >
         {done ? "✓" : ""}
       </button>
@@ -447,9 +447,9 @@ function TaskGroup({
         </h2>
       )}
       <div className="flex flex-col gap-3">
-        {loose.length > 0 && <ul className="overflow-hidden rounded-2xl border border-foreground">{loose.map((t) => row(t, true))}</ul>}
+        {loose.length > 0 && <ul className="overflow-hidden rounded-2xl border border-border bg-background shadow-card">{loose.map((t) => row(t, true))}</ul>}
         {projects.map((g) => (
-          <details key={g.projectId} open={startsOpen(g.count)} className="group overflow-hidden rounded-2xl border border-foreground">
+          <details key={g.projectId} open={startsOpen(g.count)} className="group overflow-hidden rounded-2xl border border-border bg-background shadow-card">
             <summary className="flex cursor-pointer list-none items-center gap-3 bg-surface px-5 py-3 [&::-webkit-details-marker]:hidden">
               <SelectGroup ids={g.phases.flatMap((p) => p.todos.map((t) => t.id))} label={g.label} />
               <span className="min-w-0 flex-1 truncate text-base font-medium">{g.label}</span>
@@ -508,7 +508,7 @@ function TodoRow({
           <form action={moveTodoToToday.bind(null, todo.id, moveToToday)}>
             <button
               type="submit"
-              className="rounded-full border border-foreground px-3 py-1 text-sm transition-colors hover:bg-surface"
+              className="rounded-full border border-border-strong px-3 py-1 text-sm transition-colors hover:bg-surface"
             >
               Move to today
             </button>
@@ -553,14 +553,14 @@ function TodoForm({
 }) {
   const action = todo ? updateTodo.bind(null, todo.id) : createTodo;
   const field =
-    "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-foreground focus:outline-none";
+    "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
   return (
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">{todo ? "Edit task" : "New task"}</h2>
       {todo && from && <input type="hidden" name="from" value={from} />}
 
-      {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium">
@@ -664,7 +664,7 @@ function TodoForm({
         </button>
         <Link
           href={todo && from ? from : "/todos"}
-          className="rounded-full border border-foreground px-6 py-2 text-base font-medium transition-colors hover:bg-background"
+          className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel
         </Link>

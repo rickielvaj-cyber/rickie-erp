@@ -47,11 +47,11 @@ export function AskNotes({ notes }: { notes: Option[] }) {
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter by title"
             aria-label="Filter notes by title"
-            className="h-10 w-48 rounded-xl border border-border bg-background px-3 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+            className="h-10 w-48 rounded-xl border border-border bg-background px-3 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
         </div>
         <ul className="mt-3 max-h-80 divide-y divide-border overflow-auto rounded-2xl border border-border">
-          {shown.length === 0 && <li className="px-5 py-4 text-sm text-muted">No notes.</li>}
+          {shown.length === 0 && <li className="px-5 py-4 text-sm text-subtle">No notes.</li>}
           {shown.map((n) => {
             const on = chosen.includes(n.id);
             return (
@@ -78,7 +78,7 @@ export function AskNotes({ notes }: { notes: Option[] }) {
           maxLength={AI_QUESTION_MAX}
           rows={3}
           placeholder="e.g. What did we agree about the go-live date?"
-          className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-base placeholder:text-muted focus:border-foreground focus:outline-none"
+          className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
         />
         <div className="mt-3 flex items-center gap-3">
           <button
@@ -93,7 +93,7 @@ export function AskNotes({ notes }: { notes: Option[] }) {
       </section>
 
       {result && !result.ok && (
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p role="alert" className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           {result.error}
         </p>
       )}

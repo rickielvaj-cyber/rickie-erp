@@ -57,7 +57,7 @@ const FEATURES = [
 const primaryButton =
   "rounded-full bg-accent px-7 py-3 text-base font-medium text-white transition-colors hover:bg-accent-hover";
 const outlineButton =
-  "rounded-full border border-foreground px-7 py-3 text-base font-medium transition-colors hover:bg-surface";
+  "rounded-full border border-border-strong px-7 py-3 text-base font-medium transition-colors hover:bg-surface";
 
 export default async function HomePage() {
   const user = await getAuthUser();
@@ -100,9 +100,9 @@ export default async function HomePage() {
             <Link
               key={f.href}
               href={f.href}
-              className="group flex flex-col gap-3 rounded-2xl border border-foreground p-7 transition-colors hover:bg-surface"
+              className="group flex flex-col gap-3 rounded-2xl border border-border bg-background shadow-card p-7 transition-colors hover:bg-surface"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-foreground">
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
                 {f.icon}
               </span>
               <h2 className="text-2xl font-semibold tracking-tight">{f.title}</h2>

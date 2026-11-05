@@ -5,7 +5,7 @@ import { addCalendarSource, type CalendarSourceState } from "@/app/(dashboard)/s
 
 export function CalendarSourcesForm({ full }: { full: boolean }) {
   const [state, action, pending] = useActionState<CalendarSourceState, FormData>(addCalendarSource, null);
-  const input = "h-11 w-full rounded-xl border border-border bg-background px-3 text-base placeholder:text-muted focus:border-foreground focus:outline-none";
+  const input = "h-11 w-full rounded-xl border border-border bg-background px-3 text-base placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
   return (
     <form action={action} className="space-y-3">
@@ -28,7 +28,7 @@ export function CalendarSourcesForm({ full }: { full: boolean }) {
       </button>
       {full && <p className="text-sm text-muted">The limit is reached. Remove a calendar to add another.</p>}
       {state && !pending && (
-        <p role={state.ok ? "status" : "alert"} className={`rounded-xl px-4 py-2.5 text-sm ${state.ok ? "border border-border bg-surface" : "bg-red-50 text-danger"}`}>
+        <p role={state.ok ? "status" : "alert"} className={`rounded-xl px-4 py-2.5 text-sm ${state.ok ? "border border-border bg-surface" : "bg-danger-soft text-danger"}`}>
           {state.message}
         </p>
       )}

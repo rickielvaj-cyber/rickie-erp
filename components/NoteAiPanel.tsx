@@ -6,7 +6,7 @@ import type { ActionItem } from "@/lib/ai/notes";
 
 type Result = { markdown: string; actionItems: ActionItem[]; sent: string; mode: AiMode };
 
-const button = "rounded-full border border-foreground px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface disabled:opacity-40";
+const button = "rounded-full border border-border-strong px-4 py-1.5 text-sm font-medium transition-colors hover:bg-surface disabled:opacity-40";
 const quiet = "text-sm text-muted underline underline-offset-4 hover:text-foreground disabled:opacity-40";
 
 /**
@@ -128,7 +128,7 @@ export function NoteAiPanel({
       )}
 
       {error && (
-        <p role="alert" className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">
+        <p role="alert" className="mt-3 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           {error}
         </p>
       )}

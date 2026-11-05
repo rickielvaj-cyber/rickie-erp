@@ -39,18 +39,18 @@ function Item({ item }: { item: DayItem }) {
   const base = "block truncate rounded px-1.5 py-0.5 text-xs leading-snug";
   const done = item.done ? " line-through opacity-60" : "";
   if (item.kind === "todo") {
-    return <span className={`${base} border border-foreground${done}`}>{item.title}</span>;
+    return <span className={`${base} border border-border-strong bg-background${done}`}>{item.title}</span>;
   }
   if (item.source) {
     return (
-      <span className={`${base} border border-dashed border-foreground${done}`} title={`${item.title} · ${item.source}`}>
+      <span className={`${base} border border-dashed border-border-strong bg-surface text-muted${done}`} title={`${item.title} · ${item.source}`}>
         {item.time ? <span className="mr-1 tabular-nums text-muted">{item.time}</span> : null}
         {item.title}
       </span>
     );
   }
   return (
-    <span className={`${base} ${item.allDay ? "bg-foreground text-background" : "bg-surface"}${done}`}>
+    <span className={`${base} ${item.allDay ? "bg-accent text-white" : "bg-accent-soft text-accent-ink"}${done}`}>
       {item.time ? <span className="mr-1 tabular-nums text-muted">{item.time}</span> : null}
       {item.title}
     </span>
@@ -83,7 +83,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
   const items = buildDayItems(eventsResult.events, todos, range);
   const { events: eventCount, todos: todoCount } = countDistinct(items, (date) => date.startsWith(month));
 
-  const pill = "rounded-full border border-foreground px-4 py-1.5 text-sm hover:bg-surface";
+  const pill = "rounded-full border border-border-strong px-4 py-1.5 text-sm hover:bg-surface";
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -117,14 +117,14 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
           {n}
         </p>
       ))}
-      {todosResult.error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-danger">Failed to load to-dos: {todosResult.error.message}</p>}
+      {todosResult.error && <p className="mt-5 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">Failed to load to-dos: {todosResult.error.message}</p>}
 
       <table className="mt-6 w-full table-fixed border-collapse">
         <caption className="sr-only">{monthTitle(month)}</caption>
         <thead>
           <tr>
             {WEEKDAYS.map((d) => (
-              <th key={d} scope="col" className="border border-border px-1 py-2 text-xs font-medium text-muted sm:text-sm">
+              <th key={d} scope="col" className="border border-border bg-surface px-1 py-2 text-xs font-medium text-muted sm:text-sm">
                 {d}
               </th>
             ))}
@@ -138,7 +138,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
                 const { shown, more } = limitItems(list, MAX_VISIBLE);
                 const isToday = cell.date === today;
                 return (
-                  <td key={cell.date} className={`h-20 border border-border p-0 align-top sm:h-28 ${col >= 5 ? "bg-surface/60" : ""}`}>
+                  <td key={cell.date} className={`h-20 border border-border p-0 align-top sm:h-28 ${col >= 5 ? "bg-surface" : "bg-background"}`}>
                     <Link
                       href={`/todos?week=${mondayOfISO(cell.date)}#calendar`}
                       aria-label={`${formatLongDay(cell.date)}: ${describeDay(list)}`}
@@ -147,7 +147,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
                     >
                       <span
                         className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs tabular-nums sm:text-sm ${
-                          isToday ? "bg-foreground font-semibold text-background" : "text-foreground"
+                          isToday ? "bg-accent font-semibold text-white" : "text-foreground"
                         }`}
                       >
                         {Number(cell.date.slice(8))}
@@ -171,16 +171,16 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
 
       <p className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted">
         <span>
-          <span className="mr-1.5 inline-block h-3 w-5 rounded bg-foreground align-middle" /> all-day event
+          <span className="mr-1.5 inline-block h-3 w-5 rounded bg-accent align-middle" /> all-day event
         </span>
         <span>
-          <span className="mr-1.5 inline-block h-3 w-5 rounded bg-surface align-middle ring-1 ring-border" /> timed event
+          <span className="mr-1.5 inline-block h-3 w-5 rounded bg-accent-soft align-middle ring-1 ring-accent/30" /> timed event
         </span>
         <span>
-          <span className="mr-1.5 inline-block h-3 w-5 rounded border border-foreground align-middle" /> to-do due
+          <span className="mr-1.5 inline-block h-3 w-5 rounded border border-border-strong align-middle" /> to-do due
         </span>
         <span>
-          <span className="mr-1.5 inline-block h-3 w-5 rounded border border-dashed border-foreground align-middle" /> other calendar (read-only)
+          <span className="mr-1.5 inline-block h-3 w-5 rounded border border-dashed border-border-strong bg-surface align-middle" /> other calendar (read-only)
         </span>
         <span>A to-do linked to a calendar block shows once, as the block.</span>
       </p>
