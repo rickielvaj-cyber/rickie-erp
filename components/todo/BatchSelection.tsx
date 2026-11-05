@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { batchDeleteTodos, batchUpdateTodos } from "@/app/(dashboard)/todos/actions";
 import { addDaysISO, formatDayMonth, mondayOfISO } from "@/lib/date";
 import { isTextEntry } from "@/lib/auto-refresh";
 
+// Dipakai di daftar Hari ini dan di papan mingguan (masing-masing satu instance; mode memilih hanya aktif di salah satunya).
 // Edit massal di daftar Hari ini. Kotak pilihan TIDAK tampil secara bawaan (supaya tidak tertukar dengan kotak "selesai");
 // tombol Select di atas daftar membuka mode memilih: kotak muncul di tiap to-do (dan tiap kelompok), lalu bar aksi di bawah layar
 // mengubah tanggal, prioritas, status, goal, proyek/fase atau menghapus semuanya sekaligus. Done / Esc / selesai mengedit = keluar mode.
@@ -25,13 +26,13 @@ const SelectionContext = createContext<Ctx | null>(null);
 const box = "h-4 w-4 shrink-0 cursor-pointer rounded border border-border-strong accent-accent";
 
 /** Kotak centang satu to-do. Di luar BatchSelection tidak menampilkan apa pun. */
-export function SelectBox({ id, title }: { id: string; title: string }) {
+export function SelectBox({ id, title, className = "" }: { id: string; title: string; className?: string }) {
   const ctx = useContext(SelectionContext);
   if (!ctx || !ctx.selecting) return null;
   return (
     <input
       type="checkbox"
-      className={box}
+      className={`${box} ${className}`}
       checked={ctx.selected.has(id)}
       onChange={() => ctx.toggle(id)}
       aria-label={`Select: ${title}`}
@@ -40,14 +41,14 @@ export function SelectBox({ id, title }: { id: string; title: string }) {
 }
 
 /** Kotak centang satu kelompok (semua to-do di dalamnya); setengah terpilih tampil indeterminate. */
-export function SelectGroup({ ids, label }: { ids: string[]; label: string }) {
+export function SelectGroup({ ids, label, className = "" }: { ids: string[]; label: string; className?: string }) {
   const ctx = useContext(SelectionContext);
   if (!ctx || !ctx.selecting) return null;
   const count = ids.filter((id) => ctx.selected.has(id)).length;
   return (
     <input
       type="checkbox"
-      className={box}
+      className={`${box} ${className}`}
       checked={count === ids.length && ids.length > 0}
       ref={(el) => {
         if (el) el.indeterminate = count > 0 && count < ids.length;
@@ -75,6 +76,7 @@ export function BatchSelection({
   canSelect?: boolean;
 }) {
   const router = useRouter();
+  const instanceId = useId();
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -128,6 +130,19 @@ export function BatchSelection({
     reset();
     setMessage(null);
   };
+
+  // Dua daftar di satu halaman (Hari ini dan papan mingguan): membuka mode memilih di satu menutup yang lain,
+  // supaya bar aksi tidak saling menimpa dan tidak ada pilihan tersisa di daftar yang tidak terlihat.
+  useEffect(() => {
+    if (!selecting) return;
+    window.dispatchEvent(new CustomEvent("batch-select-start", { detail: instanceId }));
+    const onOther = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== instanceId) stopSelecting();
+    };
+    window.addEventListener("batch-select-start", onOther);
+    return () => window.removeEventListener("batch-select-start", onOther);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selecting, instanceId]);
 
   // Esc keluar dari mode memilih (kecuali saat mengetik di sebuah kolom).
   useEffect(() => {
