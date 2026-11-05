@@ -12,10 +12,10 @@
   --border-strong: #c4c9d2; /* garis tombol outline dan kotak centang */
   --surface: #f7f8fa; /* isi tipis di dalam kartu, hover baris */
 
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-soft: #eef0ff;
-  --accent-ink: #3730a3; /* teks di atas accent-soft */
+  --accent: #1e3a8a;
+  --accent-hover: #172554;
+  --accent-soft: #e8eefb;
+  --accent-ink: #1e3a8a; /* teks di atas accent-soft */
   --success: #15803d;
   --success-soft: #e7f6ec;
   --success-ink: #166534;
