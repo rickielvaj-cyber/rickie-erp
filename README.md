@@ -479,7 +479,7 @@ jadi mengganti palet = mengubah satu blok `:root`:
 - **Netral**: `foreground` (teks utama), `muted` (teks sekunder), `subtle` (teks kosong/default/placeholder),
   `border` / `border-strong`, `surface` (abu sangat muda untuk hover dan area diam). Bayangan kartu lembut
   (`shadow-card`, `shadow-pop` untuk menu/dialog).
-- **Aksen tunggal indigo** (`accent`, `accent-soft`, `accent-ink`): tombol utama, menu aktif, item terpilih,
+- **Aksen tunggal biru navy** (`accent`, `accent-soft`, `accent-ink`): tombol utama, menu aktif, item terpilih,
   progres, fokus input, dan acara kalender utama.
 - **Semantik** (versi lembut `*-soft` + teks gelap): hijau = selesai/berhasil, kuning-oranye = perlu perhatian,
   merah (`danger`) = error, prioritas tinggi, lewat tenggat, aksi hapus. Kalender tambahan = abu-abu putus-putus.
