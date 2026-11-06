@@ -23,6 +23,41 @@ const REMOTE_POLL_MS = 4000;
  * Editor satu catatan dengan simpan otomatis (jeda 0,7 detik setelah berhenti mengetik, saat fokus pindah, dan saat tab
  * disembunyikan). Penyimpanan berjalan satu per satu (antrean) supaya catatan baru selalu dibuat dulu sebelum diperbarui.
  */
+/** Posisi vertikal kursor (px dari atas viewport), diukur dengan salinan tersembunyi dari textarea sampai posisi kursor. */
+function caretViewportBottom(el: HTMLTextAreaElement): number {
+  const cs = getComputedStyle(el);
+  const mirror = document.createElement("div");
+  for (const prop of ["boxSizing", "width", "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textTransform", "wordSpacing", "textIndent", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "tabSize"] as const) {
+    mirror.style[prop] = cs[prop];
+  }
+  mirror.style.position = "absolute";
+  mirror.style.visibility = "hidden";
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.overflowWrap = "break-word";
+  mirror.style.top = "0";
+  mirror.style.left = "-9999px";
+  mirror.textContent = el.value.slice(0, el.selectionStart);
+  const marker = document.createElement("span");
+  marker.textContent = "\u200b";
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const lineHeight = parseFloat(cs.lineHeight) || 28;
+  const offset = marker.offsetTop + lineHeight;
+  document.body.removeChild(mirror);
+  return el.getBoundingClientRect().top + offset;
+}
+
+/**
+ * Saat mengetik, jaga baris kursor di sekitar tengah layar (gaya mesin ketik) alih-alih menempel di tepi bawah, yang memaksa mata
+ * melihat ke ujung layar. Hanya menggeser ke bawah bila kursor sudah lewat sekitar 70% tinggi layar; gulir manual tidak diganggu.
+ */
+function keepCaretComfortable(el: HTMLTextAreaElement) {
+  if (document.activeElement !== el || el.selectionStart !== el.selectionEnd) return;
+  const bottom = caretViewportBottom(el);
+  const limit = window.innerHeight * 0.7;
+  if (bottom > limit) window.scrollBy(0, bottom - window.innerHeight * 0.55);
+}
+
 export function NoteEditor({
   initial,
   clients,
@@ -59,8 +94,12 @@ export function NoteEditor({
   const fit = () => {
     const el = area.current;
     if (!el) return;
+    // Mengosongkan tinggi sesaat memendekkan halaman dan membuat browser menggeser scroll; kembalikan posisinya.
+    const y = window.scrollY;
     el.style.height = "auto";
     el.style.height = `${Math.max(el.scrollHeight, 320)}px`;
+    if (window.scrollY !== y) window.scrollTo(window.scrollX, y);
+    keepCaretComfortable(el);
   };
   useEffect(fit, [body]);
 
@@ -245,7 +284,8 @@ export function NoteEditor({
     status === "saving" ? "Saving…" : status === "conflict" || status === "error" ? "Not saved" : (notice ?? (status === "saved" ? "Saved" : ""));
 
   return (
-    <div>
+    // pb-[35vh]: ruang kosong di bawah supaya halaman bisa digulir dan kursor tetap di sekitar tengah layar saat mengetik di ujung catatan.
+    <div className="pb-[35vh]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/notes" onClick={flush} className="text-base text-muted hover:text-foreground">
           ‹ Notes
