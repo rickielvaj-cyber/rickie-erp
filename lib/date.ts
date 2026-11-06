@@ -60,6 +60,18 @@ export function formatDate(isoDate: string | null): string {
   );
 }
 
+/** Cap waktu (ISO/timestamptz) ditampilkan dalam WIB: "6 Nov 2026, 14:05". Tanggalnya dihitung di WIB, bukan UTC. */
+export function formatDateTimeWIB(timestamp: string | null): string {
+  if (!timestamp) return "-";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "-";
+  const day = shortSep(
+    date.toLocaleDateString("en-GB", { timeZone: APP_TIME_ZONE, day: "numeric", month: "short", year: "numeric" }),
+  );
+  const time = date.toLocaleTimeString("en-GB", { timeZone: APP_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${day}, ${time}`;
+}
+
 /** "2026-10" -> "Oct 2026" */
 export function formatMonthYear(yyyyMm: string): string {
   return formatISO(`${yyyyMm}-01`, { month: "short", year: "numeric" });
