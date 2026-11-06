@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/date";
+import { formatDateTimeWIB } from "@/lib/date";
 import { hasEmbeddingKey } from "@/lib/search/gemini";
 import { SOURCE_LABEL, SOURCE_TYPES } from "@/lib/search/types";
 import { ReindexForm } from "@/components/ReindexForm";
@@ -98,7 +98,7 @@ export default async function SettingsPage() {
           ))}
         </dl>
         <p className="mt-3 text-sm text-muted">
-          {last ? `Last indexed ${formatDate(last.slice(0, 10))}.` : "Nothing indexed yet."}
+          {last ? `Last indexed ${formatDateTimeWIB(last)} WIB.` : "Nothing indexed yet."}
         </p>
 
         <div className="mt-5">
