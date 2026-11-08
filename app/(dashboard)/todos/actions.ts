@@ -5,10 +5,11 @@ import { BATCH_MAX, parseBatchInput, patchForLinked } from "@/lib/todo-batch";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isISODate } from "@/lib/date";
+import { isISODate, mondayOfISO, todayISO } from "@/lib/date";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { getAccessToken } from "@/lib/google/store";
-import { getEvent, rescheduleEvent } from "@/lib/google/calendar";
+import { createEvent, deleteEvent, getEvent, rescheduleEvent } from "@/lib/google/calendar";
+import { parseOptionalRange, wibIso } from "@/lib/google/block";
 import { toWib } from "@/lib/google/layout";
 import type { Todo, TodoPriority, TodoStatus } from "@/lib/types";
 
@@ -60,46 +61,188 @@ function revalidateTodoViews() {
   revalidatePath("/");
 }
 
+/** `/todos` dengan minggu yang sedang dilihat (?week=YYYY-MM-DD, selalu Senin) supaya tetap di minggu itu setelah menyimpan. */
+function todosHref(week: string | null | undefined, extra = ""): string {
+  const params = new URLSearchParams();
+  if (week && isISODate(week)) params.set("week", mondayOfISO(week));
+  const q = params.toString();
+  return `/todos${q || extra ? "?" : ""}${[q, extra].filter(Boolean).join("&")}`;
+}
+
+const readWeek = (formData: FormData): string | null => {
+  const raw = String(formData.get("week") ?? "").trim();
+  return isISODate(raw) ? mondayOfISO(raw) : null;
+};
+
+/** Setelah menyimpan: minggu yang sedang dilihat; tanpa itu, minggu tanggal to-do bila bukan minggu ini (supaya hasilnya terlihat). */
+function weekAfterSave(week: string | null, dueDate: string | null): string | null {
+  if (week) return week;
+  if (dueDate && mondayOfISO(dueDate) !== mondayOfISO(todayISO())) return mondayOfISO(dueDate);
+  return null;
+}
+
+const isoOf = (date: string, minutes: number) => new Date(wibIso(date, minutes)).toISOString();
+
+/** Access token Google bila tersambung; null bila tidak. Gangguan (mis. akses dicabut) dilempar. */
+async function googleToken(): Promise<string | null> {
+  const user = await getAuthUser();
+  return user ? await getAccessToken(user.id) : null;
+}
+
+/**
+ * Buat blok kalender untuk to-do yang sudah ada dan tautkan. Gagal menautkan = acara dihapus lagi (tidak ada acara yatim).
+ * Mengembalikan pesan galat, atau null bila berhasil.
+ */
+async function attachBlock(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  todoId: string,
+  title: string,
+  date: string,
+  range: { startMin: number; endMin: number },
+): Promise<string | null> {
+  try {
+    const token = await googleToken();
+    if (!token) return "Google Calendar is not connected, so no calendar block was made.";
+    const event = await createEvent(token, { date, startMin: range.startMin, endMin: range.endMin, title });
+    if (!event) return "Google did not return the new event.";
+    const { error } = await supabase
+      .from("todos")
+      .update({ calendar_event_id: event.id, due_date: date, scheduled_start: isoOf(date, range.startMin), scheduled_end: isoOf(date, range.endMin) })
+      .eq("id", todoId);
+    if (error) {
+      await deleteEvent(token, event.id).catch(() => undefined);
+      return error.message;
+    }
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "Could not create the calendar block.";
+  }
+}
+
 export async function createTodo(formData: FormData) {
   const fields = readTodoFields(formData);
+  const week = readWeek(formData);
   if (!fields.title) {
-    redirect("/todos?new=1&error=" + encodeURIComponent("Title is required."));
+    redirect(todosHref(week, "new=1&error=" + encodeURIComponent("Title is required.")));
   }
+  const range = parseOptionalRange(formData.get("start_time"), formData.get("end_time"));
+  if (!range.ok) redirect(todosHref(week, "new=1&error=" + encodeURIComponent(range.error)));
+  if (range.value && !fields.due_date) redirect(todosHref(week, "new=1&error=" + encodeURIComponent("Choose a date to put it on the calendar.")));
 
   const supabase = await createClient();
-  const { error } = await supabase.from("todos").insert(await withValidPhase(supabase, fields));
+  const { data: created, error } = await supabase.from("todos").insert(await withValidPhase(supabase, fields)).select("id").single();
 
-  if (error) {
-    redirect("/todos?new=1&error=" + encodeURIComponent(error.message));
+  if (error || !created) {
+    redirect(todosHref(week, "new=1&error=" + encodeURIComponent(error?.message ?? "Could not save the task.")));
+  }
+
+  if (range.value && fields.due_date) {
+    const failure = await attachBlock(supabase, created.id, fields.title, fields.due_date, range.value);
+    if (failure) {
+      // To-do-nya sudah tersimpan; buka lagi formnya supaya blok kalender bisa dicoba ulang.
+      revalidateTodoViews();
+      redirect(todosHref(week, `edit=${created.id}&error=` + encodeURIComponent(`Task saved, but the calendar block failed: ${failure}`)));
+    }
   }
 
   revalidateTodoViews();
-  redirect("/todos");
+  redirect(todosHref(weekAfterSave(week, fields.due_date)));
 }
 
 export async function updateTodo(id: string, formData: FormData) {
   const fields = readTodoFields(formData);
+  const week = readWeek(formData);
   // Dibuka dari halaman lain (mis. Proyek)? Setelah simpan kembali ke sana, bukan ke daftar To-Do.
   const from = safeReturnPath(String(formData.get("from") ?? ""));
-  if (!fields.title) {
-    redirect(withFrom(`/todos?edit=${id}`, from) + "&error=" + encodeURIComponent("Title is required."));
-  }
+  const back = (error: string) => redirect(withFrom(todosHref(week, `edit=${id}`), from) + "&error=" + encodeURIComponent(error));
+  if (!fields.title) back("Title is required.");
+
+  const range = parseOptionalRange(formData.get("start_time"), formData.get("end_time"));
+  if (!range.ok) back(range.error);
+  const removeBlock = formData.get("remove_block") === "on";
 
   const supabase = await createClient();
-  // To-do yang tertaut ke blok kalender: tanggalnya mengikuti blok (geser bloknya untuk mengubah tanggal), jadi isian
-  // tanggal dari form diabaikan di server (formulir menampilkannya hanya-baca).
   const { data: current } = await supabase.from("todos").select("calendar_event_id").eq("id", id).maybeSingle();
   const valid = await withValidPhase(supabase, fields);
-  const update: Partial<typeof valid> = { ...valid };
-  if (current?.calendar_event_id) delete update.due_date;
-  const { error } = await supabase.from("todos").update(update).eq("id", id);
+  const update: Partial<typeof valid> & { calendar_event_id?: null; scheduled_start?: string | null; scheduled_end?: string | null } = { ...valid };
+  let createBlock: { startMin: number; endMin: number } | null = null;
 
-  if (error) {
-    redirect(withFrom(`/todos?edit=${id}`, from) + "&error=" + encodeURIComponent(error.message));
+  if (current?.calendar_event_id) {
+    // Terhubung ke blok kalender: tanggal dan jam yang diubah di form menggeser acaranya di Google (Google dulu; gagal = tidak ada yang berubah).
+    try {
+      const token = await googleToken();
+      if (removeBlock) {
+        if (token) await deleteEvent(token, current.calendar_event_id).catch(() => undefined);
+        update.calendar_event_id = null;
+        update.scheduled_start = null;
+        update.scheduled_end = null;
+      } else if (!token) {
+        delete update.due_date; // tanpa Google tidak bisa menggeser blok: tanggal tetap mengikuti blok
+      } else {
+        if (!range.ok || !range.value || !fields.due_date) {
+          back("A calendar block needs a date and both times. Tick “Remove from calendar” to unlink it instead.");
+        } else {
+          await rescheduleEvent(token, current.calendar_event_id, fields.due_date, range.value.startMin, range.value.endMin);
+          update.scheduled_start = isoOf(fields.due_date, range.value.startMin);
+          update.scheduled_end = isoOf(fields.due_date, range.value.endMin);
+        }
+      }
+    } catch (error) {
+      back(error instanceof Error ? error.message : "Could not move the calendar block.");
+    }
+  } else if (range.ok && range.value) {
+    if (!fields.due_date) back("Choose a date to put it on the calendar.");
+    createBlock = range.value;
+  }
+
+  const { error } = await supabase.from("todos").update(update).eq("id", id);
+  if (error) back(error.message);
+
+  if (createBlock && fields.due_date) {
+    const failure = await attachBlock(supabase, id, fields.title, fields.due_date, createBlock);
+    if (failure) {
+      revalidateTodoViews();
+      back(`Saved, but the calendar block failed: ${failure}`);
+    }
   }
 
   revalidateTodoViews();
-  redirect(from ?? "/todos");
+  redirect(from ?? todosHref(week));
+}
+
+export type QuickAddResult = { ok: true; warning?: string } | { ok: false; error: string };
+
+/**
+ * Tambah cepat satu to-do, dengan blok kalender bila jamnya diisi (kotak "Write a new task" di atas). Tanpa redirect: URL (termasuk ?week=)
+ * tetap, halaman dirender ulang. To-do tetap tersimpan walau blok kalendernya gagal (dikembalikan sebagai peringatan).
+ */
+export async function createTodoQuick(formData: FormData): Promise<QuickAddResult> {
+  const title = String(formData.get("title") ?? "").trim();
+  const dateRaw = String(formData.get("date") ?? "").trim();
+  const date = isISODate(dateRaw) ? dateRaw : todayISO();
+  const goalId = String(formData.get("goal_id") ?? "").trim();
+  if (!title) return { ok: false, error: "Write a title first." };
+  if (title.length > 500) return { ok: false, error: "The title is too long." };
+  const range = parseOptionalRange(formData.get("start_time"), formData.get("end_time"));
+  if (!range.ok) return range;
+
+  const user = await getAuthUser();
+  if (!user) return { ok: false, error: "Your session has expired. Log in again." };
+  const supabase = await createClient();
+  const { data: created, error } = await supabase
+    .from("todos")
+    .insert({ title, description: null, status: "todo", priority: "medium", due_date: date, goal_id: UUID_RE.test(goalId) ? goalId : null })
+    .select("id")
+    .single();
+  if (error || !created) return { ok: false, error: error?.message ?? "Could not save the task." };
+
+  let warning: string | undefined;
+  if (range.value) {
+    const failure = await attachBlock(supabase, created.id, title, date, range.value);
+    if (failure) warning = `Task added, but the calendar block failed: ${failure}`;
+  }
+  revalidateTodoViews();
+  return { ok: true, ...(warning ? { warning } : {}) };
 }
 
 export async function deleteTodo(id: string) {
