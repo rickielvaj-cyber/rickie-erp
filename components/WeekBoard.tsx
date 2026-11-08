@@ -28,7 +28,13 @@ import type { Todo, TodoPriority } from "@/lib/types";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { SelectBox, SelectGroup } from "@/components/todo/BatchSelection";
 import { DoneCheckbox } from "@/components/todo/DoneCheckbox";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+import { useStoredSize } from "@/components/ui/use-stored-size";
 import { createTodoForDay, placeTodo } from "@/app/(dashboard)/todos/actions";
+
+const BOARD_HEIGHT_KEY = "size-weekboard-v1";
+const BOARD_MIN_PX = 160;
+const BOARD_MAX_PX = 1600;
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = { low: "Low", medium: "Medium", high: "High" };
 
@@ -103,6 +109,7 @@ function DayCard({
   week,
   maps,
   compact,
+  minHeight,
 }: {
   day: string;
   today: string;
@@ -111,6 +118,8 @@ function DayCard({
   week?: string;
   maps: Maps;
   compact?: boolean;
+  /** Tinggi minimum kartu (px) yang diatur dengan menarik; kosong = bawaan CSS. */
+  minHeight?: number;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: day });
   const isToday = day === today;
@@ -118,7 +127,8 @@ function DayCard({
     <div
       ref={setNodeRef}
       aria-label={`${formatLongDay(day)}${isToday ? " (today)" : ""}`}
-      className={`flex flex-col gap-3 rounded-2xl p-3.5 ${compact ? "min-h-[9rem]" : "min-h-[26rem]"} ${
+      style={minHeight ? { minHeight: `${compact ? Math.round(minHeight * 0.4) : minHeight}px` } : undefined}
+      className={`flex flex-col gap-3 rounded-2xl p-3.5 ${minHeight ? "" : compact ? "min-h-[9rem]" : "min-h-[26rem]"} ${
         isToday ? "border-2 border-accent bg-accent-soft/60" : "border border-border bg-background shadow-card"
       } ${isOver ? "ring-2 ring-accent/40" : ""}`}
     >
@@ -236,8 +246,10 @@ export function WeekBoard({
   };
 
   const maps: Maps = { goalTitles, projectTitles };
+  const [boardHeight, setBoardHeight] = useStoredSize(BOARD_HEIGHT_KEY, BOARD_MIN_PX, BOARD_MAX_PX);
+  const firstRow = useRef<HTMLDivElement | null>(null);
   const card = (day: string, compact?: boolean) => (
-    <DayCard key={day} day={day} today={today} todos={byId} ids={items[day] ?? []} week={week} maps={maps} compact={compact} />
+    <DayCard key={day} day={day} today={today} todos={byId} ids={items[day] ?? []} week={week} maps={maps} compact={compact} minHeight={boardHeight ?? undefined} />
   );
   const active = activeId ? byId.get(activeId) : undefined;
 
@@ -260,8 +272,9 @@ export function WeekBoard({
       )}
       {/* Senin–Jumat = 5 kolom; Sabtu dan Minggu di baris sendiri di bawahnya. Di layar sangat lebar sedikit keluar dari lebar halaman. */}
       <div className="2xl:-mx-20">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">{days.slice(0, 5).map((day) => card(day))}</div>
+        <div ref={firstRow} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">{days.slice(0, 5).map((day) => card(day))}</div>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">{days.slice(5).map((day) => card(day, true))}</div>
+        <ResizeHandle targetRef={firstRow} onResize={setBoardHeight} onReset={() => setBoardHeight(null)} min={BOARD_MIN_PX} max={BOARD_MAX_PX} label="Resize week board height" measureFirstChild />
       </div>
       <DragOverlay>
         {active ? (

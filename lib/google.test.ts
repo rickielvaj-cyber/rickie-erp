@@ -81,7 +81,7 @@ test("layoutWeek splits an event that crosses midnight and drops a zero-length t
   assert.equal(ends[1].blocks.length, 0, "ending exactly at midnight does not appear on the next day");
 });
 
-test("layoutWeek gives overlapping events their own lanes and lets separate ones use the full width", () => {
+test("layoutWeek stacks a block that starts well inside another on top of it, and lets separate ones use the full width", () => {
   const days = layoutWeek(
     [
       timed("a", "2026-10-19T09:00:00+07:00", "2026-10-19T11:00:00+07:00"),
@@ -91,8 +91,51 @@ test("layoutWeek gives overlapping events their own lanes and lets separate ones
     "2026-10-19",
   );
   const by = Object.fromEntries(days[0].blocks.map((b) => [b.event.id, b]));
-  assert.deepEqual([by.a.lane, by.a.lanes, by.b.lane, by.b.lanes], [0, 2, 1, 2]);
-  assert.deepEqual([by.c.lane, by.c.lanes], [0, 1]);
+  assert.deepEqual([by.a.depth, by.a.lane, by.a.lanes], [0, 0, 1]);
+  assert.deepEqual([by.b.depth, by.b.lane, by.b.lanes], [1, 0, 1], "b starts an hour into a, so it sits on top of a, indented");
+  assert.deepEqual([by.c.depth, by.c.lane, by.c.lanes], [0, 0, 1], "c overlaps nothing");
+});
+
+test("layoutWeek: children inside a long block stack on it at depth 1 (Google Calendar style) and keep the full width", () => {
+  const days = layoutWeek(
+    [
+      timed("working", "2026-11-08T14:15:00+07:00", "2026-11-08T21:00:00+07:00"),
+      timed("A", "2026-11-08T15:45:00+07:00", "2026-11-08T17:30:00+07:00"),
+      timed("B", "2026-11-08T17:45:00+07:00", "2026-11-08T20:30:00+07:00"),
+    ],
+    "2026-11-02",
+  );
+  const by = Object.fromEntries(days[6].blocks.map((b) => [b.event.id, b]));
+  assert.deepEqual([by.working.depth, by.working.lanes], [0, 1]);
+  assert.deepEqual([by.A.depth, by.A.lane, by.A.lanes], [1, 0, 1]);
+  assert.deepEqual([by.B.depth, by.B.lane, by.B.lanes], [1, 0, 1], "B does not overlap A, so it is on the same level, not side by side");
+});
+
+test("layoutWeek: blocks that start about together are split side by side, even inside a long block", () => {
+  const days = layoutWeek(
+    [
+      timed("working", "2026-11-02T09:00:00+07:00", "2026-11-02T17:00:00+07:00"),
+      timed("x", "2026-11-02T13:00:00+07:00", "2026-11-02T14:00:00+07:00"),
+      timed("y", "2026-11-02T13:10:00+07:00", "2026-11-02T14:00:00+07:00"),
+    ],
+    "2026-11-02",
+  );
+  const by = Object.fromEntries(days[0].blocks.map((b) => [b.event.id, b]));
+  assert.equal(by.working.depth, 0);
+  assert.deepEqual([by.x.depth, by.x.lane, by.x.lanes], [1, 0, 2]);
+  assert.deepEqual([by.y.depth, by.y.lane, by.y.lanes], [1, 1, 2], "y started 10 minutes after x: side by side, not stacked");
+});
+
+test("layoutWeek: a chain of overlaps stacks one level per step", () => {
+  const days = layoutWeek(
+    [
+      timed("a", "2026-11-02T09:00:00+07:00", "2026-11-02T12:00:00+07:00"),
+      timed("b", "2026-11-02T10:00:00+07:00", "2026-11-02T12:00:00+07:00"),
+      timed("c", "2026-11-02T11:00:00+07:00", "2026-11-02T12:00:00+07:00"),
+    ],
+    "2026-11-02",
+  );
+  assert.deepEqual(days[0].blocks.map((b) => [b.event.id, b.depth]), [["a", 0], ["b", 1], ["c", 2]]);
 });
 
 test("layoutWeek gives very short events a minimum height and spreads all-day events over their days (end is exclusive)", () => {

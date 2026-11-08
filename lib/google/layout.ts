@@ -21,7 +21,12 @@ export type CalendarEvent = {
   reminder?: ReminderChoice;
 };
 
-export type TimedBlock = { event: CalendarEvent; startMin: number; endMin: number; lane: number; lanes: number };
+/**
+ * `depth` = berapa lapis blok ini bertumpuk di atas blok lain (0 = paling bawah; seperti Google Calendar, blok yang mulai di tengah blok
+ * lain digambar di atasnya dan sedikit menjorok ke kanan). `lane`/`lanes` = urutan/jumlah kolom berdampingan di antara blok sedalam yang sama
+ * yang bersaing tempat (mis. dua blok yang mulai hampir bersamaan).
+ */
+export type TimedBlock = { event: CalendarEvent; startMin: number; endMin: number; lane: number; lanes: number; depth: number };
 export type DayLayout = { date: string; allDay: CalendarEvent[]; blocks: TimedBlock[] };
 
 const MIN_BLOCK_MIN = 20;
@@ -33,10 +38,10 @@ export function toWib(iso: string): { date: string; minutes: number } {
 }
 
 /** Atur acara yang saling tumpang tindih ke "lajur" berdampingan. Mengisi lane dan lanes per kelompok yang bersambung. */
-function assignLanes(blocks: Omit<TimedBlock, "lane" | "lanes">[]): TimedBlock[] {
+function assignLanes(blocks: Omit<TimedBlock, "lane" | "lanes" | "depth">[]): Array<Omit<TimedBlock, "depth">> {
   const sorted = [...blocks].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
-  const out: TimedBlock[] = [];
-  let group: TimedBlock[] = [];
+  const out: Array<Omit<TimedBlock, "depth">> = [];
+  let group: Array<Omit<TimedBlock, "depth">> = [];
   let groupEnd = -1;
   const laneEnds: number[] = [];
 
@@ -59,11 +64,33 @@ function assignLanes(blocks: Omit<TimedBlock, "lane" | "lanes">[]): TimedBlock[]
   return out;
 }
 
+/** Blok yang mulai setidaknya selama ini setelah blok lain yang masih berjalan ditumpuk DI ATAS blok itu; yang lebih dekat dibelah berdampingan. */
+export const COVER_MIN = 30;
+
+/** Tata satu hari: kedalaman tumpukan per blok, lalu kolom berdampingan di antara blok sedalam yang sama. */
+function layoutDay(blocks: Omit<TimedBlock, "lane" | "lanes" | "depth">[]): TimedBlock[] {
+  const sorted = [...blocks].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
+  const depths: number[] = [];
+  sorted.forEach((b, i) => {
+    let depth = 0;
+    for (let j = 0; j < i; j++) {
+      const p = sorted[j];
+      if (b.startMin - p.startMin >= COVER_MIN && p.endMin > b.startMin) depth = Math.max(depth, depths[j] + 1);
+    }
+    depths.push(depth);
+  });
+  const byDepth = new Map<number, Omit<TimedBlock, "lane" | "lanes" | "depth">[]>();
+  sorted.forEach((b, i) => byDepth.set(depths[i], [...(byDepth.get(depths[i]) ?? []), b]));
+  const out: TimedBlock[] = [];
+  for (const [depth, list] of byDepth) out.push(...assignLanes(list).map((b) => ({ ...b, depth })));
+  return out.sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
+}
+
 /** Acara dibagi per hari (WIB) untuk 7 hari mulai `weekStart`; acara lintas tengah malam dipotong per hari. */
 export function layoutWeek(events: CalendarEvent[], weekStart: string): DayLayout[] {
   const days: DayLayout[] = Array.from({ length: 7 }, (_, i) => ({ date: addDaysISO(weekStart, i), allDay: [], blocks: [] }));
   const byDate = new Map(days.map((d) => [d.date, d]));
-  const raw = new Map<string, Omit<TimedBlock, "lane" | "lanes">[]>();
+  const raw = new Map<string, Omit<TimedBlock, "lane" | "lanes" | "depth">[]>();
 
   for (const event of events) {
     if (event.allDay) {
@@ -82,7 +109,7 @@ export function layoutWeek(events: CalendarEvent[], weekStart: string): DayLayou
       raw.set(date, [...(raw.get(date) ?? []), { event, startMin, endMin: Math.min(endMin, 24 * 60) }]);
     }
   }
-  for (const day of days) day.blocks = assignLanes(raw.get(day.date) ?? []);
+  for (const day of days) day.blocks = layoutDay(raw.get(day.date) ?? []);
   return days;
 }
 

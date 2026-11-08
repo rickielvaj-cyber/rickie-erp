@@ -7,6 +7,8 @@ import { DEFAULT_BLOCK_MIN, SNAP_MIN, dragRange, minutesToTime, slotFromOffset, 
 import { toWib, type CalendarEvent, type DayLayout, type TimedBlock } from "@/lib/google/layout";
 import { parseReminder, reminderOptions } from "@/lib/google/reminder";
 import { WORK_HOURS_KEY, parseWorkHours, shadedRanges, workHoursFromInputs, type WorkHours } from "@/lib/google/work-hours";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+import { useStoredSize } from "@/components/ui/use-stored-size";
 import { createCalendarBlock, deleteCalendarBlock, updateCalendarBlock } from "@/app/(dashboard)/todos/calendar-actions";
 
 const HOUR_REM = 3; // tinggi satu jam di grid
@@ -14,6 +16,9 @@ const MAX_MIN = 24 * 60 - 1;
 const MOVE_THRESHOLD_PX = 5;
 /** Lajur kosong di tepi kanan tiap kolom hari: menarik/mengklik di sini membuat blok baru DI ATAS blok yang ada (seperti Google Calendar). */
 const GUTTER_PX = 16;
+/** Tiap lapis blok yang ditumpuk menjorok sebanyak ini ke kanan (seperti Google Calendar); dibatasi agar blok tidak menyempit habis. */
+const INDENT_PX = 14;
+const MAX_INDENT_LEVELS = 5;
 const WORK_HOURS_EVENT = "work-hours-change";
 const subscribeWorkHours = (notify: () => void) => {
   window.addEventListener("storage", notify);
@@ -30,6 +35,9 @@ const readWorkHoursRaw = () => {
     return null;
   }
 };
+const CAL_HEIGHT_KEY = "size-calendar-v1";
+const CAL_MIN_PX = 240;
+const CAL_MAX_PX = 1800;
 const DAY_CHIPS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export type LinkOption = { id: string; title: string; date: string | null };
@@ -184,6 +192,7 @@ export function CalendarGrid({
   const workHoursRaw = useSyncExternalStore(subscribeWorkHours, readWorkHoursRaw, () => null);
   const workHours = useMemo(() => parseWorkHours(workHoursRaw), [workHoursRaw]);
   const [editingHours, setEditingHours] = useState(false);
+  const [calHeight, setCalHeight] = useStoredSize(CAL_HEIGHT_KEY, CAL_MIN_PX, CAL_MAX_PX);
   const saveWorkHours = (next: WorkHours) => {
     try {
       window.localStorage.setItem(WORK_HOURS_KEY, JSON.stringify(next));
@@ -369,7 +378,7 @@ export function CalendarGrid({
     const moved = days
       .flatMap((x) => x.blocks)
       .filter((b) => overrides[b.event.id]?.date === d.date)
-      .map((b) => ({ ...b, ...overrides[b.event.id], lane: 0, lanes: 1 }));
+      .map((b) => ({ ...b, ...overrides[b.event.id], lane: 0, lanes: 1, depth: 0 }));
     return [...own, ...moved];
   };
 
@@ -401,7 +410,7 @@ export function CalendarGrid({
         </p>
       )}
 
-      <div ref={scrollRef} className="max-h-[40rem] overflow-auto rounded-2xl border border-border bg-background shadow-card">
+      <div ref={scrollRef} className={`overflow-auto rounded-2xl border border-border bg-background shadow-card ${calHeight === null ? "max-h-[40rem]" : ""}`} style={calHeight === null ? undefined : { height: `${calHeight}px` }}>
         <div className="min-w-[56rem]">
           <div className="sticky top-0 z-30 bg-background">
           <div className={`${cols} border-b border-border`}>
@@ -489,31 +498,32 @@ export function CalendarGrid({
                 {blocksFor(d).map((b) => {
                   const editable = panelFor(b.event);
                   const height = ((b.endMin - b.startMin) / 60) * HOUR_REM;
+                  const indent = Math.min(b.depth, MAX_INDENT_LEVELS) * INDENT_PX;
                   const style = {
                     top: `${topRem(b.startMin)}rem`,
                     height: `${Math.max(height, 0.9)}rem`,
-                    // Lajur kosong GUTTER_PX di kanan dibiarkan untuk membuat blok baru di atas blok ini.
-                    left: `calc((100% - ${GUTTER_PX}px) * ${b.lane / b.lanes} + 1px)`,
-                    width: `calc((100% - ${GUTTER_PX}px) / ${b.lanes} - 2px)`,
+                    // Blok yang ditumpuk menjorok ke kanan per lapis (INDENT_PX) dan digambar di atas; lajur kosong GUTTER_PX di kanan tetap bebas.
+                    left: `calc(${indent}px + (100% - ${GUTTER_PX + indent}px) * ${b.lane / b.lanes} + 1px)`,
+                    width: `calc((100% - ${GUTTER_PX + indent}px) / ${b.lanes} - 2px)`,
+                    zIndex: 10 + b.depth,
                   };
                   // Blok pendek (<= 45 menit) satu baris saja supaya jamnya tidak terpotong di baris kedua.
                   const short = b.endMin - b.startMin <= 45;
-                  const className = `absolute z-10 overflow-hidden rounded-md border ${
+                  const className = `absolute overflow-hidden rounded-md border ${
                     b.event.source ? "border-dashed border-border-strong bg-surface text-muted hover:bg-surface" : "border-accent/40 border-l-4 border-l-accent bg-accent-soft text-foreground hover:bg-accent-soft"
-                  } px-1.5 py-0.5 text-left text-xs leading-tight ${
-                    short ? "truncate whitespace-nowrap" : ""
-                  } ${ghost?.id === b.event.id ? "opacity-40" : ""}`;
+                  } px-1.5 py-0.5 text-left text-xs leading-tight ${ghost?.id === b.event.id ? "opacity-40" : ""}`;
                   const linked = linkedTitles[b.event.id];
                   const body = (
-                    <>
+                    // Judul di bagian atas blok (elemen tombol memusatkan isinya secara vertikal bila tidak dibungkus).
+                    <span className={`block w-full text-left ${short ? "truncate whitespace-nowrap" : ""}`}>
                       <span className="font-medium">{b.event.title}</span> <span className="text-muted">{minutesToTime(b.startMin)}</span>
-                    </>
+                    </span>
                   );
                   return editable ? (
                     <button
                       key={b.event.id + b.startMin}
                       type="button"
-                      className={`${className} cursor-grab active:cursor-grabbing`}
+                      className={`${className} flex items-start cursor-grab active:cursor-grabbing`}
                       style={style}
                       title={linked ? `${b.event.title} (linked to to-do: ${linked})` : b.event.title}
                       onPointerDown={(e) => beginGesture("move", b, d.date, e)}
@@ -564,6 +574,7 @@ export function CalendarGrid({
           </div>
         </div>
       </div>
+      <ResizeHandle targetRef={scrollRef} onResize={setCalHeight} onReset={() => setCalHeight(null)} min={CAL_MIN_PX} max={CAL_MAX_PX} label="Resize calendar height" />
 
       {panel && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={close}>
