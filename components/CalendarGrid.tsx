@@ -7,6 +7,7 @@ import { DEFAULT_BLOCK_MIN, SNAP_MIN, dragRange, minutesToTime, slotFromOffset, 
 import { toWib, type CalendarEvent, type DayLayout, type TimedBlock } from "@/lib/google/layout";
 import { parseReminder, reminderOptions } from "@/lib/google/reminder";
 import { EVENT_COLORS, colorOf, colorStyle } from "@/lib/google/color";
+import { LEGEND_KEY, LEGEND_NAME_MAX, SUGGESTED_LEGEND, legendFromInputs, legendLabel, parseLegend, type Legend } from "@/lib/google/legend";
 import { WORK_HOURS_KEY, parseWorkHours, shadedRanges, workHoursFromInputs, type WorkHours } from "@/lib/google/work-hours";
 import { ResizeHandle } from "@/components/ui/ResizeHandle";
 import { useStoredSize } from "@/components/ui/use-stored-size";
@@ -38,6 +39,22 @@ const readWorkHoursRaw = () => {
 const CAL_HEIGHT_KEY = "size-calendar-v1";
 const CAL_MIN_PX = 240;
 const CAL_MAX_PX = 1800;
+const LEGEND_EVENT = "color-legend-change";
+const subscribeLegend = (notify: () => void) => {
+  window.addEventListener("storage", notify);
+  window.addEventListener(LEGEND_EVENT, notify);
+  return () => {
+    window.removeEventListener("storage", notify);
+    window.removeEventListener(LEGEND_EVENT, notify);
+  };
+};
+const readLegendRaw = () => {
+  try {
+    return window.localStorage.getItem(LEGEND_KEY);
+  } catch {
+    return null;
+  }
+};
 const DAY_CHIPS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export type LinkOption = { id: string; title: string; date: string | null };
@@ -83,6 +100,52 @@ function panelFor(event: CalendarEvent): Panel | null {
   const e = toWib(event.end);
   if (s.date !== e.date) return null;
   return { mode: "edit", id: event.id, title: event.title, date: s.date, start: minutesToTime(s.minutes), end: minutesToTime(e.minutes), link: event.link, reminder: String(event.reminder ?? "default"), color: event.colorId ?? "" };
+}
+
+/** Legenda warna: beri arti pada tiap warna (mis. merah = Urgent). Hanya nama; warnanya tersimpan di Google. Disimpan di browser ini saja. */
+function LegendEditor({ value, onSave, onCancel }: { value: Legend; onSave: (v: Legend) => void; onCancel: () => void }) {
+  const [names, setNames] = useState<Record<string, string>>(() => ({ ...value }));
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(legendFromInputs(names));
+      }}
+      aria-label="Color legend"
+      className="mb-3 rounded-2xl border border-border bg-surface px-4 py-3 text-sm"
+    >
+      <p className="mb-3 text-muted">Give each color a meaning, e.g. red = Urgent. Leave a name empty to hide it from the legend.</p>
+      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+        {EVENT_COLORS.map((c) => (
+          <label key={c.id} className="flex items-center gap-2">
+            <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: c.hex }} />
+            <input
+              value={names[c.id] ?? ""}
+              onChange={(e) => setNames({ ...names, [c.id]: e.target.value })}
+              maxLength={LEGEND_NAME_MAX}
+              placeholder={c.name}
+              aria-label={`Meaning of ${c.name}`}
+              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-2.5 placeholder:text-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
+            />
+          </label>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="submit" className="rounded-full bg-accent px-4 py-1.5 font-medium text-white transition-colors hover:bg-accent-hover">
+          Save
+        </button>
+        <button type="button" onClick={onCancel} className="rounded-full border border-border-strong px-4 py-1.5 transition-colors hover:bg-background">
+          Cancel
+        </button>
+        <button type="button" onClick={() => setNames({ ...SUGGESTED_LEGEND })} className="rounded-full px-3 py-1.5 text-muted underline underline-offset-4 hover:text-foreground">
+          Use suggestions
+        </button>
+        <button type="button" onClick={() => setNames({})} className="rounded-full px-3 py-1.5 text-muted underline underline-offset-4 hover:text-foreground">
+          Clear all
+        </button>
+      </div>
+    </form>
+  );
 }
 
 /** Pengaturan jam kerja: jam di luar rentang ini (dan hari yang tidak dipilih) diberi latar abu di kalender. Disimpan di browser ini saja. */
@@ -194,6 +257,17 @@ export function CalendarGrid({
   const workHoursRaw = useSyncExternalStore(subscribeWorkHours, readWorkHoursRaw, () => null);
   const workHours = useMemo(() => parseWorkHours(workHoursRaw), [workHoursRaw]);
   const [editingHours, setEditingHours] = useState(false);
+  const legendRaw = useSyncExternalStore(subscribeLegend, readLegendRaw, () => null);
+  const legend = useMemo(() => parseLegend(legendRaw), [legendRaw]);
+  const [editingLegend, setEditingLegend] = useState(false);
+  const saveLegend = (next: Legend) => {
+    try {
+      window.localStorage.setItem(LEGEND_KEY, JSON.stringify(next));
+    } catch {
+      // penyimpanan browser tidak tersedia: perubahan tidak tersimpan
+    }
+    window.dispatchEvent(new Event(LEGEND_EVENT));
+  };
   // Tampilan satu hari: kolom lebar untuk membaca hari yang padat. null = seminggu penuh.
   const [focusDate, setFocusDate] = useState<string | null>(null);
   const focused = focusDate && days.some((d) => d.date === focusDate) ? focusDate : null;
@@ -404,11 +478,30 @@ export function CalendarGrid({
           >
             {workHours.enabled ? `Work hours ${minutesToTime(workHours.startMin)}–${workHours.endMin >= 24 * 60 ? "24:00" : minutesToTime(workHours.endMin)}` : "Work hours off"}
           </button>
+          <button
+            type="button"
+            onClick={() => setEditingLegend((v) => !v)}
+            aria-expanded={editingLegend}
+            className="rounded-full border border-border-strong px-3.5 py-1.5 text-sm text-muted transition-colors hover:bg-surface"
+          >
+            Color legend
+          </button>
           <button type="button" onClick={newBlock} className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover">
             + New block
           </button>
         </div>
       </div>
+      {editingLegend && <LegendEditor value={legend} onSave={(v) => { saveLegend(v); setEditingLegend(false); }} onCancel={() => setEditingLegend(false)} />}
+      {Object.keys(legend).length > 0 && (
+        <ul aria-label="Color legend" className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
+          {EVENT_COLORS.filter((c) => legend[c.id]).map((c) => (
+            <li key={c.id} className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.hex }} />
+              {legend[c.id]}
+            </li>
+          ))}
+        </ul>
+      )}
       {editingHours && <WorkHoursEditor value={workHours} onSave={(v) => { saveWorkHours(v); setEditingHours(false); }} onCancel={() => setEditingHours(false)} />}
       {banner && (
         <p role="alert" className="mb-3 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
@@ -556,7 +649,7 @@ export function CalendarGrid({
                       type="button"
                       className={`${className} flex items-start cursor-grab active:cursor-grabbing`}
                       style={style}
-                      title={linked ? `${b.event.title} · ${range} (linked to to-do: ${linked})` : `${b.event.title} · ${range}`}
+                      title={`${b.event.title} · ${range}${b.event.colorId && legend[b.event.colorId] ? ` · ${legend[b.event.colorId]}` : ""}${linked ? ` (linked to to-do: ${linked})` : ""}`}
                       onPointerDown={(e) => beginGesture("move", b, d.date, e)}
                       onPointerMove={updateGesture}
                       onPointerUp={endGesture}
@@ -664,7 +757,7 @@ export function CalendarGrid({
             </div>
             <fieldset className="block text-sm">
               <legend className="mb-1.5 block text-muted">
-                Color {panel.color ? <span className="text-subtle">· {colorOf(panel.color)?.name}</span> : <span className="text-subtle">· default</span>}
+                Color {panel.color ? <span className="text-subtle">· {legendLabel(legend, panel.color)}{legend[panel.color] ? ` (${colorOf(panel.color)?.name})` : ""}</span> : <span className="text-subtle">· default</span>}
               </legend>
               <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Block color">
                 <button
@@ -681,8 +774,8 @@ export function CalendarGrid({
                     type="button"
                     onClick={() => setPanel({ ...panel, color: c.id })}
                     aria-pressed={panel.color === c.id}
-                    aria-label={c.name}
-                    title={c.name}
+                    aria-label={legend[c.id] ? `${legend[c.id]} (${c.name})` : c.name}
+                    title={legend[c.id] ? `${legend[c.id]} (${c.name})` : c.name}
                     style={{ backgroundColor: c.hex }}
                     className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${panel.color === c.id ? "border-foreground" : "border-transparent"}`}
                   />
