@@ -23,7 +23,12 @@ import type { Goal, Todo, TodoPriority } from "@/lib/types";
 import { ProjectPhasePicker, type PickerProject } from "@/components/projects/ProjectPhasePicker";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { TodoUndoToast } from "@/components/TodoUndoToast";
-import { createTodo, createTodoForDay, moveTodoToToday, toggleTodoDone, updateTodo } from "./actions";
+import { createTodo, moveTodoToToday, toggleTodoDone, updateTodo } from "./actions";
+import { QuickAdd } from "@/components/todo/QuickAdd";
+import { isConnected } from "@/lib/google/store";
+import { googleConfigured } from "@/lib/google/oauth";
+import { toWib } from "@/lib/google/layout";
+import { minutesToTime } from "@/lib/google/block";
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = {
   low: "Low",
@@ -88,6 +93,8 @@ export default async function TodosPage({
 
   const supabase = await createClient();
   const authUser = await getAuthUser();
+  // Pilihan "masukkan ke kalender" hanya tampil bila Google sudah tersambung.
+  const calendarConnected = authUser && googleConfigured() ? await isConnected(authUser.id).catch(() => false) : false;
 
   // Panel "Hari ini": tugas jatuh tempo hari ini + yang terlewat/belum bertanggal
   // selama belum selesai (biar nggak hilang dari pandangan). Filter berlaku di
@@ -196,7 +203,17 @@ export default async function TodosPage({
       <AutoRefresh intervalMs={20000} pauseParams={["new", "edit"]} />
       {(isNew || editingTodo) && (
         <div className="mx-auto mb-10 max-w-2xl">
-          <TodoForm key={editingTodo?.id ?? "new"} todo={editingTodo} goals={goals} projects={projectOptions} error={params.error} from={safeReturnPath(params.from)} />
+          <TodoForm
+            key={editingTodo?.id ?? "new"}
+            todo={editingTodo}
+            goals={goals}
+            projects={projectOptions}
+            error={params.error}
+            from={safeReturnPath(params.from)}
+            week={weekParam}
+            defaultDate={weekParam && !isCurrentWeek ? weekParam : today}
+            calendarConnected={calendarConnected}
+          />
         </div>
       )}
 
@@ -211,7 +228,7 @@ export default async function TodosPage({
           </div>
           {!isNew && !editingTodo && (
             <Link
-              href="/todos?new=1"
+              href={weekParam ? `/todos?new=1&week=${weekParam}` : "/todos?new=1"}
               className="shrink-0 rounded-full bg-accent px-5 py-2 text-base font-medium text-white transition-colors hover:bg-accent-hover"
             >
               + Add task
@@ -296,9 +313,9 @@ export default async function TodosPage({
           projects={projectOptions.filter((p) => !p.done).map((p) => ({ id: p.id, label: p.label, phases: p.phases }))}
         >
         <div className="flex flex-col gap-6">
-          <TaskGroup title="Overdue" tone="danger" todos={overdue} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} moveToToday={today} />
-          <TaskGroup title={overdue.length || undated.length ? "Today" : undefined} todos={dueToday} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} />
-          <TaskGroup title="No date" todos={undated} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} />
+          <TaskGroup title="Overdue" tone="danger" todos={overdue} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} moveToToday={today} week={weekParam} />
+          <TaskGroup title={overdue.length || undated.length ? "Today" : undefined} todos={dueToday} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} week={weekParam} />
+          <TaskGroup title="No date" todos={undated} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} week={weekParam} />
 
           {todayTodos.length === 0 && (
             <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-8 text-center text-base text-subtle">
@@ -308,17 +325,8 @@ export default async function TodosPage({
         </div>
         </BatchSelection>
 
-        <form action={createTodoForDay.bind(null, today)}>
-          {/* Sedang memfilter satu goal: tugas baru dari kotak ini ikut tertaut ke goal itu. */}
-          {UUID_RE.test(goal) && <input type="hidden" name="goal_id" value={goal} />}
-          <input
-            name="title"
-            required
-            placeholder="+ Write a new task, then press Enter"
-            aria-label="New task for today"
-            className="h-12 w-full rounded-2xl border border-dashed border-border-strong px-5 text-base placeholder:text-subtle focus:border-solid focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
-          />
-        </form>
+        {/* Sedang memfilter satu goal: tugas baru dari kotak ini ikut tertaut ke goal itu. */}
+        <QuickAdd date={today} goalId={UUID_RE.test(goal) ? goal : undefined} calendarConnected={calendarConnected} />
       </section>
 
       {/* ---- Pelacak mingguan ---- */}
@@ -421,8 +429,11 @@ function TaskGroup({
   projectTitles,
   meta,
   moveToToday,
+  week,
 }: {
   title?: string;
+  /** Minggu yang sedang dilihat (?week=); dibawa ke tautan Edit supaya kembali ke minggu yang sama. */
+  week: string | null;
   todos: Todo[];
   tone?: "danger";
   goalTitles: Map<string, string>;
@@ -441,6 +452,7 @@ function TaskGroup({
       goalTitle={goalTitles.get(todo.goal_id ?? "")}
       projectTitle={withProject ? projectTitles.get(todo.id) : undefined}
       moveToToday={moveToToday}
+      week={week}
     />
   );
   return (
@@ -487,11 +499,13 @@ function TodoRow({
   goalTitle,
   projectTitle,
   moveToToday,
+  week,
 }: {
   todo: Todo;
   goalTitle?: string;
   projectTitle?: string;
   moveToToday?: string;
+  week: string | null;
 }) {
   const done = todo.status === "done";
   return (
@@ -532,7 +546,7 @@ function TodoRow({
             </Link>
           )}
           <Link
-            href={`/todos?edit=${todo.id}`}
+            href={week ? `/todos?edit=${todo.id}&week=${week}` : `/todos?edit=${todo.id}`}
             className="rounded-full px-3 py-1 text-muted transition-colors hover:bg-surface hover:text-foreground"
           >
             Edit
@@ -550,6 +564,9 @@ function TodoForm({
   projects,
   error,
   from,
+  week,
+  defaultDate,
+  calendarConnected,
 }: {
   todo: Todo | null;
   goals: GoalOption[];
@@ -557,8 +574,17 @@ function TodoForm({
   error?: string;
   /** Halaman asal (mis. /projects/abc): tombol Batal dan hasil simpan kembali ke sana. */
   from: string | null;
+  /** Minggu yang sedang dilihat (?week=): simpan dan Batal kembali ke minggu itu. */
+  week: string | null;
+  /** Tanggal bawaan untuk tugas baru: hari ini, atau Senin minggu yang sedang direncanakan. */
+  defaultDate: string;
+  calendarConnected: boolean;
 }) {
   const action = todo ? updateTodo.bind(null, todo.id) : createTodo;
+  const scheduledStart = todo?.calendar_event_id && todo.scheduled_start ? toWib(todo.scheduled_start) : null;
+  const scheduledEnd = todo?.calendar_event_id && todo.scheduled_end ? toWib(todo.scheduled_end) : null;
+  const startTime = scheduledStart ? minutesToTime(scheduledStart.minutes) : "";
+  const endTime = scheduledEnd ? minutesToTime(scheduledEnd.minutes) : "";
   const field =
     "mt-1.5 w-full rounded-xl border border-border bg-background px-3.5 py-2 text-base focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none";
 
@@ -566,6 +592,7 @@ function TodoForm({
     <form action={action} className="space-y-4 rounded-3xl border border-border bg-surface p-6">
       <h2 className="text-xl font-semibold tracking-tight">{todo ? "Edit task" : "New task"}</h2>
       {todo && from && <input type="hidden" name="from" value={from} />}
+      {week && <input type="hidden" name="week" value={week} />}
 
       {error && <p className="rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">{error}</p>}
 
@@ -614,23 +641,50 @@ function TodoForm({
           <label htmlFor="due_date" className="block text-sm font-medium">
             Date
           </label>
-          {todo?.calendar_event_id ? (
+          {todo?.calendar_event_id && !calendarConnected ? (
             <p id="due_date" className="mt-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-base">
               {todo.due_date ? formatDayMonth(todo.due_date) : "—"}
               {formatScheduled(todo.scheduled_start, todo.scheduled_end) ? ` · ${formatScheduled(todo.scheduled_start, todo.scheduled_end)}` : ""}
-              <span className="mt-0.5 block text-xs text-muted">Set by its calendar block. Move the block in the Calendar section to change the date.</span>
+              <span className="mt-0.5 block text-xs text-muted">Connect Google Calendar to change the date or time of this block.</span>
             </p>
           ) : (
             <input
               id="due_date"
               name="due_date"
               type="date"
-              defaultValue={todo ? (todo.due_date ?? "") : todayISO()}
+              defaultValue={todo ? (todo.due_date ?? "") : defaultDate}
               className={field}
             />
           )}
         </div>
       </div>
+
+      {calendarConnected && (
+        <fieldset className="rounded-2xl border border-border bg-background p-4">
+          <legend className="px-1 text-sm font-medium">{todo?.calendar_event_id ? "Calendar block" : "Add to calendar (optional)"}</legend>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="start_time" className="block text-sm text-muted">
+                From
+              </label>
+              <input id="start_time" name="start_time" type="time" defaultValue={startTime} className={field} />
+            </div>
+            <div>
+              <label htmlFor="end_time" className="block text-sm text-muted">
+                To
+              </label>
+              <input id="end_time" name="end_time" type="time" defaultValue={endTime} className={field} />
+            </div>
+          </div>
+          {todo?.calendar_event_id ? (
+            <label className="mt-3 flex items-center gap-2 text-sm text-muted">
+              <input type="checkbox" name="remove_block" className="h-4 w-4 accent-accent" /> Remove from calendar (deletes the block in Google Calendar)
+            </label>
+          ) : (
+            <p className="mt-2 text-xs text-subtle">Fill both times to also create a block on Google Calendar at that date.</p>
+          )}
+        </fieldset>
+      )}
 
       <div>
         <label htmlFor="goal_id" className="block text-sm font-medium">
@@ -670,7 +724,7 @@ function TodoForm({
           Save
         </button>
         <Link
-          href={todo && from ? from : "/todos"}
+          href={todo && from ? from : week ? `/todos?week=${week}` : "/todos"}
           className="rounded-full border border-border-strong px-6 py-2 text-base font-medium transition-colors hover:bg-background"
         >
           Cancel

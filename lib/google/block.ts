@@ -67,5 +67,24 @@ export function parseBlockInput(raw: unknown): { ok: true; value: BlockInput } |
   return { ok: true, value: { date, startMin, endMin, title, ...(reminder !== undefined ? { reminder } : {}) } };
 }
 
+/**
+ * Jam mulai/selesai opsional dari form to-do ("HH:MM"). Kosong dua-duanya = tanpa blok kalender; terisi satu saja atau
+ * selesai <= mulai = galat. Tidak mempercayai masukan browser.
+ */
+export function parseOptionalRange(
+  start: unknown,
+  end: unknown,
+): { ok: true; value: { startMin: number; endMin: number } | null } | { ok: false; error: string } {
+  const s = typeof start === "string" ? start.trim() : "";
+  const e = typeof end === "string" ? end.trim() : "";
+  if (!s && !e) return { ok: true, value: null };
+  if (!s || !e) return { ok: false, error: "Set both a start and an end time, or leave both empty." };
+  const startMin = timeToMinutes(s);
+  const endMin = timeToMinutes(e);
+  if (startMin === null || endMin === null) return { ok: false, error: "Choose a valid start and end time." };
+  if (endMin <= startMin) return { ok: false, error: "The end time must be after the start time." };
+  return { ok: true, value: { startMin, endMin } };
+}
+
 const EVENT_ID = /^[A-Za-z0-9_-]{1,1024}$/;
 export const isEventId = (v: unknown): v is string => typeof v === "string" && EVENT_ID.test(v);
