@@ -16,9 +16,8 @@ const MAX_MIN = 24 * 60 - 1;
 const MOVE_THRESHOLD_PX = 5;
 /** Lajur kosong di tepi kanan tiap kolom hari: menarik/mengklik di sini membuat blok baru DI ATAS blok yang ada (seperti Google Calendar). */
 const GUTTER_PX = 16;
-/** Tiap lapis blok yang ditumpuk menjorok sebanyak ini ke kanan (seperti Google Calendar); dibatasi agar blok tidak menyempit habis. */
-const INDENT_PX = 14;
-const MAX_INDENT_LEVELS = 5;
+/** Blok biasa yang berada di atas sebuah latar (mis. jam kerja) digeser sebanyak ini ke kanan supaya tepi kiri latar tetap terlihat. */
+const INSET_PX = 12;
 const WORK_HOURS_EVENT = "work-hours-change";
 const subscribeWorkHours = (notify: () => void) => {
   window.addEventListener("storage", notify);
@@ -192,6 +191,10 @@ export function CalendarGrid({
   const workHoursRaw = useSyncExternalStore(subscribeWorkHours, readWorkHoursRaw, () => null);
   const workHours = useMemo(() => parseWorkHours(workHoursRaw), [workHoursRaw]);
   const [editingHours, setEditingHours] = useState(false);
+  // Tampilan satu hari: kolom lebar untuk membaca hari yang padat. null = seminggu penuh.
+  const [focusDate, setFocusDate] = useState<string | null>(null);
+  const focused = focusDate && days.some((d) => d.date === focusDate) ? focusDate : null;
+  const shown = focused ? days.filter((d) => d.date === focused) : days;
   const [calHeight, setCalHeight] = useStoredSize(CAL_HEIGHT_KEY, CAL_MIN_PX, CAL_MAX_PX);
   const saveWorkHours = (next: WorkHours) => {
     try {
@@ -204,7 +207,7 @@ export function CalendarGrid({
 
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const hasAllDay = days.some((d) => d.allDay.length > 0);
-  const cols = "grid grid-cols-[3rem_repeat(7,minmax(7rem,1fr))]";
+  const cols = focused ? "grid grid-cols-[3rem_minmax(0,1fr)]" : "grid grid-cols-[3rem_repeat(7,minmax(7rem,1fr))]";
   const topRem = (min: number) => ((min - startHour * 60) / 60) * HOUR_REM;
 
   const close = () => {
@@ -378,7 +381,7 @@ export function CalendarGrid({
     const moved = days
       .flatMap((x) => x.blocks)
       .filter((b) => overrides[b.event.id]?.date === d.date)
-      .map((b) => ({ ...b, ...overrides[b.event.id], lane: 0, lanes: 1, depth: 0 }));
+      .map((b) => ({ ...b, ...overrides[b.event.id], lane: 0, lanes: 1, backdrop: false, inset: false, labelMin: b.startMin }));
     return [...own, ...moved];
   };
 
@@ -411,20 +414,29 @@ export function CalendarGrid({
       )}
 
       <div ref={scrollRef} className={`overflow-auto rounded-2xl border border-border bg-background shadow-card ${calHeight === null ? "max-h-[40rem]" : ""}`} style={calHeight === null ? undefined : { height: `${calHeight}px` }}>
-        <div className="min-w-[56rem]">
+        <div className={focused ? "min-w-[20rem]" : "min-w-[56rem]"}>
           <div className="sticky top-0 z-30 bg-background">
           <div className={`${cols} border-b border-border`}>
             <div />
-            {days.map((d) => (
-              <div key={d.date} className={`border-l border-border px-2 py-2 text-center ${d.date === today ? "bg-accent-soft font-semibold text-accent-ink" : ""}`}>
-                <span className="text-sm">{formatWeekdayShort(d.date)}</span> <span className={`text-xs ${d.date === today ? "text-accent-ink/80" : "text-muted"}`}>{formatDayMonth(d.date)}</span>
+            {shown.map((d) => (
+              <div key={d.date} className={`border-l border-border text-center ${d.date === today ? "bg-accent-soft font-semibold text-accent-ink" : ""}`}>
+                <button
+                  type="button"
+                  onClick={() => setFocusDate(focused ? null : d.date)}
+                  aria-label={focused ? `Back to the whole week` : `Show only ${formatLongDay(d.date)}`}
+                  title={focused ? "Back to the whole week" : "Show only this day (wider)"}
+                  className="w-full px-2 py-2 transition-colors hover:bg-surface/80"
+                >
+                  <span className="text-sm">{formatWeekdayShort(d.date)}</span> <span className={`text-xs ${d.date === today ? "text-accent-ink/80" : "text-muted"}`}>{formatDayMonth(d.date)}</span>
+                  {focused && <span className="ml-1 text-xs text-muted">· back to week</span>}
+                </button>
               </div>
             ))}
           </div>
           {hasAllDay && (
             <div className={`${cols} border-b border-border`}>
               <div className="px-1 py-1 text-right text-[10px] text-muted">all day</div>
-              {days.map((d) => (
+              {shown.map((d) => (
                 <div key={d.date} className="flex flex-col gap-0.5 border-l border-border p-1">
                   {d.allDay.map((ev) => (
                     <a
@@ -451,7 +463,7 @@ export function CalendarGrid({
                 </div>
               ))}
             </div>
-            {days.map((d) => (
+            {shown.map((d) => (
               <div
                 key={d.date}
                 ref={(el) => {
@@ -498,25 +510,39 @@ export function CalendarGrid({
                 {blocksFor(d).map((b) => {
                   const editable = panelFor(b.event);
                   const height = ((b.endMin - b.startMin) / 60) * HOUR_REM;
-                  const indent = Math.min(b.depth, MAX_INDENT_LEVELS) * INDENT_PX;
+                  const inset = b.inset ? INSET_PX : 0;
+                  // Latar (blok panjang yang memuat blok lain) selebar penuh di belakang; blok biasa berdampingan, tanpa saling menutupi.
                   const style = {
                     top: `${topRem(b.startMin)}rem`,
                     height: `${Math.max(height, 0.9)}rem`,
-                    // Blok yang ditumpuk menjorok ke kanan per lapis (INDENT_PX) dan digambar di atas; lajur kosong GUTTER_PX di kanan tetap bebas.
-                    left: `calc(${indent}px + (100% - ${GUTTER_PX + indent}px) * ${b.lane / b.lanes} + 1px)`,
-                    width: `calc((100% - ${GUTTER_PX + indent}px) / ${b.lanes} - 2px)`,
-                    zIndex: 10 + b.depth,
+                    left: b.backdrop ? "1px" : `calc(${inset}px + (100% - ${GUTTER_PX + inset}px) * ${b.lane / b.lanes} + 1px)`,
+                    width: b.backdrop ? `calc(100% - ${GUTTER_PX}px - 2px)` : `calc((100% - ${GUTTER_PX + inset}px) / ${b.lanes} - 2px)`,
+                    zIndex: b.backdrop ? 5 : 10,
                   };
-                  // Blok pendek (<= 45 menit) satu baris saja supaya jamnya tidak terpotong di baris kedua.
+                  // Blok pendek (<= 45 menit) satu baris saja; jam hanya ditampilkan pada blok yang cukup tinggi.
                   const short = b.endMin - b.startMin <= 45;
-                  const className = `absolute overflow-hidden rounded-md border ${
-                    b.event.source ? "border-dashed border-border-strong bg-surface text-muted hover:bg-surface" : "border-accent/40 border-l-4 border-l-accent bg-accent-soft text-foreground hover:bg-accent-soft"
-                  } px-1.5 py-0.5 text-left text-xs leading-tight ${ghost?.id === b.event.id ? "opacity-40" : ""}`;
+                  const tone = b.event.source
+                    ? "border-dashed border-border-strong bg-surface text-muted hover:bg-surface"
+                    : b.backdrop
+                      ? "border-accent/20 border-l-4 border-l-accent/50 bg-accent-soft/60 text-muted hover:bg-accent-soft/80"
+                      : "border-accent/30 border-l-4 border-l-accent bg-accent-soft text-foreground hover:bg-accent-soft";
+                  const className = `absolute overflow-hidden rounded-md border ${tone} ${b.lanes >= 3 && !b.backdrop ? "px-1 !border-l-2" : "px-1.5"} py-0.5 text-left text-xs leading-tight ${ghost?.id === b.event.id ? "opacity-40" : ""}`;
                   const linked = linkedTitles[b.event.id];
-                  const body = (
-                    // Judul di bagian atas blok (elemen tombol memusatkan isinya secara vertikal bila tidak dibungkus).
-                    <span className={`block w-full text-left ${short ? "truncate whitespace-nowrap" : ""}`}>
-                      <span className="font-medium">{b.event.title}</span> <span className="text-muted">{minutesToTime(b.startMin)}</span>
+                  // Kolom sempit (>= 3 berdampingan): satu baris saja, dipotong dengan "…"; selebihnya judul boleh dua baris.
+                  const oneLine = short || b.lanes >= 3;
+                  const range = `${minutesToTime(b.startMin)}–${b.endMin >= 24 * 60 ? "24:00" : minutesToTime(b.endMin)}`;
+                  const narrow = b.lanes >= 3;
+                  const body = b.backdrop ? (
+                    // Judul latar digambar di bagian pertama yang tidak tertutup blok di atasnya.
+                    <span className="absolute inset-x-1.5 block text-left" style={{ top: `${((b.labelMin - b.startMin) / 60) * HOUR_REM}rem` }}>
+                      <span className="block truncate font-medium">{b.event.title}</span>
+                      <span className="block truncate text-[10px] text-subtle">{range}</span>
+                    </span>
+                  ) : (
+                    // Judul di bagian atas blok (elemen tombol memusatkan isinya secara vertikal bila tidak dibungkus); jam di baris kedua hanya bila ada ruang.
+                    <span className="block w-full text-left">
+                      <span className={`block font-medium ${oneLine ? "truncate" : "line-clamp-2 break-words"}`}>{b.event.title}</span>
+                      {!short && !narrow && <span className="block truncate text-[10px] text-muted">{range}</span>}
                     </span>
                   );
                   return editable ? (
@@ -525,7 +551,7 @@ export function CalendarGrid({
                       type="button"
                       className={`${className} flex items-start cursor-grab active:cursor-grabbing`}
                       style={style}
-                      title={linked ? `${b.event.title} (linked to to-do: ${linked})` : b.event.title}
+                      title={linked ? `${b.event.title} · ${range} (linked to to-do: ${linked})` : `${b.event.title} · ${range}`}
                       onPointerDown={(e) => beginGesture("move", b, d.date, e)}
                       onPointerMove={updateGesture}
                       onPointerUp={endGesture}

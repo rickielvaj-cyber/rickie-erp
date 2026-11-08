@@ -22,14 +22,25 @@ export type CalendarEvent = {
 };
 
 /**
- * `depth` = berapa lapis blok ini bertumpuk di atas blok lain (0 = paling bawah; seperti Google Calendar, blok yang mulai di tengah blok
- * lain digambar di atasnya dan sedikit menjorok ke kanan). `lane`/`lanes` = urutan/jumlah kolom berdampingan di antara blok sedalam yang sama
- * yang bersaing tempat (mis. dua blok yang mulai hampir bersamaan).
+ * `backdrop` = blok panjang yang memuat blok lain (mis. "Working hours" 09:00-17:30): digambar selebar penuh sebagai latar yang tenang, dan TIDAK
+ * ikut membagi kolom dengan blok di dalamnya. `inset` = blok biasa yang berada di atas sebuah latar (digeser sedikit ke kanan supaya tepi kiri latar
+ * tetap terlihat). `lane`/`lanes` = urutan/jumlah kolom berdampingan di antara blok biasa yang saling tumpang tindih.
  */
-export type TimedBlock = { event: CalendarEvent; startMin: number; endMin: number; lane: number; lanes: number; depth: number };
+export type TimedBlock = {
+  event: CalendarEvent;
+  startMin: number;
+  endMin: number;
+  lane: number;
+  lanes: number;
+  backdrop: boolean;
+  inset: boolean;
+  /** Menit tempat judul sebuah latar digambar: bagian pertama yang tidak tertutup blok di atasnya (blok biasa: sama dengan startMin). */
+  labelMin: number;
+};
 export type DayLayout = { date: string; allDay: CalendarEvent[]; blocks: TimedBlock[] };
 
 const MIN_BLOCK_MIN = 20;
+type Raw = { event: CalendarEvent; startMin: number; endMin: number };
 
 /** Instan ISO -> { tanggal WIB, menit sejak 00:00 WIB }. */
 export function toWib(iso: string): { date: string; minutes: number } {
@@ -38,10 +49,10 @@ export function toWib(iso: string): { date: string; minutes: number } {
 }
 
 /** Atur acara yang saling tumpang tindih ke "lajur" berdampingan. Mengisi lane dan lanes per kelompok yang bersambung. */
-function assignLanes(blocks: Omit<TimedBlock, "lane" | "lanes" | "depth">[]): Array<Omit<TimedBlock, "depth">> {
+function assignLanes(blocks: Raw[]): Array<Raw & { lane: number; lanes: number }> {
   const sorted = [...blocks].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
-  const out: Array<Omit<TimedBlock, "depth">> = [];
-  let group: Array<Omit<TimedBlock, "depth">> = [];
+  const out: Array<Raw & { lane: number; lanes: number }> = [];
+  let group: Array<Raw & { lane: number; lanes: number }> = [];
   let groupEnd = -1;
   const laneEnds: number[] = [];
 
@@ -64,25 +75,39 @@ function assignLanes(blocks: Omit<TimedBlock, "lane" | "lanes" | "depth">[]): Ar
   return out;
 }
 
-/** Blok yang mulai setidaknya selama ini setelah blok lain yang masih berjalan ditumpuk DI ATAS blok itu; yang lebih dekat dibelah berdampingan. */
-export const COVER_MIN = 30;
+/** Blok selama ini atau lebih yang memuat blok lain dianggap latar (mis. jam kerja). */
+export const BACKDROP_MIN = 180;
+/** Tinggi (menit) yang dibutuhkan judul latar: judul digeser ke bawah blok-blok yang menutupinya. */
+export const LABEL_SPAN_MIN = 50;
 
-/** Tata satu hari: kedalaman tumpukan per blok, lalu kolom berdampingan di antara blok sedalam yang sama. */
-function layoutDay(blocks: Omit<TimedBlock, "lane" | "lanes" | "depth">[]): TimedBlock[] {
+/**
+ * Tata satu hari. Blok panjang yang memuat blok lain menjadi latar selebar penuh; blok lainnya dibagi ke kolom berdampingan sesama mereka
+ * (tanpa saling menutupi judul), digeser sedikit ke kanan bila berada di atas sebuah latar.
+ */
+function layoutDay(blocks: Raw[]): TimedBlock[] {
   const sorted = [...blocks].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
-  const depths: number[] = [];
-  sorted.forEach((b, i) => {
-    let depth = 0;
-    for (let j = 0; j < i; j++) {
-      const p = sorted[j];
-      if (b.startMin - p.startMin >= COVER_MIN && p.endMin > b.startMin) depth = Math.max(depth, depths[j] + 1);
+  const isBackdrop = (b: Raw) =>
+    b.endMin - b.startMin >= BACKDROP_MIN && sorted.some((o) => o !== b && o.startMin >= b.startMin && o.endMin <= b.endMin);
+  const backdrops = sorted.filter(isBackdrop);
+  const foreground = sorted.filter((b) => !backdrops.includes(b));
+  const labelFor = (d: Raw) => {
+    let at = d.startMin;
+    for (let guard = 0; guard < foreground.length + 1; guard++) {
+      const hit = foreground.find((f) => f.startMin < at + LABEL_SPAN_MIN && f.endMin > at && f.startMin < d.endMin && f.endMin > d.startMin);
+      if (!hit) break;
+      at = Math.max(at, hit.endMin);
     }
-    depths.push(depth);
-  });
-  const byDepth = new Map<number, Omit<TimedBlock, "lane" | "lanes" | "depth">[]>();
-  sorted.forEach((b, i) => byDepth.set(depths[i], [...(byDepth.get(depths[i]) ?? []), b]));
-  const out: TimedBlock[] = [];
-  for (const [depth, list] of byDepth) out.push(...assignLanes(list).map((b) => ({ ...b, depth })));
+    return at + LABEL_SPAN_MIN <= d.endMin ? at : d.startMin;
+  };
+  const out: TimedBlock[] = [
+    ...backdrops.map((b) => ({ ...b, lane: 0, lanes: 1, backdrop: true, inset: false, labelMin: labelFor(b) })),
+    ...assignLanes(foreground).map((b) => ({
+      ...b,
+      backdrop: false,
+      inset: backdrops.some((d) => b.startMin < d.endMin && b.endMin > d.startMin),
+      labelMin: b.startMin,
+    })),
+  ];
   return out.sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
 }
 
@@ -90,7 +115,7 @@ function layoutDay(blocks: Omit<TimedBlock, "lane" | "lanes" | "depth">[]): Time
 export function layoutWeek(events: CalendarEvent[], weekStart: string): DayLayout[] {
   const days: DayLayout[] = Array.from({ length: 7 }, (_, i) => ({ date: addDaysISO(weekStart, i), allDay: [], blocks: [] }));
   const byDate = new Map(days.map((d) => [d.date, d]));
-  const raw = new Map<string, Omit<TimedBlock, "lane" | "lanes" | "depth">[]>();
+  const raw = new Map<string, Raw[]>();
 
   for (const event of events) {
     if (event.allDay) {
