@@ -46,6 +46,8 @@ export type DayItem = {
   time: string | null;
   allDay: boolean;
   done: boolean;
+  /** colorId Google ("1".."11") untuk acara kalender utama yang diberi warna; kosong = warna bawaan. */
+  colorId?: string;
 };
 
 const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
@@ -71,9 +73,10 @@ export function buildDayItems(events: CalendarEvent[] | null, todos: MonthTodo[]
     const done = !e.source && todoByEvent.get(e.id)?.status === "done";
     const ref = `${e.source ?? ""}|${e.id}`;
     const src = e.source ?? null;
+    const colorId = e.source ? undefined : e.colorId; // kalender tambahan tetap abu-abu putus-putus
     if (e.allDay) {
       for (let date = e.start; date < e.end; date = addDaysISO(date, 1)) {
-        push(date, { key: `e-${ref}-${date}`, ref, kind: "event", source: src, title: e.title, time: null, allDay: true, done }, -1);
+        push(date, { key: `e-${ref}-${date}`, ref, kind: "event", source: src, title: e.title, time: null, allDay: true, done, ...(colorId ? { colorId } : {}) }, -1);
       }
       continue;
     }
@@ -82,7 +85,7 @@ export function buildDayItems(events: CalendarEvent[] | null, todos: MonthTodo[]
     for (let date = s.date; date <= f.date; date = addDaysISO(date, 1)) {
       if (date === f.date && f.minutes === 0 && date !== s.date) continue; // berakhir tepat 00:00: bukan hari ini
       const first = date === s.date;
-      push(date, { key: `e-${ref}-${date}`, ref, kind: "event", source: src, title: e.title, time: first ? hhmm(s.minutes) : null, allDay: false, done }, first ? s.minutes : 0);
+      push(date, { key: `e-${ref}-${date}`, ref, kind: "event", source: src, title: e.title, time: first ? hhmm(s.minutes) : null, allDay: false, done, ...(colorId ? { colorId } : {}) }, first ? s.minutes : 0);
     }
   }
 

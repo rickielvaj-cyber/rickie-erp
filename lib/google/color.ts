@@ -37,3 +37,20 @@ export function colorStyle(id: string | undefined | null, soft = false): { backg
   if (!c) return undefined;
   return { backgroundColor: `${c.hex}${soft ? "12" : "26"}`, borderColor: `${c.hex}${soft ? "30" : "55"}`, borderLeftColor: soft ? `${c.hex}b0` : c.hex };
 }
+
+/** Teks yang terbaca di atas warna penuh `hex`: putih untuk warna gelap, hampir hitam untuk warna terang (mis. Banana). */
+export function textOn(hex: string): "#ffffff" | "#14161a" {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return luminance > 0.4 ? "#14161a" : "#ffffff";
+}
+
+/** Gaya blok seharian pada tampilan bulan: warna penuh dengan teks yang terbaca. */
+export function colorSolidStyle(id: string | undefined | null): { backgroundColor: string; color: string } | undefined {
+  const c = colorOf(id);
+  return c ? { backgroundColor: c.hex, color: textOn(c.hex) } : undefined;
+}

@@ -46,3 +46,20 @@ test("colorStyle gives a soft fill and a solid left bar, and nothing for the def
   assert.equal(colorStyle(undefined), undefined);
   assert.equal(colorStyle("99"), undefined);
 });
+
+test("textOn picks readable text: white on dark colors, dark on light ones (Banana)", async () => {
+  const { textOn, colorSolidStyle } = await import("./google/color");
+  assert.equal(textOn("#d50000"), "#ffffff");
+  assert.equal(textOn("#3f51b5"), "#ffffff");
+  assert.equal(textOn("#f6bf26"), "#14161a", "Banana is too light for white text");
+  assert.equal(colorSolidStyle("5")?.color, "#14161a");
+  assert.equal(colorSolidStyle("11")?.backgroundColor, "#d50000");
+  assert.equal(colorSolidStyle(undefined), undefined);
+});
+
+test("normalizeEvent keeps the colorId of all-day events too", async () => {
+  const { normalizeEvent } = await import("./google/calendar");
+  const ev = normalizeEvent({ id: "h", summary: "Holiday", colorId: "5", start: { date: "2026-12-30" }, end: { date: "2026-12-31" } });
+  assert.equal(ev?.allDay, true);
+  assert.equal(ev?.colorId, "5");
+});

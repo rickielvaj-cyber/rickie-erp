@@ -45,7 +45,7 @@ export function normalizeEvent(raw: RawEvent): CalendarEvent | null {
     };
   }
   if (raw.start?.date && raw.end?.date) {
-    return { id: raw.id, title, allDay: true, start: raw.start.date, end: raw.end.date, link: raw.htmlLink, uid: raw.iCalUID };
+    return { id: raw.id, title, allDay: true, start: raw.start.date, end: raw.end.date, link: raw.htmlLink, uid: raw.iCalUID, ...(raw.colorId ? { colorId: raw.colorId } : {}) };
   }
   return null;
 }

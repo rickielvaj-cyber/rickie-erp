@@ -7,7 +7,9 @@ import { DEFAULT_BLOCK_MIN, SNAP_MIN, dragRange, minutesToTime, slotFromOffset, 
 import { toWib, type CalendarEvent, type DayLayout, type TimedBlock } from "@/lib/google/layout";
 import { parseReminder, reminderOptions } from "@/lib/google/reminder";
 import { EVENT_COLORS, colorOf, colorStyle } from "@/lib/google/color";
-import { LEGEND_KEY, LEGEND_NAME_MAX, SUGGESTED_LEGEND, legendFromInputs, legendLabel, parseLegend, type Legend } from "@/lib/google/legend";
+import { LEGEND_NAME_MAX, SUGGESTED_LEGEND, legendFromInputs, legendLabel, type Legend } from "@/lib/google/legend";
+import { saveLegend, useLegend } from "@/components/calendar/legend-store";
+import { ColorLegendRow } from "@/components/calendar/ColorLegendRow";
 import { WORK_HOURS_KEY, parseWorkHours, shadedRanges, workHoursFromInputs, type WorkHours } from "@/lib/google/work-hours";
 import { ResizeHandle } from "@/components/ui/ResizeHandle";
 import { useStoredSize } from "@/components/ui/use-stored-size";
@@ -39,22 +41,6 @@ const readWorkHoursRaw = () => {
 const CAL_HEIGHT_KEY = "size-calendar-v1";
 const CAL_MIN_PX = 240;
 const CAL_MAX_PX = 1800;
-const LEGEND_EVENT = "color-legend-change";
-const subscribeLegend = (notify: () => void) => {
-  window.addEventListener("storage", notify);
-  window.addEventListener(LEGEND_EVENT, notify);
-  return () => {
-    window.removeEventListener("storage", notify);
-    window.removeEventListener(LEGEND_EVENT, notify);
-  };
-};
-const readLegendRaw = () => {
-  try {
-    return window.localStorage.getItem(LEGEND_KEY);
-  } catch {
-    return null;
-  }
-};
 const DAY_CHIPS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export type LinkOption = { id: string; title: string; date: string | null };
@@ -257,17 +243,8 @@ export function CalendarGrid({
   const workHoursRaw = useSyncExternalStore(subscribeWorkHours, readWorkHoursRaw, () => null);
   const workHours = useMemo(() => parseWorkHours(workHoursRaw), [workHoursRaw]);
   const [editingHours, setEditingHours] = useState(false);
-  const legendRaw = useSyncExternalStore(subscribeLegend, readLegendRaw, () => null);
-  const legend = useMemo(() => parseLegend(legendRaw), [legendRaw]);
+  const legend = useLegend();
   const [editingLegend, setEditingLegend] = useState(false);
-  const saveLegend = (next: Legend) => {
-    try {
-      window.localStorage.setItem(LEGEND_KEY, JSON.stringify(next));
-    } catch {
-      // penyimpanan browser tidak tersedia: perubahan tidak tersimpan
-    }
-    window.dispatchEvent(new Event(LEGEND_EVENT));
-  };
   // Tampilan satu hari: kolom lebar untuk membaca hari yang padat. null = seminggu penuh.
   const [focusDate, setFocusDate] = useState<string | null>(null);
   const focused = focusDate && days.some((d) => d.date === focusDate) ? focusDate : null;
@@ -492,16 +469,7 @@ export function CalendarGrid({
         </div>
       </div>
       {editingLegend && <LegendEditor value={legend} onSave={(v) => { saveLegend(v); setEditingLegend(false); }} onCancel={() => setEditingLegend(false)} />}
-      {Object.keys(legend).length > 0 && (
-        <ul aria-label="Color legend" className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
-          {EVENT_COLORS.filter((c) => legend[c.id]).map((c) => (
-            <li key={c.id} className="flex items-center gap-1.5">
-              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.hex }} />
-              {legend[c.id]}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ColorLegendRow className="mb-3" />
       {editingHours && <WorkHoursEditor value={workHours} onSave={(v) => { saveWorkHours(v); setEditingHours(false); }} onCancel={() => setEditingHours(false)} />}
       {banner && (
         <p role="alert" className="mb-3 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
@@ -540,7 +508,8 @@ export function CalendarGrid({
                       href={ev.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`truncate rounded px-1.5 py-0.5 text-xs hover:underline ${ev.source ? "border border-dashed border-border-strong bg-surface text-muted" : "bg-accent-soft text-accent-ink"}`}
+                      className={`truncate rounded px-1.5 py-0.5 text-xs hover:underline ${ev.source ? "border border-dashed border-border-strong bg-surface text-muted" : ev.colorId ? "border border-l-[3px] text-foreground" : "bg-accent-soft text-accent-ink"}`}
+                      style={ev.source ? undefined : colorStyle(ev.colorId)}
                       title={ev.source ? `${ev.title} · ${ev.source} (open in Google Calendar)` : `${ev.title} (open in Google Calendar)`}
                     >
                       {ev.title}
