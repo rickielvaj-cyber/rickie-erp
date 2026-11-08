@@ -23,8 +23,9 @@ import type { Goal, Todo, TodoPriority } from "@/lib/types";
 import { ProjectPhasePicker, type PickerProject } from "@/components/projects/ProjectPhasePicker";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { TodoUndoToast } from "@/components/TodoUndoToast";
-import { createTodo, moveTodoToToday, toggleTodoDone, updateTodo } from "./actions";
+import { createTodo, moveTodoToToday, updateTodo } from "./actions";
 import { QuickAdd } from "@/components/todo/QuickAdd";
+import { DoneCheckbox } from "@/components/todo/DoneCheckbox";
 import { isConnected } from "@/lib/google/store";
 import { googleConfigured } from "@/lib/google/oauth";
 import { toWib } from "@/lib/google/layout";
@@ -397,20 +398,7 @@ export default async function TodosPage({
 }
 
 function Checkbox({ todo, size = "md" }: { todo: Todo; size?: "md" | "sm" }) {
-  const done = todo.status === "done";
-  return (
-    <form action={toggleTodoDone.bind(null, todo.id, todo.status)} className="flex">
-      <button
-        type="submit"
-        aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
-        className={`flex shrink-0 items-center justify-center border transition-colors ${
-          size === "md" ? "h-5 w-5 rounded-md text-xs" : "h-4 w-4 rounded text-[10px]"
-        } ${done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"}`}
-      >
-        {done ? "✓" : ""}
-      </button>
-    </form>
-  );
+  return <DoneCheckbox id={todo.id} status={todo.status} title={todo.title} size={size} />;
 }
 
 function PriorityPill({ priority }: { priority: TodoPriority }) {

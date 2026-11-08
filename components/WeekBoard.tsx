@@ -27,27 +27,15 @@ import { applyDrag, buildBoard, findContainer, placementChanged, type BoardItems
 import type { Todo, TodoPriority } from "@/lib/types";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { SelectBox, SelectGroup } from "@/components/todo/BatchSelection";
-import { createTodoForDay, placeTodo, toggleTodoDone } from "@/app/(dashboard)/todos/actions";
+import { DoneCheckbox } from "@/components/todo/DoneCheckbox";
+import { createTodoForDay, placeTodo } from "@/app/(dashboard)/todos/actions";
 
 const PRIORITY_LABEL: Record<TodoPriority, string> = { low: "Low", medium: "Medium", high: "High" };
 
 type Maps = { goalTitles: Record<string, string>; projectTitles: Record<string, string> };
 
 function Checkbox({ todo }: { todo: Todo }) {
-  const done = todo.status === "done";
-  return (
-    <form action={toggleTodoDone.bind(null, todo.id, todo.status)} className="flex">
-      <button
-        type="submit"
-        aria-label={done ? `Mark as not done: ${todo.title}` : `Mark as done: ${todo.title}`}
-        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] transition-colors ${
-          done ? "border-success bg-success text-white" : "border-border-strong hover:border-success hover:bg-success-soft"
-        }`}
-      >
-        {done ? "✓" : ""}
-      </button>
-    </form>
-  );
+  return <DoneCheckbox id={todo.id} status={todo.status} title={todo.title} size="sm" />;
 }
 
 function TaskBody({ todo, week, goalTitle, projectTitle }: { todo: Todo; week?: string; goalTitle?: string; projectTitle?: string }) {

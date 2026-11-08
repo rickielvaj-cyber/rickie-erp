@@ -8,6 +8,7 @@ import { disconnect, getAccessToken } from "@/lib/google/store";
 import { createEvent, deleteEvent, updateEvent } from "@/lib/google/calendar";
 import { isEventId, parseBlockInput, wibIso } from "@/lib/google/block";
 import { GoogleAuthError } from "@/lib/google/oauth";
+import { bustCalendar } from "@/lib/google/cache";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -32,7 +33,11 @@ async function withToken(run: (token: string) => Promise<void>): Promise<BlockRe
   try {
     const token = await getAccessToken(user.id);
     if (!token) return { ok: false, error: "Google Calendar is not connected." };
-    await run(token);
+    try {
+      await run(token);
+    } finally {
+      bustCalendar(user.id); // tulis ke Google (berhasil atau gagal sebagian): jangan pakai tampilan kalender lama
+    }
     revalidatePath("/todos");
     revalidatePath("/summary");
     return { ok: true };

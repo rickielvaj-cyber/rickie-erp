@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types";
+import { bustUser, cached, peek } from "./cache";
 import { decryptToken, encryptToken } from "./crypto";
 import { GoogleAuthError, refreshAccessToken, revokeToken } from "./oauth";
 
@@ -26,6 +27,7 @@ export async function saveConnection(userId: string, refreshToken: string, scope
       { onConflict: "user_id" },
     );
   if (error) throw new Error(error.message);
+  bustUser(userId);
 }
 
 async function loadRefreshToken(userId: string): Promise<string | null> {
@@ -35,19 +37,26 @@ async function loadRefreshToken(userId: string): Promise<string | null> {
 }
 
 export async function deleteConnection(userId: string): Promise<void> {
+  bustUser(userId);
   const { error } = await serviceClient().from("google_connections").delete().eq("user_id", userId);
   if (error) throw new Error(error.message);
 }
+
+// Access token Google berlaku 1 jam; dipakai ulang 30 menit supaya tiap render tidak menukar token lagi (satu bolak-balik ke Google).
+const TOKEN_TTL_MS = 30 * 60_000;
+const tokenKey = (userId: string) => `${userId}|token`;
 
 /**
  * Access token segar untuk pengguna ini, atau null bila belum tersambung. Bila Google menolak refresh token
  * (dicabut / kedaluwarsa), sambungan dihapus dan GoogleAuthError(reconnect) dilempar supaya UI meminta sambung ulang.
  */
 export async function getAccessToken(userId: string): Promise<string | null> {
+  const known = peek<string>(tokenKey(userId), TOKEN_TTL_MS);
+  if (known) return known;
   const refresh = await loadRefreshToken(userId);
   if (!refresh) return null;
   try {
-    return await refreshAccessToken(refresh);
+    return await cached(tokenKey(userId), TOKEN_TTL_MS, () => refreshAccessToken(refresh));
   } catch (error) {
     if (error instanceof GoogleAuthError && error.reconnect) await deleteConnection(userId);
     throw error;

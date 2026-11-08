@@ -11,6 +11,7 @@ import { getAccessToken } from "@/lib/google/store";
 import { createEvent, deleteEvent, getEvent, rescheduleEvent } from "@/lib/google/calendar";
 import { parseOptionalRange, wibIso } from "@/lib/google/block";
 import { toWib } from "@/lib/google/layout";
+import { bustCalendar } from "@/lib/google/cache";
 import type { Todo, TodoPriority, TodoStatus } from "@/lib/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,7 +87,10 @@ const isoOf = (date: string, minutes: number) => new Date(wibIso(date, minutes))
 /** Access token Google bila tersambung; null bila tidak. Gangguan (mis. akses dicabut) dilempar. */
 async function googleToken(): Promise<string | null> {
   const user = await getAuthUser();
-  return user ? await getAccessToken(user.id) : null;
+  if (!user) return null;
+  // Dipakai hanya untuk menulis acara: tampilan kalender yang di-cache jadi basi, kosongkan.
+  bustCalendar(user.id);
+  return await getAccessToken(user.id);
 }
 
 /**
@@ -386,6 +390,7 @@ export async function placeTodo(todoId: unknown, date: unknown, orderedIds: unkn
     try {
       const token = await getAccessToken(user.id);
       if (!token) return { ok: false, error: "This to-do is linked to a calendar block, but Google Calendar is not connected." };
+      bustCalendar(user.id);
       const event = await getEvent(token, todo.calendar_event_id);
       if (event === null) {
         patch = { due_date: date, calendar_event_id: null, scheduled_start: null, scheduled_end: null }; // acaranya sudah dihapus di Google
