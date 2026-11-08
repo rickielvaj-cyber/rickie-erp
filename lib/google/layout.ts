@@ -19,6 +19,8 @@ export type CalendarEvent = {
   uid?: string;
   /** Pengingat acara berjam (lihat lib/google/reminder.ts). */
   reminder?: ReminderChoice;
+  /** colorId Google ("1".."11"); kosong = warna bawaan kalender (lihat lib/google/color.ts). */
+  colorId?: string;
 };
 
 /**
