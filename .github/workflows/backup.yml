@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Server Supabase memakai PostgreSQL 17; pg_dump harus versi yang sama atau lebih baru.
       - name: Pasang klien PostgreSQL 17
@@ -44,7 +44,7 @@ jobs:
           ./scripts/backup.sh "out/backup-$(date -u +%F).sql.gz.gpg"
 
       - name: Simpan artifact (terenkripsi)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backup-${{ github.run_id }}
           path: out/*.sql.gz.gpg
@@ -57,9 +57,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -78,7 +78,7 @@ jobs:
 
       - name: Simpan artifact (terenkripsi)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: attachments-${{ github.run_id }}
           path: out/attachments-*.tar.gz.gpg
