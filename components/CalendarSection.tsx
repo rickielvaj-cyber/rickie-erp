@@ -10,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 import { syncLinkedTodos } from "@/lib/google/sync-todos";
 import { GoogleAuthError, googleConfigured } from "@/lib/google/oauth";
 import { getAccessToken, isConnected } from "@/lib/google/store";
+import { after } from "next/server";
+import { cachedSWR } from "@/lib/google/cache";
 import { disconnectGoogleCalendar } from "@/app/(dashboard)/todos/calendar-actions";
 
 const NOTICE: Record<string, string> = {
@@ -59,7 +61,35 @@ type CalendarState =
   | { kind: "ready"; days: DayLayout[]; changed: number; extraCount: number; notes: string[] };
 
 /** Semua pemanggilan jaringan/database ada di sini (dengan try/catch); JSX dirender di luar. */
+const STATE_TTL_MS = 20_000;
+const STATE_MAX_STALE_MS = 60_000;
+const stateKey = (userId: string, weekStart: string) => `${userId}|state|${weekStart}`;
+
+/**
+ * Tampilan kalender satu minggu. Setiap klik di To-Do merender ulang halaman, dan tanpa cache tiap klik memanggil Google lagi
+ * (acara, kalender lain, sinkron) sehingga terasa lambat. Maka: hasil yang masih segar (20 detik) dipakai langsung; yang lebih tua
+ * (sampai 60 detik; polling halaman tiap 20 detik menjaganya tetap muda selama dipakai) tetap dipakai SAAT ITU JUGA dan disegarkan di belakang layar setelah respons terkirim (`after`), jadi klik tidak
+ * menunggu Google. Menulis acara dari situs mengosongkan cache ini (bustCalendar), Setelah diam lebih dari semenit, halaman yang dibuka menunggu data segar dari Google (tidak menampilkan kalender lama).
+ */
 async function loadState(userId: string, weekStart: string): Promise<CalendarState> {
+  const db = await createClient(); // dibuat sekarang: cookie tidak bisa dibaca di dalam after()
+  let changed = 0;
+  let loadedHere = false;
+  const load = async (): Promise<CalendarState> => {
+    loadedHere = true;
+    const state = await loadStateUncached(userId, weekStart, db);
+    // `changed` hanya berarti bagi yang memuatnya; salinan di cache dinolkan agar tidak memicu muat ulang berulang.
+    if (state.kind === "ready") {
+      changed = state.changed;
+      return { ...state, changed: 0 };
+    }
+    return state;
+  };
+  const value = await cachedSWR(stateKey(userId, weekStart), STATE_TTL_MS, STATE_MAX_STALE_MS, load, (task) => after(task));
+  return loadedHere && value.kind === "ready" ? { ...value, changed } : value;
+}
+
+async function loadStateUncached(userId: string, weekStart: string, db: Awaited<ReturnType<typeof createClient>>): Promise<CalendarState> {
   if (!googleConfigured()) return { kind: "unconfigured" };
   try {
     if (!(await isConnected(userId))) return { kind: "disconnected" };
@@ -67,7 +97,6 @@ async function loadState(userId: string, weekStart: string): Promise<CalendarSta
     if (!token) return { kind: "reconnect" };
     const events = await listWeekEvents(token, weekStart);
     // To-do yang tertaut mengikuti acaranya (digeser/dihapus di Google). Gagal di sini tidak menggagalkan tampilan kalender.
-    const db = await createClient();
     const changed = await syncLinkedTodos(db, token, events).catch(() => 0);
     // Kalender tambahan (hanya baca): ikut tampil di grid, tetapi TIDAK ikut sinkron ke to-do (di atas hanya acara kalender utama).
     const { extras, notes } = await loadExtraEvents(db, token, weekStart, addDaysISO(weekStart, 7)).catch(() => ({ extras: [], notes: [] as string[] }));

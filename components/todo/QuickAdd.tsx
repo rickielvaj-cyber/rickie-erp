@@ -36,20 +36,29 @@ export function QuickAdd({
   const [withCalendar, setWithCalendar] = useState(false);
   const [times, setTimes] = useState(defaultTimes);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const [adding, setAdding] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement | null>(null);
 
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const data = new FormData(form);
+    const title = String(data.get("title") ?? "").trim();
+    if (!title) return;
     setMessage(null);
+    // Kotak langsung dikosongkan dan judulnya tampil sebagai "Adding…" selagi server menyimpan, jadi tidak terasa menunggu.
+    setAdding(title);
+    form.reset();
     startTransition(async () => {
       const result = await createTodoQuick(data);
+      setAdding(null);
       if (!result.ok) {
+        // Gagal: kembalikan judulnya ke kotak supaya tidak perlu mengetik ulang.
+        if (titleRef.current) titleRef.current.value = title;
         setMessage({ text: result.error, error: true });
         return;
       }
-      form.reset();
       setWithCalendar(false);
       if (result.warning) setMessage({ text: result.warning, error: true });
     });
@@ -60,6 +69,7 @@ export function QuickAdd({
       {goalId && <input type="hidden" name="goal_id" value={goalId} />}
       <div className="flex items-center gap-2">
         <input
+          ref={titleRef}
           name="title"
           required
           placeholder={placeholder}
@@ -100,7 +110,11 @@ export function QuickAdd({
         </div>
       )}
 
-      {pending && <p className="sr-only" role="status">Adding…</p>}
+      {adding && (
+        <p role="status" className="px-1 text-sm text-muted">
+          Adding “{adding}”…
+        </p>
+      )}
       {message && (
         <p role="status" className={`text-sm ${message.error ? "text-danger" : "text-muted"}`}>
           {message.text}
