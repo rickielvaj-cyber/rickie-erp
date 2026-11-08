@@ -10,6 +10,8 @@ import { mergeExtraEvents } from "@/lib/google/calendar-sources";
 import { GoogleAuthError, googleConfigured } from "@/lib/google/oauth";
 import { getAccessToken, isConnected } from "@/lib/google/store";
 import type { CalendarEvent } from "@/lib/google/layout";
+import { colorSolidStyle, colorStyle } from "@/lib/google/color";
+import { ColorLegendRow } from "@/components/calendar/ColorLegendRow";
 
 export const metadata = { title: "Month" };
 
@@ -49,8 +51,14 @@ function Item({ item }: { item: DayItem }) {
       </span>
     );
   }
+  // Warna yang dipilih pada blok (colorId Google): acara seharian berwarna penuh, acara berjam latar tipis dengan garis kiri tegas.
+  const tint = item.colorId ? (item.allDay ? colorSolidStyle(item.colorId) : colorStyle(item.colorId)) : undefined;
   return (
-    <span className={`${base} ${item.allDay ? "bg-accent text-white" : "bg-accent-soft text-accent-ink"}${done}`}>
+    <span
+      className={`${base} ${tint ? (item.allDay ? "" : "border border-l-[3px] text-foreground") : item.allDay ? "bg-accent text-white" : "bg-accent-soft text-accent-ink"}${done}`}
+      style={tint}
+      data-color={item.colorId}
+    >
       {item.time ? <span className="mr-1 tabular-nums text-muted">{item.time}</span> : null}
       {item.title}
     </span>
@@ -184,6 +192,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
         </span>
         <span>A to-do linked to a calendar block shows once, as the block.</span>
       </p>
+      <ColorLegendRow className="mt-2" />
     </div>
   );
 }

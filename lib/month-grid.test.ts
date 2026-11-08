@@ -120,3 +120,21 @@ test("events from another calendar are tagged, never merged with a to-do link, a
   assert.deepEqual(day.map((i) => `${i.title}|${i.source}|${i.done}`), ["Primary event|null|true", "Office event|Kantor|false"]);
   assert.equal(countDistinct(map, () => true).events, 2, "same id in two calendars = two events");
 });
+
+test("buildDayItems carries the Google color of main-calendar events, but not of other calendars or to-dos", () => {
+  const range = { start: "2026-12-28", end: "2027-01-03" };
+  const events: CalendarEvent[] = [
+    { id: "a", title: "Urgent", allDay: false, start: "2026-12-29T09:00:00+07:00", end: "2026-12-29T10:00:00+07:00", colorId: "11" },
+    { id: "b", title: "Holiday", allDay: true, start: "2026-12-30", end: "2026-12-31", colorId: "10" },
+    { id: "c", title: "Plain", allDay: false, start: "2026-12-29T11:00:00+07:00", end: "2026-12-29T12:00:00+07:00" },
+    { id: "d", title: "Office", allDay: false, start: "2026-12-29T13:00:00+07:00", end: "2026-12-29T14:00:00+07:00", colorId: "3", source: "Office cal" },
+  ];
+  const todos: MonthTodo[] = [{ id: "t1", title: "Todo", status: "todo", due_date: "2026-12-29", calendar_event_id: null }];
+  const days = buildDayItems(events, todos, range);
+  const tue = Object.fromEntries((days.get("2026-12-29") ?? []).map((i) => [i.title, i]));
+  assert.equal(tue.Urgent.colorId, "11");
+  assert.equal("colorId" in tue.Plain, false);
+  assert.equal("colorId" in tue.Office, false, "other calendars stay gray and dashed");
+  assert.equal("colorId" in tue.Todo, false);
+  assert.equal(days.get("2026-12-30")![0].colorId, "10", "all-day events carry it too");
+});
