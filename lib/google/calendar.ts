@@ -24,6 +24,7 @@ type RawEvent = {
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   reminders?: RawReminders;
+  colorId?: string;
 };
 
 /** Bentuk acara Google -> bentuk minimal yang dipakai situs. Acara batal atau tanpa waktu dibuang. */
@@ -40,6 +41,7 @@ export function normalizeEvent(raw: RawEvent): CalendarEvent | null {
       link: raw.htmlLink,
       uid: raw.iCalUID,
       reminder: reminderFromApi(raw.reminders),
+      ...(raw.colorId ? { colorId: raw.colorId } : {}),
     };
   }
   if (raw.start?.date && raw.end?.date) {
@@ -73,7 +75,7 @@ export async function listCalendarEvents(
       orderBy: "startTime",
       maxResults: "250",
       timeZone: "Asia/Jakarta",
-      fields: "summary,nextPageToken,items(id,iCalUID,status,summary,htmlLink,start,end,reminders)",
+      fields: "summary,nextPageToken,items(id,iCalUID,status,summary,htmlLink,start,end,reminders,colorId)",
     });
     if (pageToken) params.set("pageToken", pageToken);
     url.search = params.toString();
@@ -105,12 +107,14 @@ export function listWeekEvents(accessToken: string, weekStart: string): Promise<
 // ---- Menulis acara (time blocking) ----------------------------------------------------------------
 // sendUpdates=none: mengubah atau menghapus acara dari sini tidak mengirim email ke peserta acara itu.
 
-function eventBody(input: BlockInput) {
+function eventBody(input: BlockInput, forUpdate = false) {
   return {
     summary: input.title,
     start: { dateTime: wibIso(input.date, input.startMin), timeZone: "Asia/Jakarta" },
     end: { dateTime: wibIso(input.date, input.endMin), timeZone: "Asia/Jakarta" },
     ...(input.reminder !== undefined && reminderToApi(input.reminder) ? { reminders: reminderToApi(input.reminder) } : {}),
+    // Warna: tidak dikirim = tidak diubah; "" = kembali ke warna bawaan (null menghapus bidangnya pada PATCH; pada acara baru cukup tidak dikirim).
+    ...(input.color !== undefined && (input.color !== "" || forUpdate) ? { colorId: input.color === "" ? null : input.color } : {}),
   };
 }
 
@@ -140,7 +144,7 @@ export async function createEvent(accessToken: string, input: BlockInput): Promi
 }
 
 export async function updateEvent(accessToken: string, eventId: string, input: BlockInput): Promise<CalendarEvent | null> {
-  return normalizeEvent((await write(accessToken, "PATCH", `/${encodeURIComponent(eventId)}`, eventBody(input))) ?? {});
+  return normalizeEvent((await write(accessToken, "PATCH", `/${encodeURIComponent(eventId)}`, eventBody(input, true))) ?? {});
 }
 
 /** Pindahkan acara ke tanggal lain dengan jam yang sama (hanya start/end; judul dan lainnya tidak disentuh). */

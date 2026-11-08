@@ -6,6 +6,7 @@ import { formatDayMonth, formatLongDay, formatWeekdayShort } from "@/lib/date";
 import { DEFAULT_BLOCK_MIN, SNAP_MIN, dragRange, minutesToTime, slotFromOffset, snapMinutes } from "@/lib/google/block";
 import { toWib, type CalendarEvent, type DayLayout, type TimedBlock } from "@/lib/google/layout";
 import { parseReminder, reminderOptions } from "@/lib/google/reminder";
+import { EVENT_COLORS, colorOf, colorStyle } from "@/lib/google/color";
 import { WORK_HOURS_KEY, parseWorkHours, shadedRanges, workHoursFromInputs, type WorkHours } from "@/lib/google/work-hours";
 import { ResizeHandle } from "@/components/ui/ResizeHandle";
 import { useStoredSize } from "@/components/ui/use-stored-size";
@@ -53,6 +54,8 @@ type Panel = {
   todoId?: string;
   /** Nilai <select> pengingat; kosong = "default" untuk blok baru. */
   reminder?: string;
+  /** colorId Google ("1".."11"); kosong = warna bawaan kalender. */
+  color?: string;
 };
 
 type Slot = { date: string; startMin: number; endMin: number };
@@ -79,7 +82,7 @@ function panelFor(event: CalendarEvent): Panel | null {
   const s = toWib(event.start);
   const e = toWib(event.end);
   if (s.date !== e.date) return null;
-  return { mode: "edit", id: event.id, title: event.title, date: s.date, start: minutesToTime(s.minutes), end: minutesToTime(e.minutes), link: event.link, reminder: String(event.reminder ?? "default") };
+  return { mode: "edit", id: event.id, title: event.title, date: s.date, start: minutesToTime(s.minutes), end: minutesToTime(e.minutes), link: event.link, reminder: String(event.reminder ?? "default"), color: event.colorId ?? "" };
 }
 
 /** Pengaturan jam kerja: jam di luar rentang ini (dan hari yang tidak dipilih) diberi latar abu di kalender. Disimpan di browser ini saja. */
@@ -341,7 +344,7 @@ export function CalendarGrid({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!panel) return;
-    const payload = { title: panel.title, date: panel.date, start: panel.start, end: panel.end, todoId: panel.todoId, reminder: panel.reminder ?? "default" };
+    const payload = { title: panel.title, date: panel.date, start: panel.start, end: panel.end, todoId: panel.todoId, reminder: panel.reminder ?? "default", color: panel.color ?? "" };
     startTransition(async () => {
       const result = panel.mode === "edit" && panel.id ? await updateCalendarBlock(panel.id, payload) : await createCalendarBlock(payload);
       if (result.ok) {
@@ -518,6 +521,8 @@ export function CalendarGrid({
                     left: b.backdrop ? "1px" : `calc(${inset}px + (100% - ${GUTTER_PX + inset}px) * ${b.lane / b.lanes} + 1px)`,
                     width: b.backdrop ? `calc(100% - ${GUTTER_PX}px - 2px)` : `calc((100% - ${GUTTER_PX + inset}px) / ${b.lanes} - 2px)`,
                     zIndex: b.backdrop ? 5 : 10,
+                    // Warna pilihan pengguna (colorId Google) mengganti warna bawaan; kalender tambahan tetap abu-abu putus-putus.
+                    ...(b.event.source ? {} : colorStyle(b.event.colorId, b.backdrop)),
                   };
                   // Blok pendek (<= 45 menit) satu baris saja; jam hanya ditampilkan pada blok yang cukup tinggi.
                   const short = b.endMin - b.startMin <= 45;
@@ -657,6 +662,33 @@ export function CalendarGrid({
                 <input type="time" step={900} required value={panel.end} onChange={(e) => setPanel({ ...panel, end: e.target.value })} className={inputClass} />
               </label>
             </div>
+            <fieldset className="block text-sm">
+              <legend className="mb-1.5 block text-muted">
+                Color {panel.color ? <span className="text-subtle">· {colorOf(panel.color)?.name}</span> : <span className="text-subtle">· default</span>}
+              </legend>
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Block color">
+                <button
+                  type="button"
+                  onClick={() => setPanel({ ...panel, color: "" })}
+                  aria-pressed={!panel.color}
+                  aria-label="Default color"
+                  title="Default"
+                  className={`h-7 w-7 rounded-full border-2 bg-accent transition-transform hover:scale-110 ${!panel.color ? "border-foreground" : "border-transparent"}`}
+                />
+                {EVENT_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setPanel({ ...panel, color: c.id })}
+                    aria-pressed={panel.color === c.id}
+                    aria-label={c.name}
+                    title={c.name}
+                    style={{ backgroundColor: c.hex }}
+                    className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${panel.color === c.id ? "border-foreground" : "border-transparent"}`}
+                  />
+                ))}
+              </div>
+            </fieldset>
             <label className="block text-sm">
               <span className="mb-1 block text-muted">Reminder</span>
               <select value={panel.reminder ?? "default"} onChange={(e) => setPanel({ ...panel, reminder: e.target.value })} className={inputClass}>
