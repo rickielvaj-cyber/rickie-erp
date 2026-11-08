@@ -1,16 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatDayMonth, formatLongDay, formatWeekdayShort } from "@/lib/date";
 import { DEFAULT_BLOCK_MIN, SNAP_MIN, dragRange, minutesToTime, slotFromOffset, snapMinutes } from "@/lib/google/block";
 import { toWib, type CalendarEvent, type DayLayout, type TimedBlock } from "@/lib/google/layout";
 import { parseReminder, reminderOptions } from "@/lib/google/reminder";
+import { WORK_HOURS_KEY, parseWorkHours, shadedRanges, workHoursFromInputs, type WorkHours } from "@/lib/google/work-hours";
 import { createCalendarBlock, deleteCalendarBlock, updateCalendarBlock } from "@/app/(dashboard)/todos/calendar-actions";
 
 const HOUR_REM = 3; // tinggi satu jam di grid
 const MAX_MIN = 24 * 60 - 1;
 const MOVE_THRESHOLD_PX = 5;
+/** Lajur kosong di tepi kanan tiap kolom hari: menarik/mengklik di sini membuat blok baru DI ATAS blok yang ada (seperti Google Calendar). */
+const GUTTER_PX = 16;
+const WORK_HOURS_EVENT = "work-hours-change";
+const subscribeWorkHours = (notify: () => void) => {
+  window.addEventListener("storage", notify);
+  window.addEventListener(WORK_HOURS_EVENT, notify);
+  return () => {
+    window.removeEventListener("storage", notify);
+    window.removeEventListener(WORK_HOURS_EVENT, notify);
+  };
+};
+const readWorkHoursRaw = () => {
+  try {
+    return window.localStorage.getItem(WORK_HOURS_KEY);
+  } catch {
+    return null;
+  }
+};
+const DAY_CHIPS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export type LinkOption = { id: string; title: string; date: string | null };
 export type Prefill = { todoId: string; title: string; date: string };
@@ -53,6 +73,66 @@ function panelFor(event: CalendarEvent): Panel | null {
   const e = toWib(event.end);
   if (s.date !== e.date) return null;
   return { mode: "edit", id: event.id, title: event.title, date: s.date, start: minutesToTime(s.minutes), end: minutesToTime(e.minutes), link: event.link, reminder: String(event.reminder ?? "default") };
+}
+
+/** Pengaturan jam kerja: jam di luar rentang ini (dan hari yang tidak dipilih) diberi latar abu di kalender. Disimpan di browser ini saja. */
+function WorkHoursEditor({ value, onSave, onCancel }: { value: WorkHours; onSave: (v: WorkHours) => void; onCancel: () => void }) {
+  const [enabled, setEnabled] = useState(value.enabled);
+  const [start, setStart] = useState(minutesToTime(value.startMin));
+  const [end, setEnd] = useState(value.endMin >= 24 * 60 ? "23:59" : minutesToTime(value.endMin));
+  const [days, setDays] = useState<number[]>(value.days);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const next = workHoursFromInputs(start, end, days, enabled);
+    if (!next) return setError("Choose a start time before the end time.");
+    onSave(next);
+  };
+
+  return (
+    <form onSubmit={submit} className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-border bg-surface px-4 py-3 text-sm" aria-label="Work hours">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 accent-accent" /> Shade time outside work hours
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="text-muted">From</span>
+        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} disabled={!enabled} className="h-9 rounded-lg border border-border bg-background px-2 disabled:opacity-50" />
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="text-muted">To</span>
+        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} disabled={!enabled} className="h-9 rounded-lg border border-border bg-background px-2 disabled:opacity-50" />
+      </label>
+      <div className="flex items-center gap-1" role="group" aria-label="Work days">
+        {DAY_CHIPS.map((label, i) => (
+          <button
+            key={i}
+            type="button"
+            disabled={!enabled}
+            aria-pressed={days.includes(i)}
+            aria-label={["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][i]}
+            onClick={() => setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))}
+            className={`h-8 w-8 rounded-full border text-xs transition-colors disabled:opacity-50 ${days.includes(i) ? "border-accent bg-accent text-white" : "border-border-strong text-muted"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="submit" className="rounded-full bg-accent px-4 py-1.5 font-medium text-white transition-colors hover:bg-accent-hover">
+          Save
+        </button>
+        <button type="button" onClick={onCancel} className="rounded-full border border-border-strong px-4 py-1.5 transition-colors hover:bg-background">
+          Cancel
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="w-full text-danger">
+          {error}
+        </p>
+      )}
+    </form>
+  );
 }
 
 export function CalendarGrid({
@@ -99,6 +179,19 @@ export function CalendarGrid({
   const suppressClick = useRef(false);
   const colRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Jam kerja (latar abu di luar jam kerja), disimpan per perangkat di browser.
+  const workHoursRaw = useSyncExternalStore(subscribeWorkHours, readWorkHoursRaw, () => null);
+  const workHours = useMemo(() => parseWorkHours(workHoursRaw), [workHoursRaw]);
+  const [editingHours, setEditingHours] = useState(false);
+  const saveWorkHours = (next: WorkHours) => {
+    try {
+      window.localStorage.setItem(WORK_HOURS_KEY, JSON.stringify(next));
+    } catch {
+      // penyimpanan browser tidak tersedia: perubahan tidak tersimpan
+    }
+    window.dispatchEvent(new Event(WORK_HOURS_EVENT));
+  };
 
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const hasAllDay = days.some((d) => d.allDay.length > 0);
@@ -283,11 +376,25 @@ export function CalendarGrid({
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">Click or drag on an empty slot to block time. Drag a block to move it, pull its bottom edge to resize, click it to edit.</p>
-        <button type="button" onClick={newBlock} className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover">
-          + New block
-        </button>
+        <p className="text-sm text-muted">
+          Click or drag on an empty slot to block time. To add a block on top of an existing one, drag in the narrow strip at the right edge of the day. Drag a block to move it, pull its
+          bottom edge to resize, click it to edit.
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setEditingHours((v) => !v)}
+            aria-expanded={editingHours}
+            className="rounded-full border border-border-strong px-3.5 py-1.5 text-sm text-muted transition-colors hover:bg-surface"
+          >
+            {workHours.enabled ? `Work hours ${minutesToTime(workHours.startMin)}–${workHours.endMin >= 24 * 60 ? "24:00" : minutesToTime(workHours.endMin)}` : "Work hours off"}
+          </button>
+          <button type="button" onClick={newBlock} className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover">
+            + New block
+          </button>
+        </div>
       </div>
+      {editingHours && <WorkHoursEditor value={workHours} onSave={(v) => { saveWorkHours(v); setEditingHours(false); }} onCancel={() => setEditingHours(false)} />}
       {banner && (
         <p role="alert" className="mb-3 rounded-xl bg-danger-soft px-4 py-2.5 text-sm text-danger">
           {banner}
@@ -353,6 +460,15 @@ export function CalendarGrid({
                 className={`relative cursor-crosshair select-none border-l border-border ${d.date === today ? "bg-accent-soft/40" : ""}`}
                 style={{ height: `${hours.length * HOUR_REM}rem`, touchAction: "pan-y" }}
               >
+                {shadedRanges(d.date, workHours).map((r) => (
+                  <div
+                    key={r.from}
+                    aria-hidden
+                    data-off-hours
+                    className="pointer-events-none absolute inset-x-0 bg-foreground/[0.045]"
+                    style={{ top: `${topRem(Math.max(r.from, startHour * 60))}rem`, height: `${(Math.max(r.to - Math.max(r.from, startHour * 60), 0) / 60) * HOUR_REM}rem` }}
+                  />
+                ))}
                 {hours.map((h, i) => (
                   <div key={h} className="pointer-events-none absolute inset-x-0 border-t border-border/70" style={{ top: `${i * HOUR_REM}rem` }} />
                 ))}
@@ -376,8 +492,9 @@ export function CalendarGrid({
                   const style = {
                     top: `${topRem(b.startMin)}rem`,
                     height: `${Math.max(height, 0.9)}rem`,
-                    left: `calc(${(b.lane / b.lanes) * 100}% + 1px)`,
-                    width: `calc(${100 / b.lanes}% - 2px)`,
+                    // Lajur kosong GUTTER_PX di kanan dibiarkan untuk membuat blok baru di atas blok ini.
+                    left: `calc((100% - ${GUTTER_PX}px) * ${b.lane / b.lanes} + 1px)`,
+                    width: `calc((100% - ${GUTTER_PX}px) / ${b.lanes} - 2px)`,
                   };
                   // Blok pendek (<= 45 menit) satu baris saja supaya jamnya tidak terpotong di baris kedua.
                   const short = b.endMin - b.startMin <= 45;
