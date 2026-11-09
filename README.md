@@ -443,6 +443,20 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **Zona waktu**: semua logika tanggal/minggu memakai Asia/Jakarta (`lib/date.ts`). Waktu selesai
   (`completed_at`) diisi trigger database, bukan kode aplikasi.
 
+## MCP server untuk Claude.ai (OAuth Supabase)
+
+Endpoint `https://beginner-erp-guide.vercel.app/api/mcp` (Streamable HTTP) memberi Claude.ai akses ke to-do, goal, issue log, dan weekly summary
+(tanpa tool hapus). Login lewat OAuth 2.1 Supabase; halaman consent di `/oauth/consent`. Token divalidasi lewat JWKS (issuer, audience, exp, dan
+klaim `client_id`), lalu data dibaca dengan token itu sendiri sehingga RLS berlaku (tanpa service role key).
+
+Setup sekali di dashboard Supabase:
+1. Authentication → OAuth Server: aktifkan, **Authorization Path** = `/oauth/consent`, dan aktifkan *Dynamic client registration* (atau daftarkan klien manual di OAuth Apps dengan redirect URI `https://claude.ai/api/mcp/auth_callback`).
+2. Authentication → URL Configuration: **Site URL** = `https://beginner-erp-guide.vercel.app`.
+3. Authentication → JWT Signing Keys: pakai kunci asimetris (ES256).
+4. Claude.ai → Settings → Connectors → Add custom connector → URL `https://beginner-erp-guide.vercel.app/api/mcp`.
+
+Env var opsional: `MCP_PUBLIC_ORIGIN` (hanya untuk menguji di domain selain produksi).
+
 ## Deploy ke Vercel
 
 1. Import repo ini di Vercel (Framework: Next.js, Root Directory: root repo).
