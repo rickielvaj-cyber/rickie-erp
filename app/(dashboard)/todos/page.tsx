@@ -25,6 +25,7 @@ import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { TodoUndoToast } from "@/components/TodoUndoToast";
 import { createTodo, moveTodoToToday, updateTodo } from "./actions";
 import { QuickAdd } from "@/components/todo/QuickAdd";
+import { groupUpcoming } from "@/lib/upcoming";
 import { DoneCheckbox } from "@/components/todo/DoneCheckbox";
 import { isConnected } from "@/lib/google/store";
 import { googleConfigured } from "@/lib/google/oauth";
@@ -55,10 +56,13 @@ type SearchParams = {
   calendar?: string;
   block?: string;
   from?: string;
+  /** "all" = tampilkan semua to-do mendatang (bawaan: 8 pertama). */
+  upcoming?: string;
 };
 
 type Show = "all" | "open" | "done";
 
+const UPCOMING_PREVIEW = 8;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type GoalOption = Pick<Goal, "id" | "title" | "status">;
@@ -112,7 +116,13 @@ export default async function TodosPage({
   if (goal === "none") todayQuery = todayQuery.is("goal_id", null);
   else if (goal !== "all") todayQuery = todayQuery.eq("goal_id", goal);
 
-  const [todayResult, weekResult, editResult, goalsResult, projectsResult, clientsResult, phasesResult] = await Promise.all([
+  // "Upcoming": to-do terbuka yang jatuh tempo SETELAH hari ini (filter prioritas dan goal berlaku juga di sini).
+  let upcomingQuery = supabase.from("todos").select("*").gt("due_date", today).neq("status", "done");
+  if (priority !== "all") upcomingQuery = upcomingQuery.eq("priority", priority as TodoPriority);
+  if (goal === "none") upcomingQuery = upcomingQuery.is("goal_id", null);
+  else if (goal !== "all") upcomingQuery = upcomingQuery.eq("goal_id", goal);
+
+  const [todayResult, weekResult, editResult, goalsResult, projectsResult, clientsResult, phasesResult, upcomingResult] = await Promise.all([
     todayQuery
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("sort_order", { ascending: true, nullsFirst: false })
@@ -129,6 +139,7 @@ export default async function TodosPage({
     supabase.from("projects").select("id, name, client_id, status").order("created_at", { ascending: false }),
     supabase.from("clients").select("id, canonical_name"),
     supabase.from("project_phases").select("*"),
+    upcomingQuery.order("due_date", { ascending: true }).order("sort_order", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }).limit(300),
   ]);
 
   const todayTodos = todayResult.data ?? [];
@@ -159,13 +170,15 @@ export default async function TodosPage({
   };
   // Label "Proyek · Fase" per to-do (kunci = id to-do), dipakai di daftar Hari ini dan pelacak mingguan.
   const projectTitles = new Map<string, string>();
-  for (const t of [...todayTodos, ...weekTodos]) {
+  for (const t of [...todayTodos, ...weekTodos, ...(upcomingResult.data ?? [])]) {
     const name = t.project_id ? projectNames.get(t.project_id) : undefined;
     if (!name) continue;
     const phase = t.phase_id ? phaseNames.get(t.phase_id) : undefined;
     projectTitles.set(t.id, phase ? `${name} · ${phase}` : name);
   }
-  const fetchError = todayResult.error ?? weekResult.error ?? goalsResult.error ?? phasesResult.error;
+  const fetchError = todayResult.error ?? weekResult.error ?? goalsResult.error ?? phasesResult.error ?? upcomingResult.error;
+  const showAllUpcoming = params.upcoming === "all";
+  const upcoming = groupUpcoming(upcomingResult.data ?? [], today, showAllUpcoming ? Infinity : UPCOMING_PREVIEW, formatLongDay);
 
   const overdue = todayTodos.filter((t) => t.due_date !== null && t.due_date < today);
   const dueToday = todayTodos.filter((t) => t.due_date === today);
@@ -328,6 +341,39 @@ export default async function TodosPage({
 
         {/* Sedang memfilter satu goal: tugas baru dari kotak ini ikut tertaut ke goal itu. */}
         <QuickAdd date={today} goalId={UUID_RE.test(goal) ? goal : undefined} calendarConnected={calendarConnected} />
+
+        {/* ---- Upcoming: to-do terbuka bertanggal setelah hari ini, supaya yang dijadwalkan jauh di depan tidak "hilang" ---- */}
+        <div aria-labelledby="upcoming-heading" role="region" className="mt-6 flex flex-col gap-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="upcoming-heading" className="text-2xl font-semibold tracking-tight">
+              Upcoming
+              <span className="ml-2 text-base font-normal text-muted">{upcoming.total}</span>
+            </h2>
+            <p className="text-sm text-muted">Open to-dos with a date after today</p>
+          </div>
+          {upcoming.total === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border-strong bg-surface/50 p-6 text-center text-base text-subtle">Nothing is scheduled after today.</p>
+          ) : (
+            <>
+              {upcoming.groups.map((g) => (
+                <TaskGroup key={g.date} title={g.label} todos={g.todos} goalTitles={goalTitles} projectTitles={projectTitles} meta={groupMeta} moveToToday={today} week={weekParam} />
+              ))}
+              {upcoming.total > upcoming.shown && (
+                <Link
+                  href={`${buildHref({ show, priority, goal, week: weekParam ?? undefined })}${buildHref({ show, priority, goal, week: weekParam ?? undefined }).includes("?") ? "&" : "?"}upcoming=all`}
+                  className="self-start rounded-full border border-border-strong px-4 py-1.5 text-sm transition-colors hover:bg-surface"
+                >
+                  Show all {upcoming.total}
+                </Link>
+              )}
+              {showAllUpcoming && upcoming.total > UPCOMING_PREVIEW && (
+                <Link href={buildHref({ show, priority, goal, week: weekParam ?? undefined })} className="self-start text-sm text-muted underline underline-offset-4 hover:text-foreground">
+                  Show fewer
+                </Link>
+              )}
+            </>
+          )}
+        </div>
       </section>
 
       {/* ---- Pelacak mingguan ---- */}
