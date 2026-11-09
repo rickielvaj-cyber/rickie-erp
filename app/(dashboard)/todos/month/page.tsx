@@ -12,6 +12,8 @@ import { getAccessToken, isConnected } from "@/lib/google/store";
 import type { CalendarEvent } from "@/lib/google/layout";
 import { colorSolidStyle, colorStyle } from "@/lib/google/color";
 import { ColorLegendRow } from "@/components/calendar/ColorLegendRow";
+import { LegendSync } from "@/components/calendar/LegendSync";
+import { loadServerLegend } from "@/lib/google/legend-db";
 
 export const metadata = { title: "Month" };
 
@@ -76,7 +78,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
   const authUser = await getAuthUser();
   const supabase = await createClient();
 
-  const [todosResult, eventsResult] = await Promise.all([
+  const [todosResult, eventsResult, serverLegend] = await Promise.all([
     supabase
       .from("todos")
       .select("id, title, status, due_date, calendar_event_id")
@@ -85,6 +87,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
       .order("due_date", { ascending: true })
       .limit(1000),
     authUser ? loadEvents(supabase, authUser.id, range.start, addDaysISO(range.end, 1)) : Promise.resolve<EventsResult>({ events: null, note: null }),
+    loadServerLegend(supabase),
   ]);
 
   const todos = todosResult.data ?? [];
@@ -95,6 +98,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="mx-auto max-w-5xl">
+      <LegendSync server={serverLegend} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-4xl font-semibold tracking-tight">{monthTitle(month)}</h1>

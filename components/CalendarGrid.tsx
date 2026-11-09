@@ -245,6 +245,7 @@ export function CalendarGrid({
   const [editingHours, setEditingHours] = useState(false);
   const legend = useLegend();
   const [editingLegend, setEditingLegend] = useState(false);
+  const [legendNote, setLegendNote] = useState<string | null>(null);
   // Tampilan satu hari: kolom lebar untuk membaca hari yang padat. null = seminggu penuh.
   const [focusDate, setFocusDate] = useState<string | null>(null);
   const focused = focusDate && days.some((d) => d.date === focusDate) ? focusDate : null;
@@ -468,7 +469,24 @@ export function CalendarGrid({
           </button>
         </div>
       </div>
-      {editingLegend && <LegendEditor value={legend} onSave={(v) => { saveLegend(v); setEditingLegend(false); }} onCancel={() => setEditingLegend(false)} />}
+      {editingLegend && (
+        <LegendEditor
+          value={legend}
+          onSave={(v) => {
+            setLegendNote(null);
+            setEditingLegend(false);
+            void saveLegend(v).then((result) => {
+              if (!result.ok) setLegendNote(`Saved on this device only; it could not be synced yet (${result.error}).`);
+            });
+          }}
+          onCancel={() => setEditingLegend(false)}
+        />
+      )}
+      {legendNote && (
+        <p role="status" className="mb-3 rounded-xl bg-warning-soft px-4 py-2 text-sm text-warning-ink">
+          {legendNote}
+        </p>
+      )}
       <ColorLegendRow className="mb-3" />
       {editingHours && <WorkHoursEditor value={workHours} onSave={(v) => { saveWorkHours(v); setEditingHours(false); }} onCancel={() => setEditingHours(false)} />}
       {banner && (
