@@ -1,11 +1,13 @@
+import { safeReturnPath } from "@/lib/return-to";
 import { login } from "./actions";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  const nextPath = safeReturnPath(next);
 
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-surface px-4 py-12">
@@ -14,6 +16,7 @@ export default async function LoginPage({
         <p className="mt-2 text-center text-base text-muted">Sign in to your workspace.</p>
 
         <form action={login} className="mt-8 space-y-5">
+          {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
           <div>
             <label htmlFor="email" className="block text-sm font-medium">
               Email
