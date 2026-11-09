@@ -165,6 +165,13 @@ export type FocusSession = {
   created_at: string;
 };
 
+/** Legenda warna blok kalender (satu baris per pengguna): colorId Google "1".."11" -> nama pendek buatan pengguna. */
+export type ColorLegendRow = {
+  user_id: string;
+  names: Record<string, unknown>;
+  updated_at: string;
+};
+
 export type CalendarSource = {
   id: string;
   user_id: string;
@@ -334,6 +341,12 @@ export type Database = {
         Row: CalendarSource;
         Insert: Pick<CalendarSource, "calendar_id"> & Partial<Pick<CalendarSource, "id" | "user_id" | "label" | "created_at">>;
         Update: Partial<Omit<CalendarSource, "id">>;
+        Relationships: [];
+      };
+      color_legend: {
+        Row: ColorLegendRow;
+        Insert: Pick<ColorLegendRow, "names"> & Partial<Pick<ColorLegendRow, "user_id" | "updated_at">>;
+        Update: Partial<ColorLegendRow>;
         Relationships: [];
       };
       weekly_summaries: {

@@ -14,7 +14,7 @@ fi
 : "${NEXT_PUBLIC_SUPABASE_ANON_KEY:?NEXT_PUBLIC_SUPABASE_ANON_KEY belum diisi (.env.local)}"
 
 fail=0
-for table in todos issue_log goals goal_items kb_entries; do
+for table in todos issue_log goals goal_items kb_entries color_legend; do
   body=$(mktemp)
   code=$(curl -s -o "$body" -w '%{http_code}' \
     "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/$table?select=id&limit=1" \

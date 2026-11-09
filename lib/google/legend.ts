@@ -15,22 +15,34 @@ export function cleanLegendName(value: unknown): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, LEGEND_NAME_MAX).trim();
 }
 
+/** Objek apa pun (dari JSON atau database) -> legenda yang bersih: hanya warna dikenal dengan nama yang layak. */
+export function legendFromObject(value: unknown): Legend {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Legend = {};
+  for (const c of EVENT_COLORS) {
+    const name = cleanLegendName((value as Record<string, unknown>)[c.id]);
+    if (name) out[c.id] = name;
+  }
+  return out;
+}
+
 /** Baca nilai tersimpan (JSON) dengan aman; yang rusak atau bukan warna dikenal diabaikan. */
 export function parseLegend(raw: string | null | undefined): Legend {
   if (!raw) return {};
   try {
-    const v = JSON.parse(raw) as unknown;
-    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
-    const out: Legend = {};
-    for (const c of EVENT_COLORS) {
-      const name = cleanLegendName((v as Record<string, unknown>)[c.id]);
-      if (name) out[c.id] = name;
-    }
-    return out;
+    return legendFromObject(JSON.parse(raw));
   } catch {
     return {};
   }
 }
+
+/** Dua legenda sama isinya? (urutan kunci tidak berpengaruh) */
+export function legendsEqual(a: Legend, b: Legend): boolean {
+  return EVENT_COLORS.every((c) => (a[c.id] ?? "") === (b[c.id] ?? ""));
+}
+
+/** Hasil membaca legenda dari server: ada isinya, belum ada baris, atau tabel/kueri tidak tersedia (mis. migrasi belum diterapkan). */
+export type ServerLegend = { status: "ok"; legend: Legend } | { status: "none" } | { status: "unavailable" };
 
 /** Dari isian form (satu nama per warna); nama kosong dibuang. */
 export function legendFromInputs(names: Record<string, string>): Legend {

@@ -26,6 +26,8 @@ import { TodoUndoToast } from "@/components/TodoUndoToast";
 import { createTodo, moveTodoToToday, updateTodo } from "./actions";
 import { QuickAdd } from "@/components/todo/QuickAdd";
 import { groupUpcoming } from "@/lib/upcoming";
+import { LegendSync } from "@/components/calendar/LegendSync";
+import { loadServerLegend } from "@/lib/google/legend-db";
 import { DoneCheckbox } from "@/components/todo/DoneCheckbox";
 import { isConnected } from "@/lib/google/store";
 import { googleConfigured } from "@/lib/google/oauth";
@@ -122,7 +124,7 @@ export default async function TodosPage({
   if (goal === "none") upcomingQuery = upcomingQuery.is("goal_id", null);
   else if (goal !== "all") upcomingQuery = upcomingQuery.eq("goal_id", goal);
 
-  const [todayResult, weekResult, editResult, goalsResult, projectsResult, clientsResult, phasesResult, upcomingResult] = await Promise.all([
+  const [todayResult, weekResult, editResult, goalsResult, projectsResult, clientsResult, phasesResult, upcomingResult, serverLegend] = await Promise.all([
     todayQuery
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("sort_order", { ascending: true, nullsFirst: false })
@@ -140,6 +142,7 @@ export default async function TodosPage({
     supabase.from("clients").select("id, canonical_name"),
     supabase.from("project_phases").select("*"),
     upcomingQuery.order("due_date", { ascending: true }).order("sort_order", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }).limit(300),
+    loadServerLegend(supabase),
   ]);
 
   const todayTodos = todayResult.data ?? [];
@@ -215,6 +218,7 @@ export default async function TodosPage({
     <div className="mx-auto">
       {/* Sinkron antar perangkat (to-do dari HP muncul di PC). Lebih jarang dari Notes karena halaman ini juga membaca Google Calendar. */}
       <AutoRefresh intervalMs={20000} pauseParams={["new", "edit"]} />
+      <LegendSync server={serverLegend} />
       {(isNew || editingTodo) && (
         <div className="mx-auto mb-10 max-w-2xl">
           <TodoForm

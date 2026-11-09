@@ -35,3 +35,14 @@ test("legendLabel prefers the user's meaning and falls back to the Google color 
   assert.equal(legendLabel({}, "11"), "Tomato");
   assert.equal(legendLabel({}, "zzz"), "");
 });
+
+test("legendFromObject cleans any object (e.g. a database jsonb value) the same way as parseLegend", async () => {
+  const { legendFromObject, legendsEqual } = await import("./google/legend");
+  assert.deepEqual(legendFromObject({ "11": " Urgent ", "99": "Nope", "5": "" }), { "11": "Urgent" });
+  assert.deepEqual(legendFromObject(null), {});
+  assert.deepEqual(legendFromObject([1]), {});
+  assert.deepEqual(legendFromObject("x"), {});
+  assert.equal(legendsEqual({ "11": "Urgent" }, { "11": "Urgent" }), true);
+  assert.equal(legendsEqual({ "11": "Urgent" }, { "11": "Urgent", "5": "Waiting" }), false);
+  assert.equal(legendsEqual({}, {}), true);
+});
