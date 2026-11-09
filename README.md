@@ -395,7 +395,7 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 - **To-do proyek dikelompokkan** di panel Today (`lib/todo-groups.ts`): to-do tanpa proyek tetap daftar biasa; to-do proyek masuk
   satu blok per proyek (abjad), dengan sub-judul per fase menurut urutan fase. Blok dengan lebih dari 3 to-do terlipat
   (judul menampilkan jumlahnya; kotak centang di judul memilih semuanya tanpa membuka lipatan).
-- **Clients** (menu atas, `/clients`): tempat master data klien dan partner; tidak lagi bagian dari Issue Log. Halaman yang
+- **Clients** (menu avatar di kanan atas, `/clients`): tempat master data klien dan partner; tidak lagi bagian dari Issue Log. Halaman yang
   butuh klien baru (form Proyek baru, form Issue) membuka menu ini dengan `?from=<halaman asal>`: tombol "‹ Projects" /
   "‹ Issue Log" dan hasil simpan kembali ke asal, dan klien yang baru dibuat langsung terpilih di form Proyek baru.
   Pola `from` yang sama dipakai saat membuka edit to-do atau edit issue dari halaman Proyek: Batal dan Simpan kembali ke
@@ -454,7 +454,7 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
 ```
 app/page.tsx              Home publik (hero + kartu fitur; angka ringkas cuma kalau sudah login)
 app/login/                halaman login (Supabase Auth, email/password)
-components/TopNav.tsx     menu atas sticky (di root layout, ada di semua halaman)
+components/TopNav.tsx     menu atas sticky (di root layout, ada di semua halaman): Home, To-Do List (pil yang disorot), Notes | halaman lain; Clients, Focus, Settings, ekspor ada di menu avatar
 app/(dashboard)/          penjaga login untuk halaman-halaman privat di bawahnya
 app/(dashboard)/todos/    modul To-Do List (panel Hari ini + pelacak mingguan, terhubung ke Goals)
 app/(dashboard)/goals/    modul Goals: daftar + detail checklist (grup, urutan, centang)
