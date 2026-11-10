@@ -4,7 +4,10 @@ import { NextResponse, type NextRequest } from "next/server";
 // Halaman yang bisa dibuka tanpa login. "/" (Home) harus dicocokkan persis —
 // kalau pakai startsWith, semua path ikut jadi publik.
 // /api/cron/: dipanggil Vercel Cron tanpa sesi login (diamankan CRON_SECRET, lihat route-nya).
-const PUBLIC_PATHS = ["/login", "/api/cron/"];
+// /api/mcp + /.well-known/: endpoint MCP untuk Claude.ai. Tidak memakai cookie sesi; /api/mcp menolak
+// permintaan tanpa bearer token OAuth yang sah (401), dan /.well-known/ hanya metadata publik.
+// /oauth/: halaman consent OAuth; halamannya sendiri yang mewajibkan login (lalu kembali ke consent).
+const PUBLIC_PATHS = ["/login", "/api/cron/", "/api/mcp", "/.well-known/", "/oauth/"];
 // /manifest.webmanifest: manifest PWA dibaca peramban tanpa sesi saat memasang ke layar utama.
 const PUBLIC_EXACT_PATHS = ["/", "/manifest.webmanifest"];
 
