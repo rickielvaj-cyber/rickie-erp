@@ -106,6 +106,9 @@ supabase db push
 - `0030_drop_old_search_semantic.sql` — menghapus fungsi lama `search_semantic(vector, integer)` (sejak 0016/0017 aplikasi memakai `search_semantic_v2`
   dan `search_keyword`; fungsi lama tidak dipanggil kode mana pun dan tidak punya dependen). Hanya satu fungsi, tanpa menyentuh tabel atau data.
   Aman dijalankan kapan saja (`if exists`); kode tidak bergantung padanya.
+- `0031_rls_initplan.sql` — performa RLS: membungkus `auth.uid()` menjadi `(select auth.uid())` di lima policy pemilik (`todos`, `goals`, `goal_items`,
+  `issue_log`, `kb_entries`) supaya dievaluasi sekali per kueri, bukan per baris (peringatan linter `auth_rls_initplan`). Hanya `alter policy`, tanpa DROP;
+  artinya akses tidak berubah (tetap hanya pemilik). Aman dijalankan kapan saja dan diulang; kode tidak bergantung padanya.
 - `0029_color_legend.sql` — tabel `color_legend` (satu baris per pengguna: `names` = objek JSON colorId Google "1".."11" -> nama pendek buatan
   pengguna untuk legenda warna blok kalender; RLS pemilik; `names` harus objek JSON dan maks. 1500 karakter). Hanya nama, tidak mengubah data lain.
   Policy dibuat tanpa DROP (jalankan sekali). **Aman bila kode live lebih dulu**: sebelum tabel ada, kalender tetap jalan dengan legenda lokal di
