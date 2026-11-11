@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addDaysISO, formatDate, formatLongDay, todayISO } from "@/lib/date";
 import { blockedLabel, blockedMinutes, buildToday, issueAttention, runningProjects, weekOf } from "@/lib/dashboard";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { createTodoForDay } from "@/app/(dashboard)/todos/actions";
+import { TodayQuickAdd } from "@/components/TodayQuickAdd";
 
 // Beranda setelah login: apa yang perlu dikerjakan hari ini dan gambaran minggu ini. Semua dari database sendiri
 // (RLS berlaku); tidak memanggil Google, jadi jam blok diambil dari jam terakhir yang tersimpan di to-do.
@@ -140,15 +140,7 @@ export async function Dashboard() {
             </Link>
           )}
 
-          <form action={createTodoForDay.bind(null, today)} className="mt-4">
-            <input
-              name="title"
-              required
-              placeholder="+ Write a new task, then press Enter"
-              aria-label="New task for today"
-              className="h-11 w-full rounded-2xl border border-dashed border-border-strong bg-background px-4 text-base placeholder:text-subtle focus:border-solid focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none"
-            />
-          </form>
+          <TodayQuickAdd today={today} />
         </section>
 
         <div className="flex flex-col gap-6 lg:col-span-2">
