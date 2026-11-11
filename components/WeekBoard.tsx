@@ -30,7 +30,7 @@ import { SelectBox, SelectGroup } from "@/components/todo/BatchSelection";
 import { DoneCheckbox } from "@/components/todo/DoneCheckbox";
 import { ResizeHandle } from "@/components/ui/ResizeHandle";
 import { useStoredSize } from "@/components/ui/use-stored-size";
-import { createTodoForDay, placeTodo } from "@/app/(dashboard)/todos/actions";
+import { addTodoForDay, placeTodo } from "@/app/(dashboard)/todos/actions";
 
 const BOARD_HEIGHT_KEY = "size-weekboard-v1";
 const BOARD_MIN_PX = 160;
@@ -110,6 +110,8 @@ function DayCard({
   maps,
   compact,
   minHeight,
+  pending,
+  onAdd,
 }: {
   day: string;
   today: string;
@@ -120,6 +122,9 @@ function DayCard({
   compact?: boolean;
   /** Tinggi minimum kartu (px) yang diatur dengan menarik; kosong = bawaan CSS. */
   minHeight?: number;
+  /** Judul tugas baru yang sedang disimpan di server; tampil langsung (redup) sampai data resmi tiba. */
+  pending: string[];
+  onAdd: (day: string, title: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: day });
   const isToday = day === today;
@@ -148,10 +153,25 @@ function DayCard({
               <SortableTask key={id} todo={todo} week={week} goalTitle={maps.goalTitles[todo.goal_id ?? ""]} projectTitle={maps.projectTitles[todo.id]} />
             ) : null;
           })}
+          {pending.map((title, i) => (
+            <li key={`pending-${i}`} aria-busy="true" className="rounded-lg border border-border bg-background p-2 text-sm text-muted opacity-70">
+              <span className="break-words">{title}</span>
+            </li>
+          ))}
         </ul>
       </SortableContext>
 
-      <form action={createTodoForDay.bind(null, day)} className="mt-auto">
+      <form
+        className="mt-auto"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const input = e.currentTarget.elements.namedItem("title") as HTMLInputElement;
+          const title = input.value.trim();
+          if (!title) return;
+          input.value = ""; // kosong seketika; tugasnya sudah tampil di atas
+          onAdd(day, title);
+        }}
+      >
         <input
           name="title"
           required
@@ -194,6 +214,21 @@ export function WeekBoard({
   const setItems = (next: BoardItems) => setLocal({ src: todos, items: next });
   const byId = new Map(todos.map((t) => [t.id, t]));
   const start = useRef<BoardItems | null>(null);
+  // Tugas baru dari kotak "+ Add": tampil seketika, disimpan di latar belakang (beberapa bisa berjalan bersamaan).
+  const [pending, setPending] = useState<{ key: number; day: string; title: string }[]>([]);
+  const nextKey = useRef(0);
+  // Transisi terpisah dari `saving` (seretan): `saving` membuat papan memakai keadaan lokal, yang bisa sudah usang saat menambah.
+  const [, startAdd] = useTransition();
+  const addTask = (day: string, title: string) => {
+    const key = nextKey.current++;
+    setPending((p) => [...p, { key, day, title }]);
+    setError(null);
+    startAdd(async () => {
+      const result = await addTodoForDay(day, title);
+      setPending((p) => p.filter((x) => x.key !== key));
+      if (!result.ok) setError(`Could not add "${title}": ${result.error}`);
+    });
+  };
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -249,7 +284,7 @@ export function WeekBoard({
   const [boardHeight, setBoardHeight] = useStoredSize(BOARD_HEIGHT_KEY, BOARD_MIN_PX, BOARD_MAX_PX);
   const firstRow = useRef<HTMLDivElement | null>(null);
   const card = (day: string, compact?: boolean) => (
-    <DayCard key={day} day={day} today={today} todos={byId} ids={items[day] ?? []} week={week} maps={maps} compact={compact} minHeight={boardHeight ?? undefined} />
+    <DayCard key={day} day={day} today={today} todos={byId} ids={items[day] ?? []} week={week} maps={maps} compact={compact} minHeight={boardHeight ?? undefined} pending={pending.filter((x) => x.day === day).map((x) => x.title)} onAdd={addTask} />
   );
   const active = activeId ? byId.get(activeId) : undefined;
 
