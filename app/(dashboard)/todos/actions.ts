@@ -321,30 +321,10 @@ export async function toggleTodoDone(id: string, currentStatus: TodoStatus) {
   revalidateTodoViews();
 }
 
-// Tambah cepat satu tugas ke tanggal tertentu (kolom hari di pelacak mingguan,
-// atau kotak "tugas baru" di panel Hari ini). Tanpa redirect: URL (termasuk
-// ?week=) tetap, halaman cuma dirender ulang.
-export async function createTodoForDay(date: string, formData: FormData) {
-  const title = String(formData.get("title") ?? "").trim();
-  const goalId = String(formData.get("goal_id") ?? "").trim();
-  if (!title || !isISODate(date)) return;
-
-  const supabase = await createClient();
-  await supabase.from("todos").insert({
-    title,
-    description: null,
-    status: "todo",
-    priority: "medium",
-    due_date: date,
-    goal_id: UUID_RE.test(goalId) ? goalId : null,
-  });
-
-  revalidateTodoViews();
-}
-
 /**
- * Versi `createTodoForDay` untuk papan mingguan: mengembalikan hasil (bukan void) supaya tampilan bisa langsung menampilkan tugasnya
- * dan baru menyesuaikan setelah server selesai, atau menampilkan pesan bila gagal.
+ * Tambah cepat satu to-do ke tanggal tertentu (kolom hari di papan mingguan dan kotak "tugas baru" di Beranda). Tanpa redirect: URL
+ * (termasuk ?week=) tetap, halaman cuma dirender ulang. Mengembalikan hasil supaya tampilan bisa langsung menampilkan tugasnya dan
+ * baru menyesuaikan setelah server selesai, atau menampilkan pesan bila gagal.
  */
 export async function addTodoForDay(date: string, rawTitle: string): Promise<QuickAddResult> {
   const title = String(rawTitle ?? "").trim();
