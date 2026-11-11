@@ -342,6 +342,24 @@ export async function createTodoForDay(date: string, formData: FormData) {
   revalidateTodoViews();
 }
 
+/**
+ * Versi `createTodoForDay` untuk papan mingguan: mengembalikan hasil (bukan void) supaya tampilan bisa langsung menampilkan tugasnya
+ * dan baru menyesuaikan setelah server selesai, atau menampilkan pesan bila gagal.
+ */
+export async function addTodoForDay(date: string, rawTitle: string): Promise<QuickAddResult> {
+  const title = String(rawTitle ?? "").trim();
+  if (!title) return { ok: false, error: "Write a title first." };
+  if (title.length > 500) return { ok: false, error: "The title is too long." };
+  if (!isISODate(date)) return { ok: false, error: "Unknown day." };
+  const user = await getAuthUser();
+  if (!user) return { ok: false, error: "Your session has expired. Log in again." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("todos").insert({ title, description: null, status: "todo", priority: "medium", due_date: date, goal_id: null });
+  if (error) return { ok: false, error: error.message };
+  revalidateTodoViews();
+  return { ok: true };
+}
+
 // Tugas yang terlewat (belum selesai) dipindah ke hari ini. Tidak mengubah status/goal.
 export async function moveTodoToToday(id: string, today: string) {
   if (!isISODate(today)) return;
