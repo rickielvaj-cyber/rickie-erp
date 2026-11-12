@@ -54,3 +54,16 @@ export function buildBoard(todos: { id: string; due_date: string | null }[], day
   for (const t of todos) if (t.due_date && t.due_date in board) board[t.due_date].push(t.id);
   return board;
 }
+
+/**
+ * Selaraskan papan lokal (hasil seret yang sedang berlangsung/disimpan) dengan data terbaru dari server: to-do yang sudah tidak ada
+ * dibuang, dan to-do baru yang belum ada di papan lokal (mis. baru selesai disimpan saat sedang menyeret) ditaruh di bawah kolom
+ * tanggalnya. Posisi hasil seret yang sudah ada tidak berubah. Tanpa ini, to-do baru "menghilang" sampai seretan selesai.
+ */
+export function reconcileBoard(items: BoardItems, todos: { id: string; due_date: string | null }[], days: string[]): BoardItems {
+  const live = new Set(todos.map((t) => t.id));
+  const placed = new Set(Object.values(items).flat());
+  const next: BoardItems = Object.fromEntries(days.map((d) => [d, (items[d] ?? []).filter((id) => live.has(id))]));
+  for (const t of todos) if (!placed.has(t.id) && t.due_date && t.due_date in next) next[t.due_date].push(t.id);
+  return next;
+}

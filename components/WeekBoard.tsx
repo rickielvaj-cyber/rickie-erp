@@ -23,7 +23,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from "@dnd-kit/utilities";
 import { formatDayMonth, formatLongDay, formatWeekdayShort } from "@/lib/date";
 import { formatScheduled } from "@/lib/google/layout";
-import { applyDrag, buildBoard, findContainer, placementChanged, type BoardItems } from "@/lib/todo-board";
+import { applyDrag, buildBoard, findContainer, placementChanged, reconcileBoard, type BoardItems } from "@/lib/todo-board";
 import type { Todo, TodoPriority } from "@/lib/types";
 import { TodoDeleteButton } from "@/components/TodoDeleteButton";
 import { SelectBox, SelectGroup } from "@/components/todo/BatchSelection";
@@ -210,7 +210,8 @@ export function WeekBoard({
   const [saving, startTransition] = useTransition();
   // Keadaan papan sementara berlaku selama menyeret dan selama penyimpanan berjalan (data server yang datang di tengah
   // jalan, mis. dari penyimpanan sebelumnya, tidak boleh mereset pratinjau), lalu sampai data baru tiba (identitas `todos` berganti).
-  const items: BoardItems = local && (activeId !== null || saving || local.src === todos) ? local.items : buildBoard(todos, days);
+  // `reconcileBoard` memasukkan to-do yang baru tiba di tengah seretan (mis. baru selesai disimpan) dan membuang yang sudah terhapus.
+  const items: BoardItems = local && (activeId !== null || saving || local.src === todos) ? reconcileBoard(local.items, todos, days) : buildBoard(todos, days);
   const setItems = (next: BoardItems) => setLocal({ src: todos, items: next });
   const byId = new Map(todos.map((t) => [t.id, t]));
   const start = useRef<BoardItems | null>(null);
