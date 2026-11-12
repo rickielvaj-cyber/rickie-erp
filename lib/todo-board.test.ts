@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyDrag, buildBoard, findContainer, placementChanged } from "./todo-board";
+import { applyDrag, buildBoard, findContainer, placementChanged, reconcileBoard } from "./todo-board";
 
 const board = () => ({ "2026-10-19": ["a", "b", "c"], "2026-10-20": ["d"], "2026-10-21": [] as string[] });
 
@@ -64,4 +64,33 @@ test("buildBoard groups to-dos by day in the given order and ignores other days 
     ["2026-10-19", "2026-10-20"],
   );
   assert.deepEqual(out, { "2026-10-19": ["x", "z"], "2026-10-20": ["y"] });
+});
+
+test("reconcileBoard adds a to-do that arrived mid-drag at the bottom of its day and keeps the dragged positions", () => {
+  const days = ["d1", "d2"];
+  const local = { d1: ["b", "a"], d2: ["c"] }; // a and b reordered by the drag
+  const todos = [
+    { id: "a", due_date: "d1" },
+    { id: "b", due_date: "d1" },
+    { id: "c", due_date: "d2" },
+    { id: "new", due_date: "d1" },
+  ];
+  assert.deepEqual(reconcileBoard(local, todos, days), { d1: ["b", "a", "new"], d2: ["c"] });
+});
+
+test("reconcileBoard drops to-dos that no longer exist and ignores ones outside the visible days or undated", () => {
+  const days = ["d1", "d2"];
+  const local = { d1: ["a", "gone"], d2: [] as string[] };
+  const todos = [
+    { id: "a", due_date: "d1" },
+    { id: "elsewhere", due_date: "d9" },
+    { id: "undated", due_date: null },
+  ];
+  assert.deepEqual(reconcileBoard(local, todos, days), { d1: ["a"], d2: [] });
+});
+
+test("reconcileBoard does not move a to-do the drag already placed in another day", () => {
+  const days = ["d1", "d2"];
+  const local = { d1: [] as string[], d2: ["a"] }; // dragged a from d1 to d2; the server still says d1
+  assert.deepEqual(reconcileBoard(local, [{ id: "a", due_date: "d1" }], days), { d1: [], d2: ["a"] });
 });
