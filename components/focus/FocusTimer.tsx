@@ -49,7 +49,7 @@ export function FocusTimer({ sessionsToday }: { sessionsToday: number }) {
     const ended = isFocus && left === 0;
     return (
       <section aria-label="Timer" className={`${card} text-center`}>
-        <p className={`text-sm font-semibold uppercase tracking-wide ${isFocus ? "text-accent" : "text-success"}`}>{isFocus ? "Focus" : "Break"}</p>
+        <p className={`text-sm font-semibold uppercase tracking-wide ${isFocus ? "text-accent-ink" : "text-success"}`}>{isFocus ? "Focus" : "Break"}</p>
         <p role="timer" aria-live="off" className="mt-2 text-7xl font-semibold tabular-nums tracking-tight sm:text-8xl">
           {left === null ? "--:--" : formatClock(left)}
         </p>
@@ -91,7 +91,7 @@ export function FocusTimer({ sessionsToday }: { sessionsToday: number }) {
         ) : (
           <>
             <p className="text-sm font-semibold uppercase tracking-wide text-success">Session complete</p>
-            <p role="status" className="mt-2 text-6xl font-semibold tracking-tight text-accent">
+            <p role="status" className="mt-2 text-6xl font-semibold tracking-tight text-accent-ink">
               +{state.points}
             </p>
             <p className="mt-1 text-base text-muted">

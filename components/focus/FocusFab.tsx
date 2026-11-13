@@ -211,7 +211,7 @@ export function FocusFab() {
               )}
               {(tone === "focus" || tone === "break") && state && (state.phase === "focus" || state.phase === "break") && (
                 <>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${isFocus ? "text-accent" : "text-success"}`}>{isFocus ? "Focus" : "Break"}</p>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${isFocus ? "text-accent-ink" : "text-success"}`}>{isFocus ? "Focus" : "Break"}</p>
                   <p role="timer" aria-live="off" className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">
                     {left === null ? "--:--" : formatClock(left)}
                   </p>
@@ -261,7 +261,7 @@ export function FocusFab() {
                   ) : (
                     <>
                       <p className="text-xs font-semibold uppercase tracking-wide text-success">Session complete</p>
-                      <p role="status" className="mt-1 text-4xl font-semibold tracking-tight text-accent">
+                      <p role="status" className="mt-1 text-4xl font-semibold tracking-tight text-accent-ink">
                         +{state.points}
                       </p>
                       <p className="text-muted">

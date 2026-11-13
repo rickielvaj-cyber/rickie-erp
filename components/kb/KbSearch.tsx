@@ -190,7 +190,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted">
                           {hit.snippet.before}
                           {hit.snippet.match && (
-                            <mark className="rounded-sm bg-yellow-200 px-0.5 text-foreground">
+                            <mark className="rounded-sm bg-highlight px-0.5 text-highlight-ink">
                               {hit.snippet.match}
                             </mark>
                           )}

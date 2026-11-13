@@ -288,7 +288,7 @@ export default async function TodosPage({
                 href={buildHref({ show, priority: value, goal, week: weekParam ?? undefined })}
                 aria-current={priority === value ? "true" : undefined}
                 className={
-                  priority === value ? "font-medium text-accent underline underline-offset-4" : "text-muted hover:text-foreground"
+                  priority === value ? "font-medium text-accent-ink underline underline-offset-4" : "text-muted hover:text-foreground"
                 }
               >
                 {label}
@@ -308,7 +308,7 @@ export default async function TodosPage({
                   href={buildHref({ show, priority, goal: value, week: weekParam ?? undefined })}
                   aria-current={goal === value ? "true" : undefined}
                   className={
-                    goal === value ? "font-medium text-accent underline underline-offset-4" : "text-muted hover:text-foreground"
+                    goal === value ? "font-medium text-accent-ink underline underline-offset-4" : "text-muted hover:text-foreground"
                   }
                 >
                   {label}

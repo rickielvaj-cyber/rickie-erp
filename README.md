@@ -531,6 +531,7 @@ app/(dashboard)/clients/  master klien dan partner
 app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase masing-masing dengan daftar to-do sendiri, partner, issue)
 docs/BACKUP.md            backup mingguan terenkripsi dan cara restore
 .github/workflows/        backup.yml (backup mingguan) dan ci.yml (tsc + lint + tes di setiap PR dan push ke main)
+lib/theme.ts              pilihan tema (System/Light/Dark) dan skrip awal di <head>; saklarnya di components/ThemeSwitch.tsx (menu avatar)
 app/(dashboard)/focus/    halaman Focus (Pomodoro); tombol melayang di components/focus/FocusFab.tsx, logika murni di lib/focus.ts, sinkronisasi timer di lib/focus-sync.ts + timer-actions.ts
 app/(dashboard)/notes/    catatan cepat + panel AI (lib/ai/*); app/(dashboard)/search/ pencarian global (lib/search/*)
 lib/google/               integrasi Google Calendar (token, acara, tata letak blok, warna dan legenda, jam kerja, kalender tambahan)
@@ -574,6 +575,18 @@ Ukuran: di layar >= 1024px skala dasar 14px (bukan 16px) supaya tidak terasa pen
 jadi mengecil serempak, dan lebar kolom (`--container-*`) dikalikan 16/14 supaya lebarnya dalam piksel tetap. Ponsel dan
 tablet tetap 16px. Mengubah ukuran desktop = satu angka (`font-size` di blok `@media (min-width: 1024px)`).
 
+**Mode gelap** (`app/globals.css`, `lib/theme.ts`, `components/ThemeSwitch.tsx`): menu avatar punya pilihan **Appearance: System / Light / Dark**. System (bawaan)
+mengikuti pengaturan perangkat (`prefers-color-scheme`); Light atau Dark memaksa tema itu. Pilihan disimpan per perangkat di localStorage (`theme-v1`; tema
+memang bergantung pada perangkat, jadi tidak disinkronkan). Cara kerjanya hanya mengganti nilai token warna: blok `:root[data-theme="dark"]` dan padanannya di
+`@media (prefers-color-scheme: dark)` untuk System (isinya sama, jangan diubah sendiri-sendiri), plus `color-scheme` supaya kolom isian, tanggal/jam, dan
+scrollbar bawaan browser ikut gelap. Skrip kecil di `<head>` (`THEME_INIT_SCRIPT`) memasang `data-theme` sebelum halaman digambar, jadi tidak berkedip terang
+lalu gelap; `<html>` memakai `suppressHydrationWarning` karena itu. Palet gelap dihitung kontrasnya (teks >= 4,5:1, garis dan ikon >= 3:1): latar #0e1014,
+`accent` tetap biru yang cukup gelap untuk teks putih di tombol, sedangkan teks berwarna aksen memakai `accent-ink` (terang di mode gelap; di mode terang nilainya
+sama dengan `accent`, jadi tidak ada perubahan). Aturan menulis komponen baru: pakai token, jangan `bg-white`, `text-black`, atau warna heksa mentah;
+teks berwarna aksen = `text-accent-ink`, bukan `text-accent`. Warna blok kalender memakai warna Google dengan alpha tipis di atas latar, jadi otomatis ikut.
+Diagram Mermaid memakai dua set warna (`MermaidDiagram.tsx`) dan digambar ulang saat tema berganti. Sorotan pencarian memakai token `highlight`. `themeColor`
+(bilah alamat HP) mengikuti perangkat, bukan pilihan di situs.
+
 **Gerak**: animasi sengaja kecil dan hemat (`app/globals.css`): hanya `opacity` dan `transform`/`translate` (tidak memicu hitung ulang tata
 letak), 150-220 ms, tanpa pustaka animasi. `anim-enter` (item baru masuk), `anim-pop` (menu dan dialog muncul), `anim-fade` (latar dialog), dan
 kartu yang bisa diklik naik 1,75 px dengan bayangan `shadow-lift` saat disorot. Semuanya berada di dalam `prefers-reduced-motion: no-preference`
@@ -605,7 +618,6 @@ lewat `?week=YYYY-MM-DD`; tugas ditempatkan ke hari lewat kolom `due_date` yang 
 
 Daftar jujur (diperiksa terhadap kode):
 
-- **Dark mode**: tidak ada token warna gelap di `app/globals.css`.
 - **Mode offline**: tidak ada service worker (situs tetap butuh koneksi).
 - **Integrasi Notion**: belum dikerjakan (Google Calendar sudah).
 - **Notifikasi tenggat to-do**: pengingat hanya untuk blok kalender (lewat Google), bukan untuk tugas bertanggal.
