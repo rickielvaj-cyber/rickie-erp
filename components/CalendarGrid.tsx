@@ -688,14 +688,14 @@ export function CalendarGrid({
       <ResizeHandle targetRef={scrollRef} onResize={setCalHeight} onReset={() => setCalHeight(null)} min={CAL_MIN_PX} max={CAL_MAX_PX} label="Resize calendar height" />
 
       {panel && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={close}>
+        <div className="anim-fade fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={close}>
           <form
             onSubmit={submit}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label={panel.mode === "edit" ? "Edit time block" : "New time block"}
-            className="max-h-full w-full max-w-md space-y-4 overflow-y-auto rounded-3xl border border-border bg-background shadow-pop bg-background p-6 shadow-pop"
+            className="anim-pop max-h-full w-full max-w-md space-y-4 overflow-y-auto rounded-3xl border border-border bg-background shadow-pop bg-background p-6 shadow-pop"
           >
             <h3 className="text-xl font-semibold tracking-tight">{panel.mode === "edit" ? "Edit block" : "New time block"}</h3>
             {panel.mode === "create" && linkable.length > 0 && (

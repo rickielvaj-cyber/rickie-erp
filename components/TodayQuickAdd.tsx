@@ -30,7 +30,7 @@ export function TodayQuickAdd({ today }: { today: string }) {
       {pending.length > 0 && (
         <ul className="mt-2 divide-y divide-border">
           {pending.map((x) => (
-            <li key={x.key} aria-busy="true" className="py-2.5 text-base text-muted opacity-70">
+            <li key={x.key} aria-busy="true" className="anim-enter py-2.5 text-base text-muted opacity-70">
               <span className="block truncate">{x.title}</span>
             </li>
           ))}

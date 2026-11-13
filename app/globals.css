@@ -28,6 +28,8 @@
   /* Bayangan abu-abu halus: kartu hampir rata, menu/dialog terangkat. */
   --shadow-card: 0 1px 2px rgb(20 22 26 / 0.05), 0 2px 8px rgb(20 22 26 / 0.05);
   --shadow-pop: 0 10px 30px rgb(20 22 26 / 0.14), 0 2px 6px rgb(20 22 26 / 0.08);
+  /* Kartu yang bisa diklik saat disorot: sedikit terangkat, lebih lembut dari menu/dialog. */
+  --shadow-lift: 0 6px 18px rgb(20 22 26 / 0.09), 0 1px 3px rgb(20 22 26 / 0.06);
 }
 
 @theme inline {
@@ -52,6 +54,7 @@
   --color-danger-soft: var(--danger-soft);
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
+  --shadow-lift: var(--shadow-lift);
   --font-sans: var(--font-inter);
 }
 
@@ -130,5 +133,47 @@ summary:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .kb-flash {
     animation-timing-function: steps(1, end);
+  }
+}
+
+/*
+ * Gerak kecil dan hemat: hanya opacity dan transform (tanpa memicu tata letak), 150-220 ms. Seluruhnya di dalam no-preference, jadi
+ * pengguna yang meminta "kurangi gerak" tidak melihat animasinya sama sekali.
+ *   anim-enter : item baru masuk (naik tipis sambil memudar)
+ *   anim-pop   : menu/dialog muncul (skala 0,97 ke 1 sambil memudar)
+ *   anim-fade  : latar gelap dialog memudar masuk
+ */
+@keyframes anim-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes anim-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+@keyframes anim-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .anim-enter {
+    animation: anim-enter 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .anim-pop {
+    animation: anim-pop 160ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    transform-origin: top right;
+  }
+
+  .anim-fade {
+    animation: anim-fade 160ms ease-out both;
   }
 }
