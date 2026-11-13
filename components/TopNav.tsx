@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions";
 import { SearchBox } from "@/components/SearchBox";
 import { FocusBadge } from "@/components/focus/FocusBadge";
+import { FocusSync } from "@/components/focus/FocusSync";
 import { FocusFab } from "@/components/focus/FocusFab";
 
 // Urutan menu: yang paling sering dipakai di kiri (Home, To-Do List yang disorot, Notes), lalu garis tipis, lalu halaman lain.
@@ -171,6 +172,7 @@ export function TopNav({ email }: { email: string | null }) {
 
         <div className="flex items-center justify-end gap-2">
           {email && <FocusBadge />}
+          {email && <FocusSync />}
           {email && (
             // Suspense: SearchBox membaca ?q= di URL (useSearchParams).
             <Suspense fallback={null}>

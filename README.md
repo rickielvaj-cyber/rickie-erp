@@ -116,6 +116,9 @@ supabase db push
 - `0032_fk_indexes.sql` — menambah empat index untuk foreign key yang belum punya (`issue_log.kb_entry_id`, `kb_entries.user_id`, `project_partners.user_id`,
   `project_phases.user_id`); merapikan peringatan advisor `unindexed_foreign_keys`. Hanya `create index if not exists`, tanpa DROP dan tanpa menyentuh data;
   aman diulang. Tabelnya kecil, jadi manfaat nyatanya kecil; kode tidak bergantung padanya.
+- `0033_focus_timer.sql` — tabel `focus_timer` (satu baris per pengguna: `state` = objek JSON timer fokus/istirahat yang sedang BERJALAN, dibatasi objek <= 600 karakter,
+  RLS pemilik) supaya timer dibagi antar perangkat. Hanya menambah tabel (tanpa DROP). Diterapkan per bagian; tabel aman diulang, policy dibuat sekali. Sebelum
+  tabel ini ada aplikasi tetap jalan: timer hanya di browser seperti sebelumnya.
 - `0029_color_legend.sql` — tabel `color_legend` (satu baris per pengguna: `names` = objek JSON colorId Google "1".."11" -> nama pendek buatan
   pengguna untuk legenda warna blok kalender; RLS pemilik; `names` harus objek JSON dan maks. 1500 karakter). Hanya nama, tidak mengubah data lain.
   Policy dibuat tanpa DROP (jalankan sekali). **Aman bila kode live lebih dulu**: sebelum tabel ada, kalender tetap jalan dengan legenda lokal di
@@ -285,8 +288,9 @@ blok tidak punya pengingat. Tanpa migrasi, tanpa scope Google baru.
 **Focus / Pomodoro** (`/focus`, menu akun → Focus timer; `lib/focus.ts`, `components/focus/*`): timer bebas (tidak terikat to-do) dengan
 pilihan 15/25/45/60 menit dan label opsional. **Poin: 10 per sesi fokus yang SELESAI**; menghentikan di tengah = tidak ada poin. Setelah sesi
 selesai ada istirahat 5 menit (15 menit setiap sesi ke-4 pada hari yang sama) yang bisa dilewati; istirahat tidak dicatat. Timer yang sedang
-berjalan hanya disimpan di browser (localStorage), jadi tetap jalan saat pindah halaman atau memuat ulang, tetapi tidak dibagi antar perangkat;
-**hanya sesi selesai yang disimpan di database**, jadi poin dan riwayat sama di PC dan HP. **Tombol melayang** (`components/focus/FocusFab.tsx`, ala "assistive touch"): lingkaran navy di tepi kanan bawah di semua halaman (kecuali
+berjalan disimpan di browser (localStorage, cache instan, jadi tetap jalan saat pindah halaman atau memuat ulang) **dan dibagi antar perangkat lewat tabel
+`focus_timer`** (migrasi `0033`): mulai di laptop, timernya muncul di HP (dan sebaliknya), dan menghentikannya di satu perangkat menghentikannya di semua.
+Sesi yang SELESAI tetap di `focus_sessions`, jadi poin dan riwayat sama di PC dan HP. **Tombol melayang** (`components/focus/FocusFab.tsx`, ala "assistive touch"): lingkaran navy di tepi kanan bawah di semua halaman (kecuali
 `/focus`, yang punya timer besar sendiri). Bisa diseret ke mana saja dan menempel ke sisi kiri/kanan terdekat; posisinya diingat di
 localStorage (`focus-fab-v1`). Klik membuka panel kecil untuk memulai (pilih menit, label opsional), menghentikan, atau memulai/melewati
 istirahat tanpa pindah halaman; saat berjalan ia menjadi pil berisi hitung mundur. `FocusBadge` di menu atas tidak lagi menampilkan apa pun, tetapi
@@ -295,6 +299,17 @@ di server (`parseFocusInput`): lama harus salah satu pilihan, sesi harus sudah b
 (buka situs lagi setelah itu = tidak dihitung), dan poinnya ditentukan server (bukan dikirim browser); sesi yang sama dicatat dua kali (dua tab)
 tetap satu baris. Halaman menampilkan poin hari ini/minggu ini/total, sesi per hari 7 hari terakhir, dan 10 sesi terakhir (bisa dihapus; poinnya
 ikut hilang). Bunyi dua nada saat selesai (bisa diblokir browser bila halaman belum pernah disentuh) dan hitung mundur di judul tab. Perlu migrasi `0028`.
+
+**Sinkronisasi timer** (`lib/focus-sync.ts`, `components/focus/{store.ts,sync.ts,FocusSync.tsx}`, `app/(dashboard)/focus/timer-actions.ts`): `writeTimer` adalah
+satu-satunya pintu perubahan dan juga mengirimnya ke server (timer berjalan = simpan/ganti baris; berhenti atau selesai = hapus baris). `FocusSync` (tanpa
+tampilan, di menu atas) mencocokkan perangkat ini dengan server saat halaman dibuka, tiap 20 detik selama tab terlihat, dan saat tab difokuskan lagi
+(tab tersembunyi tidak memanggil server). Aturannya murni dan diuji (`reconcileTimer`): timer yang MULAI lebih baru menang; timer yang sudah pernah ada di
+server lalu hilang berarti dihentikan atau selesai di perangkat lain; penghapusan yang gagal (jaringan putus) dicatat (`focus-sync-v1`) dan diulang, dan
+**hanya menghapus baris yang tidak lebih baru dari timer yang dihentikan** (timer baru dari perangkat lain tidak ikut terhapus); sisa baris lama yang
+lewat masa tenggang 15 menit dibersihkan, bukan dihidupkan lagi. Mencatat sesi selesai tetap oleh `FocusBadge` di perangkat yang membukanya lebih dulu;
+bila dua perangkat sama-sama mencatat, constraint unik `(user_id, started_at)` membuatnya satu baris (diuji di Postgres). Selisih jam antar perangkat
+membuat hitung mundur bisa berbeda beberapa detik (waktu selesai disimpan sebagai jam perangkat yang memulai). Tabel belum ada atau server galat =
+sinkronisasi diam, timer tetap jalan di browser.
 
 **Kalender tambahan** (Settings → Other calendars; `lib/google/calendar-sources.ts`, `lib/google/extra-calendars.ts`): sampai 3 kalender
 Google lain (mis. kantor atau proyek) ikut tampil di grid minggu dan tampilan bulan, **hanya baca** dan bergaris putus-putus. Cara
@@ -516,7 +531,7 @@ app/(dashboard)/clients/  master klien dan partner
 app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase masing-masing dengan daftar to-do sendiri, partner, issue)
 docs/BACKUP.md            backup mingguan terenkripsi dan cara restore
 .github/workflows/        backup.yml (backup mingguan) dan ci.yml (tsc + lint + tes di setiap PR dan push ke main)
-app/(dashboard)/focus/    halaman Focus (Pomodoro); tombol melayang di components/focus/FocusFab.tsx, logika murni di lib/focus.ts
+app/(dashboard)/focus/    halaman Focus (Pomodoro); tombol melayang di components/focus/FocusFab.tsx, logika murni di lib/focus.ts, sinkronisasi timer di lib/focus-sync.ts + timer-actions.ts
 app/(dashboard)/notes/    catatan cepat + panel AI (lib/ai/*); app/(dashboard)/search/ pencarian global (lib/search/*)
 lib/google/               integrasi Google Calendar (token, acara, tata letak blok, warna dan legenda, jam kerja, kalender tambahan)
 app/api/mcp/              server MCP untuk Claude.ai (lib/mcp/*); app/api/cron/ keep-alive dan reindex pencarian terjadwal
@@ -593,6 +608,5 @@ Daftar jujur (diperiksa terhadap kode):
 - **Dark mode**: tidak ada token warna gelap di `app/globals.css`.
 - **Mode offline**: tidak ada service worker (situs tetap butuh koneksi).
 - **Integrasi Notion**: belum dikerjakan (Google Calendar sudah).
-- **Timer fokus lintas perangkat**: timer yang sedang berjalan hanya di localStorage browser; hanya sesi selesai yang masuk database.
 - **Notifikasi tenggat to-do**: pengingat hanya untuk blok kalender (lewat Google), bukan untuk tugas bertanggal.
 - **Pengaturan animasi di Settings**: animasi saat ini mengikuti pengaturan "kurangi gerak" sistem operasi tanpa saklar sendiri.

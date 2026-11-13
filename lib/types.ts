@@ -172,6 +172,13 @@ export type ColorLegendRow = {
   updated_at: string;
 };
 
+/** Timer fokus yang sedang berjalan (satu baris per pengguna; lihat lib/focus-sync.ts). */
+export type FocusTimerRow = {
+  user_id: string;
+  state: Record<string, unknown>;
+  updated_at: string;
+};
+
 export type CalendarSource = {
   id: string;
   user_id: string;
@@ -347,6 +354,12 @@ export type Database = {
         Row: ColorLegendRow;
         Insert: Pick<ColorLegendRow, "names"> & Partial<Pick<ColorLegendRow, "user_id" | "updated_at">>;
         Update: Partial<ColorLegendRow>;
+        Relationships: [];
+      };
+      focus_timer: {
+        Row: FocusTimerRow;
+        Insert: Pick<FocusTimerRow, "state"> & Partial<Pick<FocusTimerRow, "user_id" | "updated_at">>;
+        Update: Partial<FocusTimerRow>;
         Relationships: [];
       };
       weekly_summaries: {
