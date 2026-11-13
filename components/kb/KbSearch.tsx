@@ -129,7 +129,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 pt-[12vh]"
+          className="anim-fade fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 pt-[12vh]"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) close();
           }}
@@ -138,7 +138,7 @@ export function KbSearch({ variant = "button" }: { variant?: "button" | "bar" })
             role="dialog"
             aria-modal="true"
             aria-label="Search Knowledge Base"
-            className="w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-background shadow-pop"
+            className="anim-pop w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-background shadow-pop"
           >
             <input
               ref={inputRef}

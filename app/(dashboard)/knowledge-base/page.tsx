@@ -48,7 +48,7 @@ export default async function KnowledgeBasePage() {
               <Link
                 key={slug}
                 href={`/knowledge-base/${slug}`}
-                className="group flex items-center gap-4 rounded-2xl border border-border bg-background shadow-card p-4 transition-colors hover:bg-surface"
+                className="group flex items-center gap-4 rounded-2xl border border-border bg-background shadow-card p-4 transition-[background-color,box-shadow,translate] duration-200 hover:bg-surface hover:shadow-lift motion-safe:hover:-translate-y-0.5"
               >
                 <span
                   aria-hidden="true"

@@ -154,7 +154,7 @@ function DayCard({
             ) : null;
           })}
           {pending.map((title, i) => (
-            <li key={`pending-${i}`} aria-busy="true" className="rounded-lg border border-border bg-background p-2 text-sm text-muted opacity-70">
+            <li key={`pending-${i}`} aria-busy="true" className="anim-enter rounded-lg border border-border bg-background p-2 text-sm text-muted opacity-70">
               <span className="break-words">{title}</span>
             </li>
           ))}

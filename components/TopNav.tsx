@@ -108,7 +108,7 @@ function UserMenu({ email, pathname }: { email: string; pathname: string }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-background p-2 shadow-pop"
+          className="anim-pop absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-background p-2 shadow-pop"
         >
           <div className="border-b border-border px-3 pb-2 pt-1">
             <p className="text-xs text-muted">Signed in as</p>
