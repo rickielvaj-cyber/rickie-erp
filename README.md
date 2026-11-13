@@ -2,11 +2,15 @@
 
 Workspace pribadi (single-user) buat ERP Implementation Consultant (YonSuite/Yonyou).
 
-- **Fase 1**: **To-Do List**, **Goals**, **Issue Log**, **Ringkasan Mingguan**, **Export**.
-- **Fase 3**: **Projects** — proyek per klien dengan fase, partner, dan to-do/issue tertaut
-  (`/projects`).
-- **Fase 2**: **Knowledge Base** — 18 modul (lihat `lib/kb/modules.ts`), tiap modul bisa
-  berisi banyak entri, full-text search, edit inline.
+Yang ada sekarang (rincian tiap fitur di bagian "Fitur Fase 1" di bawah):
+
+- **Beranda** (dashboard setelah login), **To-Do List** (panel Hari ini, papan mingguan seret-lepas, Upcoming, ubah massal),
+  **Kalender** Google (time blocking, warna dan legenda, tampilan bulan, kalender tambahan hanya-baca).
+- **Knowledge Base** — 18 modul (lihat `lib/kb/modules.ts`), banyak entri per modul, full-text search, edit inline.
+- **Issue Log**, **Projects** (fase, partner, to-do/issue tertaut), **Clients**, **Goals**, **Notes** (catatan cepat + AI atas
+  perintahmu sendiri), **Ringkasan Mingguan** (riwayat + rekap bulanan), **Export**.
+- **Focus** (Pomodoro dengan poin, tombol melayang), **Pencarian** (semantik + kata persis), **server MCP** untuk Claude.ai.
+- Situs bisa dipasang di HP (PWA), data dibackup mingguan (terenkripsi), dan setiap PR diperiksa otomatis (lihat "Pemeriksaan otomatis").
 
 Knowledge Base lama (situs statis) dipindahkan ke [`legacy-kb/`](./legacy-kb) — arsip,
 sudah diganti sama modul KB di Fase 2.
@@ -282,8 +286,11 @@ blok tidak punya pengingat. Tanpa migrasi, tanpa scope Google baru.
 pilihan 15/25/45/60 menit dan label opsional. **Poin: 10 per sesi fokus yang SELESAI**; menghentikan di tengah = tidak ada poin. Setelah sesi
 selesai ada istirahat 5 menit (15 menit setiap sesi ke-4 pada hari yang sama) yang bisa dilewati; istirahat tidak dicatat. Timer yang sedang
 berjalan hanya disimpan di browser (localStorage), jadi tetap jalan saat pindah halaman atau memuat ulang, tetapi tidak dibagi antar perangkat;
-**hanya sesi selesai yang disimpan di database**, jadi poin dan riwayat sama di PC dan HP. Lencana kecil di menu atas menampilkan hitung mundur
-di halaman mana pun dan menjadi satu-satunya yang mencatat sesi saat timer habis (tidak dobel). Aturan antikecurangan sederhana, ditegakkan
+**hanya sesi selesai yang disimpan di database**, jadi poin dan riwayat sama di PC dan HP. **Tombol melayang** (`components/focus/FocusFab.tsx`, ala "assistive touch"): lingkaran navy di tepi kanan bawah di semua halaman (kecuali
+`/focus`, yang punya timer besar sendiri). Bisa diseret ke mana saja dan menempel ke sisi kiri/kanan terdekat; posisinya diingat di
+localStorage (`focus-fab-v1`). Klik membuka panel kecil untuk memulai (pilih menit, label opsional), menghentikan, atau memulai/melewati
+istirahat tanpa pindah halaman; saat berjalan ia menjadi pil berisi hitung mundur. `FocusBadge` di menu atas tidak lagi menampilkan apa pun, tetapi
+menjadi satu-satunya yang mencatat sesi saat timer habis (tidak dobel); aturan awal timer ada di `components/focus/store.ts`. Aturan antikecurangan sederhana, ditegakkan
 di server (`parseFocusInput`): lama harus salah satu pilihan, sesi harus sudah benar-benar lewat, selesainya tidak lebih dari 15 menit lalu
 (buka situs lagi setelah itu = tidak dihitung), dan poinnya ditentukan server (bukan dikirim browser); sesi yang sama dicatat dua kali (dua tab)
 tetap satu baris. Halaman menampilkan poin hari ini/minggu ini/total, sesi per hari 7 hari terakhir, dan 10 sesi terakhir (bisa dihapus; poinnya
@@ -405,6 +412,11 @@ Buka [http://localhost:3000](http://localhost:3000) — akan redirect ke `/login
   diambil dari semua proyek yang belum selesai dan goal aktif; to-do yang dipindah ke proyek lain hilang dari halaman ini.
   Maksimal 200 to-do per aksi; masukan divalidasi di server. Di HP, kolom ubah terlipat di balik tombol "Edit…". Belum ada di
   pelacak mingguan (seret-lepas) dan halaman Proyek.
+- **Tambah tugas instan** (kolom hari di papan mingguan, `components/WeekBoard.tsx`; kotak "Write a new task" di Beranda,
+  `components/TodayQuickAdd.tsx`; server action `addTodoForDay`): tugas langsung tampil (redup) dan kotak langsung kosong dengan fokus
+  tetap, sementara penyimpanan berjalan di latar belakang (beberapa bisa bersamaan); gagal = pesan galat dan baris redup dihapus. Selama
+  seretan (atau penyimpanan seretan) papan memakai salinan lokal; `reconcileBoard` (`lib/todo-board.ts`) menggabungkan data terbaru ke
+  salinan itu, supaya tugas yang baru selesai disimpan di tengah seretan tidak menghilang sampai seretan selesai.
 - **To-do proyek dikelompokkan** di panel Today (`lib/todo-groups.ts`): to-do tanpa proyek tetap daftar biasa; to-do proyek masuk
   satu blok per proyek (abjad), dengan sub-judul per fase menurut urutan fase. Blok dengan lebih dari 3 to-do terlipat
   (judul menampilkan jumlahnya; kotak centang di judul memilih semuanya tanpa membuka lipatan).
@@ -466,6 +478,20 @@ Setup sekali di dashboard Supabase:
 
 Env var opsional: `MCP_PUBLIC_ORIGIN` (hanya untuk menguji di domain selain produksi).
 
+Log dan batas durasi: tiap permintaan mencatat `[mcp] start` dan `[mcp] done` (status, jenis isi, durasi) serta `[mcp] closed`/`[mcp] cancelled` saat
+respons `text/event-stream` berakhir. Yang dicatat hanya metode HTTP, metode JSON-RPC, nama tool, status, dan durasi (tanpa token, argumen, atau data).
+`maxDuration` = 30 detik. Permintaan `subscriptions/listen` dari klien (aliran notifikasi perubahan daftar tool) sengaja dibiarkan terbuka oleh
+protokol, jadi di Vercel ia berakhir di batas durasi dan tercatat sebagai "Task timed out" di Runtime Errors; sementara permintaan lain
+(`initialize`, `tools/list`, `tools/call`) selesai dalam milidetik. Itu bukan kegagalan tool. Log runtime Vercel Hobby hanya disimpan 1 jam.
+
+## Pemeriksaan otomatis (CI)
+
+`.github/workflows/ci.yml` berjalan di setiap pull request dan setiap push ke `main` (Node 22, `npm ci`): `npx tsc --noEmit` (tipe),
+`npm run lint` (eslint), dan `npm test` (tes unit logika murni di `lib/*.test.ts`). Repo ini publik, jadi workflow-nya tanpa rahasia dan hanya
+berizin baca (`pull_request`, bukan `pull_request_target`). Jalankan tiga perintah yang sama secara lokal sebelum membuat PR. Build
+produksi tetap dilakukan Vercel; CI tidak membangun atau men-deploy. Agar PR yang gagal tidak bisa di-merge, aktifkan branch protection
+di GitHub (Settings → Branches → Require status checks to pass → pilih "Typecheck, lint, tests").
+
 ## Deploy ke Vercel
 
 1. Import repo ini di Vercel (Framework: Next.js, Root Directory: root repo).
@@ -489,6 +515,11 @@ app/(dashboard)/issues/   modul Issue Log
 app/(dashboard)/clients/  master klien dan partner
 app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase masing-masing dengan daftar to-do sendiri, partner, issue)
 docs/BACKUP.md            backup mingguan terenkripsi dan cara restore
+.github/workflows/        backup.yml (backup mingguan) dan ci.yml (tsc + lint + tes di setiap PR dan push ke main)
+app/(dashboard)/focus/    halaman Focus (Pomodoro); tombol melayang di components/focus/FocusFab.tsx, logika murni di lib/focus.ts
+app/(dashboard)/notes/    catatan cepat + panel AI (lib/ai/*); app/(dashboard)/search/ pencarian global (lib/search/*)
+lib/google/               integrasi Google Calendar (token, acara, tata letak blok, warna dan legenda, jam kerja, kalender tambahan)
+app/api/mcp/              server MCP untuk Claude.ai (lib/mcp/*); app/api/cron/ keep-alive dan reindex pencarian terjadwal
 app/(dashboard)/summary/  modul Ringkasan Mingguan (format YonWork, bisa diedit + Copy)
 app/api/export/           Export: JSON semua data (/api/export), CSV issue log (/api/export/issues)
 lib/summary.ts            template teks ringkasan (murni, tanpa AI)
@@ -528,6 +559,13 @@ Ukuran: di layar >= 1024px skala dasar 14px (bukan 16px) supaya tidak terasa pen
 jadi mengecil serempak, dan lebar kolom (`--container-*`) dikalikan 16/14 supaya lebarnya dalam piksel tetap. Ponsel dan
 tablet tetap 16px. Mengubah ukuran desktop = satu angka (`font-size` di blok `@media (min-width: 1024px)`).
 
+**Gerak**: animasi sengaja kecil dan hemat (`app/globals.css`): hanya `opacity` dan `transform`/`translate` (tidak memicu hitung ulang tata
+letak), 150-220 ms, tanpa pustaka animasi. `anim-enter` (item baru masuk), `anim-pop` (menu dan dialog muncul), `anim-fade` (latar dialog), dan
+kartu yang bisa diklik naik 1,75 px dengan bayangan `shadow-lift` saat disorot. Semuanya berada di dalam `prefers-reduced-motion: no-preference`
+(kartu memakai `motion-safe:`): pengguna yang meminta "kurangi gerak" di sistem operasinya tidak melihat animasi apa pun. Catatan Tailwind 4:
+`translate-*` memakai properti CSS `translate` (bukan `transform`), jadi transisinya harus menyebut `translate`. Area seret-lepas (dnd-kit) dan
+tata letak kalender tidak dianimasikan.
+
 Home (`/`) satu-satunya halaman yang bisa dibuka tanpa login (lihat `PUBLIC_EXACT_PATHS` di
 `lib/supabase/middleware.ts`); Home nggak memuat data apa pun kalau belum login.
 
@@ -550,5 +588,11 @@ lewat `?week=YYYY-MM-DD`; tugas ditempatkan ke hari lewat kolom `due_date` yang 
 
 ## Yang belum ada
 
-Time block, AI meeting notes, AI work report generator, notes
-cepat, pomodoro timer, dan integrasi Notion/Google — semua masuk fase-fase berikutnya.
+Daftar jujur (diperiksa terhadap kode):
+
+- **Dark mode**: tidak ada token warna gelap di `app/globals.css`.
+- **Mode offline**: tidak ada service worker (situs tetap butuh koneksi).
+- **Integrasi Notion**: belum dikerjakan (Google Calendar sudah).
+- **Timer fokus lintas perangkat**: timer yang sedang berjalan hanya di localStorage browser; hanya sesi selesai yang masuk database.
+- **Notifikasi tenggat to-do**: pengingat hanya untuk blok kalender (lewat Google), bukan untuk tugas bertanggal.
+- **Pengaturan animasi di Settings**: animasi saat ini mengikuti pengaturan "kurangi gerak" sistem operasi tanpa saklar sendiri.
