@@ -138,7 +138,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                     <li key={project.id}>
                       <Link
                         href={`/projects/${project.id}`}
-                        className="group block rounded-2xl border border-border bg-background shadow-card p-5 transition-[background-color,box-shadow,translate] duration-200 hover:bg-surface hover:shadow-lift motion-safe:hover:-translate-y-0.5"
+                        className="group block rounded-2xl border border-border bg-background shadow-card p-5 transition-[background-color,box-shadow,translate] duration-200 hover:bg-surface hover:shadow-lift hover:[translate:0_var(--m-lift)]"
                       >
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="text-xl font-semibold tracking-tight group-hover:underline">{project.name}</span>

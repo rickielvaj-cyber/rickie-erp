@@ -532,6 +532,7 @@ app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase masing
 docs/BACKUP.md            backup mingguan terenkripsi dan cara restore
 .github/workflows/        backup.yml (backup mingguan) dan ci.yml (tsc + lint + tes di setiap PR dan push ke main)
 lib/theme.ts              pilihan tema (System/Light/Dark) dan skrip awal di <head>; saklarnya di components/ThemeSwitch.tsx (menu avatar)
+lib/motion.ts             pilihan animasi (System/On/Off) dan skrip awal di <head>; saklarnya di components/MotionSwitch.tsx (menu avatar)
 app/(dashboard)/focus/    halaman Focus (Pomodoro); tombol melayang di components/focus/FocusFab.tsx, logika murni di lib/focus.ts, sinkronisasi timer di lib/focus-sync.ts + timer-actions.ts
 app/(dashboard)/notes/    catatan cepat + panel AI (lib/ai/*); app/(dashboard)/search/ pencarian global (lib/search/*)
 lib/google/               integrasi Google Calendar (token, acara, tata letak blok, warna dan legenda, jam kerja, kalender tambahan)
@@ -587,12 +588,17 @@ teks berwarna aksen = `text-accent-ink`, bukan `text-accent`. Warna blok kalende
 Diagram Mermaid memakai dua set warna (`MermaidDiagram.tsx`) dan digambar ulang saat tema berganti. Sorotan pencarian memakai token `highlight`. `themeColor`
 (bilah alamat HP) mengikuti perangkat, bukan pilihan di situs.
 
-**Gerak**: animasi sengaja kecil dan hemat (`app/globals.css`): hanya `opacity` dan `transform`/`translate` (tidak memicu hitung ulang tata
-letak), 150-220 ms, tanpa pustaka animasi. `anim-enter` (item baru masuk), `anim-pop` (menu dan dialog muncul), `anim-fade` (latar dialog), dan
-kartu yang bisa diklik naik 1,75 px dengan bayangan `shadow-lift` saat disorot. Semuanya berada di dalam `prefers-reduced-motion: no-preference`
-(kartu memakai `motion-safe:`): pengguna yang meminta "kurangi gerak" di sistem operasinya tidak melihat animasi apa pun. Catatan Tailwind 4:
-`translate-*` memakai properti CSS `translate` (bukan `transform`), jadi transisinya harus menyebut `translate`. Area seret-lepas (dnd-kit) dan
-tata letak kalender tidak dianimasikan.
+**Gerak** (`app/globals.css`, `lib/motion.ts`, `components/MotionSwitch.tsx`): animasi sengaja kecil dan hemat: hanya `opacity` dan `transform`/`translate` (tidak memicu hitung
+ulang tata letak), 160-260 ms, tanpa pustaka animasi. Isinya: `anim-enter` (item baru masuk), `anim-pop` (menu dan dialog muncul), `anim-fade` (latar dialog), `anim-page`
+(isi halaman memudar masuk saat pindah halaman; hanya opacity supaya elemen `fixed` tidak terpengaruh), `anim-check` (kotak centang "selesai" membal sekali, hanya saat
+kamu mencentangnya, bukan saat daftar dimuat), dan kartu yang bisa diklik naik 1,75 px dengan bayangan `shadow-lift` saat disorot. **Menu avatar → Animations: System / On / Off**
+(per perangkat, `motion-v1`): System (bawaan) mengikuti pengaturan "kurangi gerak" perangkat; **On menimpa "kurangi gerak"** (berguna bila perangkat memintanya tanpa kamu sadari);
+Off mematikan semuanya. Mekanismenya token `--m-*` yang hanya berisi animasi bila gerak diizinkan (dua blok nilai di `globals.css` harus sama), lalu kelas `anim-*` dan kartu
+(`hover:[translate:0_var(--m-lift)]`) memakai token itu; di luar itu tokennya `none`. Skrip awal di `<head>` memasang `data-motion` sebelum halaman digambar. Catatan teknis:
+(1) Tailwind 4 memakai properti CSS `translate` (bukan `transform`), jadi transisinya harus menyebut `translate`; (2) pembaruan state biasa di dalam `startTransition` asinkron baru tampil
+setelah server menjawab, jadi animasi yang dipicu klik harus mengubah state DI LUAR transisi; (3) `template.tsx` hanya dipasang ulang saat segmen di bawahnya berganti, jadi
+`app/(dashboard)/template.tsx` memudarkan perpindahan antar halaman grup itu (bukan saat `?week=` berubah); (4) animasi halaman tanpa `fill-mode`, supaya tidak ada efek yang tertinggal di
+pembungkus halaman (perbedaan anti-aliasing teks). Area seret-lepas (dnd-kit) dan tata letak kalender tidak dianimasikan.
 
 Home (`/`) satu-satunya halaman yang bisa dibuka tanpa login (lihat `PUBLIC_EXACT_PATHS` di
 `lib/supabase/middleware.ts`); Home nggak memuat data apa pun kalau belum login.
@@ -621,4 +627,3 @@ Daftar jujur (diperiksa terhadap kode):
 - **Mode offline**: tidak ada service worker (situs tetap butuh koneksi).
 - **Integrasi Notion**: belum dikerjakan (Google Calendar sudah).
 - **Notifikasi tenggat to-do**: pengingat hanya untuk blok kalender (lewat Google), bukan untuk tugas bertanggal.
-- **Pengaturan animasi di Settings**: animasi saat ini mengikuti pengaturan "kurangi gerak" sistem operasi tanpa saklar sendiri.
