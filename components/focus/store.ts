@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import { LABEL_MAX, breakMinutes } from "@/lib/focus";
+import { LABEL_MAX, breakMinutes, parseTimerState } from "@/lib/focus";
+import { EMPTY_SYNC_META, isRunningTimer, parseSyncMeta, type SyncMeta } from "@/lib/focus-sync";
+import { clearTimer, pushTimer } from "@/app/(dashboard)/focus/timer-actions";
 
 // Status timer fokus yang sedang berjalan hidup di localStorage (satu tab atau banyak tab membacanya), bukan di database: hanya sesi
 // SELESAI yang dicatat (lihat app/(dashboard)/focus/actions.ts). Perubahan di tab yang sama disiarkan lewat event kustom.
@@ -31,7 +33,8 @@ export function useTimerRaw(): string | null {
   return useSyncExternalStore(subscribe, snapshot, () => null);
 }
 
-export function writeTimer(state: object | null): void {
+/** Tulis ke localStorage saja (dan beri tahu tab ini). Dipakai langsung hanya oleh sinkronisasi saat memasang/menghapus timer dari perangkat lain. */
+export function writeTimerLocal(state: object | null): void {
   try {
     if (state) window.localStorage.setItem(KEY, JSON.stringify(state));
     else window.localStorage.removeItem(KEY);
@@ -39,6 +42,57 @@ export function writeTimer(state: object | null): void {
     /* penyimpanan diblokir: timer tidak bisa dipertahankan, tidak ada yang bisa dilakukan */
   }
   window.dispatchEvent(new Event(EVENT));
+}
+
+export function readTimerLocal() {
+  return parseTimerState(snapshot());
+}
+
+// Catatan sinkronisasi di perangkat ini (lihat lib/focus-sync.ts).
+const SYNC_KEY = "focus-sync-v1";
+export function readSyncMeta(): SyncMeta {
+  try {
+    return parseSyncMeta(window.localStorage.getItem(SYNC_KEY));
+  } catch {
+    return EMPTY_SYNC_META;
+  }
+}
+export function writeSyncMeta(meta: SyncMeta): void {
+  try {
+    window.localStorage.setItem(SYNC_KEY, JSON.stringify(meta));
+  } catch {
+    /* tanpa catatan: sinkronisasi tetap jalan, hanya kurang tahu apa yang sudah di server */
+  }
+}
+
+/**
+ * Tulis status timer DAN bagikan ke perangkat lain (satu-satunya pintu untuk perubahan yang berasal dari pengguna atau dari selesainya
+ * timer). Timer berjalan dikirim ke server; mengosongkan atau mengganti ke "selesai"/"kedaluwarsa" menghapus barisnya. Kegagalan jaringan
+ * tidak mengganggu timer lokal: penghapusan yang gagal dicatat dan diulang oleh FocusSync.
+ */
+export function writeTimer(state: object | null): void {
+  const previous = readTimerLocal();
+  writeTimerLocal(state);
+  const meta = readSyncMeta();
+  const next = state ? parseTimerState(JSON.stringify(state)) : null;
+  if (isRunningTimer(next)) {
+    writeSyncMeta({ ...meta, pendingClear: null });
+    void pushTimer(next)
+      .then((r) => {
+        if (r.ok) writeSyncMeta({ ...readSyncMeta(), synced: next.startedAt });
+      })
+      .catch(() => undefined);
+    return;
+  }
+  // Perlu menghapus bila timer yang berjalan baru saja dihentikan atau selesai (atau pernah terkirim ke server).
+  const upTo = Math.max(isRunningTimer(previous) ? previous.startedAt : -1, meta.synced ?? -1);
+  if (upTo < 0) return;
+  writeSyncMeta({ synced: null, pendingClear: Math.max(upTo, meta.pendingClear ?? -1) });
+  void clearTimer(upTo)
+    .then((r) => {
+      if (r.ok) writeSyncMeta({ synced: null, pendingClear: null });
+    })
+    .catch(() => undefined);
 }
 
 /** Mulai sesi fokus `minutes` menit sekarang (dipakai halaman Focus dan tombol melayang). */
