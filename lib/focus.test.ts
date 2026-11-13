@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  DEFAULT_FAB_POS,
+  FAB_FRAC_MAX,
+  FAB_FRAC_MIN,
   GRACE_MS,
   LONG_BREAK,
   POINTS_PER_SESSION,
@@ -8,9 +11,11 @@ import {
   breakMinutes,
   focusOutcome,
   formatClock,
+  parseFabPos,
   parseFocusInput,
   parseTimerState,
   remainingSeconds,
+  snapFabPos,
   summarizeSessions,
   wibDate,
 } from "./focus";
@@ -98,4 +103,22 @@ test("summarizeSessions totals today, this week (Mon-Sun, WIB) and everything, a
 
 test("the rule is 10 points per completed session", () => {
   assert.equal(POINTS_PER_SESSION, 10);
+});
+
+test("parseFabPos accepts a valid saved position, clamps the height, and falls back to the default for anything broken", () => {
+  assert.deepEqual(parseFabPos('{"side":"l","frac":0.4}'), { side: "l", frac: 0.4 });
+  assert.deepEqual(parseFabPos('{"side":"r","frac":5}'), { side: "r", frac: FAB_FRAC_MAX });
+  assert.deepEqual(parseFabPos('{"side":"r","frac":-3}'), { side: "r", frac: FAB_FRAC_MIN });
+  for (const bad of [null, "", "not json", '{"side":"x","frac":0.5}', '{"side":"l"}', '{"side":"l","frac":"0.5"}', '{"side":"l","frac":null}', "[]"]) {
+    assert.deepEqual(parseFabPos(bad), DEFAULT_FAB_POS, String(bad));
+  }
+});
+
+test("snapFabPos sticks to the nearest screen edge and keeps the button inside the allowed height range", () => {
+  assert.deepEqual(snapFabPos(100, 400, 1000, 800), { side: "l", frac: 0.5 });
+  assert.deepEqual(snapFabPos(900, 400, 1000, 800), { side: "r", frac: 0.5 });
+  assert.equal(snapFabPos(500, 400, 1000, 800).side, "r"); // exactly in the middle goes right
+  assert.equal(snapFabPos(10, -50, 1000, 800).frac, FAB_FRAC_MIN);
+  assert.equal(snapFabPos(10, 5000, 1000, 800).frac, FAB_FRAC_MAX);
+  assert.deepEqual(snapFabPos(10, 10, 0, 0), DEFAULT_FAB_POS); // unknown viewport size
 });

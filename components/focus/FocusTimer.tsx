@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_FOCUS, FOCUS_CHOICES, LABEL_MAX, POINTS_PER_SESSION, breakMinutes, formatClock, parseTimerState, remainingSeconds } from "@/lib/focus";
-import { useNow, useTimerRaw, writeTimer } from "@/components/focus/store";
+import { startBreakTimer, startFocusTimer, useNow, useTimerRaw, writeTimer } from "@/components/focus/store";
 
 const button = "rounded-full border border-border-strong px-5 py-2 text-base font-medium transition-colors hover:bg-surface";
 const primary = "rounded-full bg-accent px-6 py-2.5 text-base font-medium text-white transition-colors hover:bg-accent-hover";
@@ -32,17 +32,10 @@ export function FocusTimer({ sessionsToday }: { sessionsToday: number }) {
     };
   }, [titleText]);
 
-  const startFocus = () => {
-    const t = Date.now();
-    writeTimer({ phase: "focus", startedAt: t, endsAt: t + minutes * 60_000, minutes, label: label.trim().slice(0, LABEL_MAX) });
-  };
+  const startFocus = () => startFocusTimer(minutes, label);
   // Setelah sesi selesai, jumlah sesi hari ini datang bersama hasil pencatatan (halaman baru menyusul beberapa saat kemudian).
   const countToday = state?.phase === "done" && state.sessionsToday !== undefined ? state.sessionsToday : sessionsToday;
-  const startBreak = () => {
-    const t = Date.now();
-    const m = breakMinutes(countToday);
-    writeTimer({ phase: "break", startedAt: t, endsAt: t + m * 60_000, minutes: m });
-  };
+  const startBreak = () => startBreakTimer(countToday);
   const stopFocus = () => {
     if (window.confirm("Stop this session? It will not count and no points are added.")) writeTimer(null);
   };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { LABEL_MAX, breakMinutes } from "@/lib/focus";
 
 // Status timer fokus yang sedang berjalan hidup di localStorage (satu tab atau banyak tab membacanya), bukan di database: hanya sesi
 // SELESAI yang dicatat (lihat app/(dashboard)/focus/actions.ts). Perubahan di tab yang sama disiarkan lewat event kustom.
@@ -38,6 +39,19 @@ export function writeTimer(state: object | null): void {
     /* penyimpanan diblokir: timer tidak bisa dipertahankan, tidak ada yang bisa dilakukan */
   }
   window.dispatchEvent(new Event(EVENT));
+}
+
+/** Mulai sesi fokus `minutes` menit sekarang (dipakai halaman Focus dan tombol melayang). */
+export function startFocusTimer(minutes: number, label: string): void {
+  const t = Date.now();
+  writeTimer({ phase: "focus", startedAt: t, endsAt: t + minutes * 60_000, minutes, label: label.trim().slice(0, LABEL_MAX) });
+}
+
+/** Mulai istirahat setelah sesi fokus ke-`sessionsToday` hari ini (panjang menurut `breakMinutes`). */
+export function startBreakTimer(sessionsToday: number): void {
+  const t = Date.now();
+  const m = breakMinutes(sessionsToday);
+  writeTimer({ phase: "break", startedAt: t, endsAt: t + m * 60_000, minutes: m });
 }
 
 // Detak waktu: satu nilai "sekarang" yang diperbarui tiap detik hanya selama ada timer berjalan. 0 = belum diketahui (server / sebelum langganan).

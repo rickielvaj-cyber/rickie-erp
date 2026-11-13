@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { recordFocusSession } from "@/app/(dashboard)/focus/actions";
-import { focusOutcome, formatClock, parseTimerState, remainingSeconds } from "@/lib/focus";
+import { focusOutcome, parseTimerState } from "@/lib/focus";
 import { beep, useNow, useTimerRaw, writeTimer } from "@/components/focus/store";
 
 const RETRY_MS = 10_000;
 
 /**
- * Lencana kecil di menu atas selama timer berjalan (di halaman mana pun). Ini JUGA satu-satunya tempat yang mendeteksi timer habis dan
- * mencatat sesinya, supaya tidak tercatat dobel dan tetap jalan walau kamu sedang di halaman lain. Gagal menghubungi server = coba lagi
- * tiap 10 detik selama masa tenggang; ditolak server = tampilkan alasannya.
+ * Pengendali tanpa tampilan (dipasang sekali di menu atas, jadi aktif di halaman mana pun): satu-satunya tempat yang mendeteksi timer
+ * habis dan mencatat sesinya, supaya tidak tercatat dobel dan tetap jalan walau kamu sedang di halaman lain. Tampilannya ada di
+ * FocusFab (tombol melayang) dan halaman Focus. Gagal menghubungi server = coba lagi tiap 10 detik selama masa tenggang; ditolak
+ * server = alasannya disimpan di status timer dan ditampilkan di sana.
  */
 export function FocusBadge() {
   const router = useRouter();
@@ -63,26 +63,5 @@ export function FocusBadge() {
     })();
   }, [state, now, router]);
 
-  if (!state || state.phase === "expired") return null;
-  const base = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-sm tabular-nums transition-colors";
-
-  if (state.phase === "done") {
-    return (
-      <Link href="/focus" className={`${base} border-accent bg-accent text-white`}>
-        {state.error ? "Focus ended" : `Focus done · +${state.points}`}
-      </Link>
-    );
-  }
-  if (now === 0) return null;
-  const left = remainingSeconds(state.endsAt, now);
-  const ended = state.phase === "focus" && left === 0;
-  return (
-    <Link
-      href="/focus"
-      className={`${base} ${state.phase === "focus" ? "border-accent/30 bg-accent-soft text-accent-ink" : "border-success/30 bg-success-soft text-success-ink"}`}
-      aria-label={ended ? "Saving the focus session" : `${state.phase === "focus" ? "Focus" : "Break"} timer, ${formatClock(left)} left`}>
-      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${state.phase === "focus" ? "bg-accent" : "bg-success"}`} />
-      {ended ? "Saving…" : `${state.phase === "focus" ? "Focus" : "Break"} ${formatClock(left)}`}
-    </Link>
-  );
+  return null;
 }
