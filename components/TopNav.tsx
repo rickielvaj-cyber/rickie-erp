@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions";
 import { SearchBox } from "@/components/SearchBox";
 import { FocusBadge } from "@/components/focus/FocusBadge";
+import { FocusFab } from "@/components/focus/FocusFab";
 
 // Urutan menu: yang paling sering dipakai di kiri (Home, To-Do List yang disorot, Notes), lalu garis tipis, lalu halaman lain.
 // Clients dan halaman jarang dipakai (Focus, Settings, ekspor) ada di menu avatar di kanan.
@@ -156,6 +157,7 @@ export function TopNav({ email }: { email: string | null }) {
   const pathname = usePathname();
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 shadow-[0_1px_8px_rgb(20_22_26/0.04)] backdrop-blur">
       <div className="mx-auto grid h-14 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-6 lg:grid-cols-[1fr_auto_1fr]">
         <Link href="/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
@@ -198,5 +200,8 @@ export function TopNav({ email }: { email: string | null }) {
         className="flex items-center gap-1 overflow-x-auto border-t border-border px-4 py-1.5 lg:hidden"
       />
     </header>
+    {/* Di luar <header>: elemen `fixed` di dalam elemen ber-backdrop-blur menempel pada header, bukan pada layar. */}
+    {email && <FocusFab />}
+    </>
   );
 }

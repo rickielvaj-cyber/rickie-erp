@@ -126,3 +126,29 @@ export function summarizeSessions(rows: SessionRow[], today: string): FocusSumma
   }
   return summary;
 }
+
+/** Posisi tombol timer melayang: sisi layar (kiri/kanan) dan tinggi sebagai pecahan 0..1 dari tinggi layar. */
+export type FabPos = { side: "l" | "r"; frac: number };
+export const DEFAULT_FAB_POS: FabPos = { side: "r", frac: 0.78 };
+export const FAB_FRAC_MIN = 0.12;
+export const FAB_FRAC_MAX = 0.92;
+
+export const clampFabFrac = (v: number): number => Math.min(FAB_FRAC_MAX, Math.max(FAB_FRAC_MIN, v));
+
+/** Baca posisi dari localStorage (tidak dipercaya): rusak atau di luar batas -> bawaan / dijepit ke batas. */
+export function parseFabPos(raw: string | null): FabPos {
+  if (!raw) return DEFAULT_FAB_POS;
+  try {
+    const s = JSON.parse(raw) as Record<string, unknown>;
+    if ((s.side === "l" || s.side === "r") && isNum(s.frac)) return { side: s.side, frac: clampFabFrac(s.frac) };
+  } catch {
+    /* rusak: pakai bawaan */
+  }
+  return DEFAULT_FAB_POS;
+}
+
+/** Posisi akhir setelah menyeret: menempel ke sisi layar terdekat dari titik tengah tombol; tinggi dijepit. */
+export function snapFabPos(centerX: number, centerY: number, viewportW: number, viewportH: number): FabPos {
+  if (!(viewportW > 0) || !(viewportH > 0)) return DEFAULT_FAB_POS;
+  return { side: centerX < viewportW / 2 ? "l" : "r", frac: clampFabFrac(centerY / viewportH) };
+}
