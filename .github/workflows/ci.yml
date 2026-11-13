@@ -1,0 +1,44 @@
+name: CI
+
+# Pemeriksaan otomatis di setiap pull request dan setiap push ke main: tipe (tsc), lint (eslint), dan tes unit (npm test).
+# Repo ini PUBLIK, jadi workflow ini sengaja tanpa rahasia dan hanya berizin baca: memakai `pull_request` (bukan
+# `pull_request_target`, yang menjalankan kode PR dengan rahasia repo) dan tidak butuh variabel lingkungan apa pun karena
+# tes hanya menguji logika murni. Build produksi tetap dilakukan Vercel.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Push baru ke PR yang sama membatalkan pemeriksaan lama yang masih berjalan.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tes unit
+        run: npm test
