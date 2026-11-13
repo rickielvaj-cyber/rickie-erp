@@ -30,6 +30,83 @@
   --shadow-pop: 0 10px 30px rgb(20 22 26 / 0.14), 0 2px 6px rgb(20 22 26 / 0.08);
   /* Kartu yang bisa diklik saat disorot: sedikit terangkat, lebih lembut dari menu/dialog. */
   --shadow-lift: 0 6px 18px rgb(20 22 26 / 0.09), 0 1px 3px rgb(20 22 26 / 0.06);
+
+  /* Sorotan frasa hasil pencarian (<mark>). */
+  --highlight: #fef08a;
+  --highlight-ink: #14161a;
+
+  /* Kontrol bawaan browser (kolom isian, tanggal, scrollbar) mengikuti tema. */
+  color-scheme: light;
+}
+
+/*
+ * Mode gelap. Dua pintu masuk dengan isi yang sama: (1) pilihan eksplisit lewat <html data-theme="dark"> (disetel skrip di <head> dari
+ * localStorage, lihat lib/theme.ts), dan (2) "System": mengikuti prefers-color-scheme selama tidak dipaksa terang (data-theme="light").
+ * Semua pasangan teks/latar sudah dihitung kontrasnya (WCAG AA 4.5:1 untuk teks, 3:1 untuk garis/ikon). `accent` tetap biru yang cukup
+ * gelap untuk teks putih di tombol; teks berwarna aksen memakai `accent-ink` (terang di mode gelap).
+ */
+:root[data-theme="dark"] {
+  --background: #0e1014;
+  --foreground: #e7e9ee;
+  --muted: #a1a7b3;
+  --subtle: #8b92a0;
+  --border: #262a32;
+  --border-strong: #4a505c;
+  --surface: #161920;
+
+  --accent: #3a5ccf;
+  --accent-hover: #2f4db0;
+  --accent-soft: #18223f;
+  --accent-ink: #a8bcf7;
+  --success: #2f9e5f;
+  --success-soft: #12261a;
+  --success-ink: #7fd9a2;
+  --warning: #e0993a;
+  --warning-soft: #2a2010;
+  --warning-ink: #f2c27a;
+  --danger: #ff6b78;
+  --danger-soft: #2c1519;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 10px 30px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 6px 18px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.35);
+
+  --highlight: #5c4b0a;
+  --highlight-ink: #fff3c4;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0e1014;
+    --foreground: #e7e9ee;
+    --muted: #a1a7b3;
+    --subtle: #8b92a0;
+    --border: #262a32;
+    --border-strong: #4a505c;
+    --surface: #161920;
+
+    --accent: #3a5ccf;
+    --accent-hover: #2f4db0;
+    --accent-soft: #18223f;
+    --accent-ink: #a8bcf7;
+    --success: #2f9e5f;
+    --success-soft: #12261a;
+    --success-ink: #7fd9a2;
+    --warning: #e0993a;
+    --warning-soft: #2a2010;
+    --warning-ink: #f2c27a;
+    --danger: #ff6b78;
+    --danger-soft: #2c1519;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+    --shadow-pop: 0 10px 30px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.4);
+    --shadow-lift: 0 6px 18px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.35);
+
+    --highlight: #5c4b0a;
+    --highlight-ink: #fff3c4;
+    color-scheme: dark;
+  }
 }
 
 @theme inline {
@@ -55,6 +132,8 @@
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
   --shadow-lift: var(--shadow-lift);
+  --color-highlight: var(--highlight);
+  --color-highlight-ink: var(--highlight-ink);
   --font-sans: var(--font-inter);
 }
 
@@ -116,6 +195,18 @@ summary:focus-visible,
   background: rgb(250 204 21 / 0.55);
   mix-blend-mode: multiply;
   animation: kb-flash 2.4s ease-out forwards;
+}
+
+/* Mode gelap: "multiply" membuat sorotan kuning hampir tak terlihat di atas latar gelap, jadi pakai campuran biasa yang lebih tipis. */
+:root[data-theme="dark"] .kb-flash {
+  background: rgb(250 204 21 / 0.28);
+  mix-blend-mode: normal;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .kb-flash {
+    background: rgb(250 204 21 / 0.28);
+    mix-blend-mode: normal;
+  }
 }
 
 @keyframes kb-flash {

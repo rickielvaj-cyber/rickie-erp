@@ -1,25 +1,50 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { THEME_EVENT } from "@/lib/theme";
 
-// Matches --accent / --surface / --border in app/globals.css. Mermaid's
-// themeVariables need literal color values (not CSS custom properties), so
-// these are kept in sync by hand rather than read at runtime.
-const MERMAID_THEME_VARIABLES = {
+// Mermaid's themeVariables need literal color values (not CSS custom properties), so a light and a dark set are kept here by hand
+// (dark values match --background / --surface / --foreground in app/globals.css). The diagram is drawn again when the theme changes.
+const FONT = "var(--font-inter), ui-sans-serif, system-ui, sans-serif";
+const MERMAID_LIGHT = {
   primaryColor: "#fafafa",
   primaryBorderColor: "#111111",
   primaryTextColor: "#111111",
   lineColor: "#555555",
   secondaryColor: "#ffffff",
   tertiaryColor: "#ffffff",
-  fontFamily: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
+  fontFamily: FONT,
 };
+const MERMAID_DARK = {
+  primaryColor: "#1c2029",
+  primaryBorderColor: "#b4bac6",
+  primaryTextColor: "#e7e9ee",
+  lineColor: "#9aa1ae",
+  secondaryColor: "#161920",
+  tertiaryColor: "#161920",
+  fontFamily: FONT,
+};
+
+function subscribeTheme(onChange: () => void) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", onChange);
+  window.addEventListener(THEME_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    mq.removeEventListener("change", onChange);
+    window.removeEventListener(THEME_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+// `color-scheme` di <html> sudah mengikuti pilihan tema dan perangkat (lihat globals.css), jadi nilai terhitungnya adalah sumber kebenaran.
+const darkSnapshot = () => getComputedStyle(document.documentElement).colorScheme === "dark";
 
 export function MermaidDiagram({ chart }: { chart: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rawId = useId();
   const diagramId = `mermaid-${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
   const [error, setError] = useState<string | null>(null);
+  const dark = useSyncExternalStore(subscribeTheme, darkSnapshot, () => false);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,7 +55,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
       mermaid.initialize({
         startOnLoad: false,
         theme: "base",
-        themeVariables: MERMAID_THEME_VARIABLES,
+        themeVariables: dark ? MERMAID_DARK : MERMAID_LIGHT,
       });
 
       try {
@@ -48,7 +73,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     return () => {
       cancelled = true;
     };
-  }, [chart, diagramId]);
+  }, [chart, diagramId, dark]);
 
   if (error) {
     return (
@@ -61,7 +86,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
   return (
     <div
       ref={containerRef}
-      className="mb-3 overflow-x-auto rounded-md border border-border bg-white p-4 [&_svg]:mx-auto"
+      className="mb-3 overflow-x-auto rounded-md border border-border bg-background p-4 [&_svg]:mx-auto"
     />
   );
 }

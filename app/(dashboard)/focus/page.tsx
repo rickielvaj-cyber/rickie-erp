@@ -13,7 +13,7 @@ function Stat({ title, totals }: { title: string; totals: Totals }) {
   return (
     <div className="rounded-2xl border border-border bg-background px-5 py-4 shadow-card">
       <p className="text-sm text-muted">{title}</p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-accent">{totals.points}</p>
+      <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-accent-ink">{totals.points}</p>
       <p className="text-sm text-muted">
         points · {totals.sessions} {totals.sessions === 1 ? "session" : "sessions"} · {hours(totals.minutes)}
       </p>

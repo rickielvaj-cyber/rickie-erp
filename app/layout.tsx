@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const inter = Inter({
@@ -17,11 +18,21 @@ export const metadata: Metadata = {
 };
 
 // Pasang ke layar utama iPhone/Android: judul pendek, ikon sentuh, dan mode layar penuh.
-export const viewport: Viewport = { themeColor: "#ffffff" };
+// themeColor mengikuti tema perangkat (bilah alamat di HP). Pilihan tema yang eksplisit di situs tidak bisa memengaruhinya.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1014" },
+  ],
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    // suppressHydrationWarning: skrip di <head> menyetel data-theme sebelum React hidrasi (tanpa itu halaman berkedip saat memuat).
+    <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full bg-background text-foreground antialiased">
         <SiteHeader />
         {children}
