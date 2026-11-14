@@ -100,7 +100,7 @@ export default async function HomePage() {
             <Link
               key={f.href}
               href={f.href}
-              className="group flex flex-col gap-3 rounded-2xl border border-border bg-background shadow-card p-7 transition-[background-color,box-shadow,translate] duration-200 hover:bg-surface hover:shadow-lift motion-safe:hover:-translate-y-0.5"
+              className="group flex flex-col gap-3 rounded-2xl border border-border bg-background shadow-card p-7 transition-[background-color,box-shadow,translate] duration-200 hover:bg-surface hover:shadow-lift hover:[translate:0_var(--m-lift)]"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
                 {f.icon}

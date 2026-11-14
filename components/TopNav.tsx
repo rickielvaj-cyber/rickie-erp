@@ -8,6 +8,7 @@ import { SearchBox } from "@/components/SearchBox";
 import { FocusBadge } from "@/components/focus/FocusBadge";
 import { FocusSync } from "@/components/focus/FocusSync";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { MotionSwitch } from "@/components/MotionSwitch";
 import { FocusFab } from "@/components/focus/FocusFab";
 
 // Urutan menu: yang paling sering dipakai di kiri (Home, To-Do List yang disorot, Notes), lalu garis tipis, lalu halaman lain.
@@ -132,6 +133,7 @@ function UserMenu({ email, pathname }: { email: string; pathname: string }) {
           </div>
           <div className="border-b border-border py-1">
             <ThemeSwitch />
+            <MotionSwitch />
           </div>
           <div className="border-b border-border py-1">
             {/* <a> biasa (bukan Link): ini unduhan berkas, jangan di-prefetch. */}

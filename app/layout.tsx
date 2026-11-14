@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { MOTION_INIT_SCRIPT } from "@/lib/motion";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // suppressHydrationWarning: skrip di <head> menyetel data-theme sebelum React hidrasi (tanpa itu halaman berkedip saat memuat).
     <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: `${THEME_INIT_SCRIPT};${MOTION_INIT_SCRIPT}` }} />
       </head>
       <body className="min-h-full bg-background text-foreground antialiased">
         <SiteHeader />
