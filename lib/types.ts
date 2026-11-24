@@ -179,6 +179,23 @@ export type FocusTimerRow = {
   updated_at: string;
 };
 
+/** Galat yang dicatat situs sendiri (lihat lib/error-log.ts). Hanya dapat diakses dari server dengan service role. */
+export type ErrorLogRow = {
+  id: string;
+  fingerprint: string;
+  source: "server" | "client";
+  route: string;
+  method: string;
+  name: string;
+  message: string;
+  stack: string;
+  digest: string | null;
+  release: string;
+  occurrences: number;
+  first_seen: string;
+  last_seen: string;
+};
+
 export type CalendarSource = {
   id: string;
   user_id: string;
@@ -356,6 +373,12 @@ export type Database = {
         Update: Partial<ColorLegendRow>;
         Relationships: [];
       };
+      error_log: {
+        Row: ErrorLogRow;
+        Insert: Pick<ErrorLogRow, "fingerprint" | "source"> & Partial<Omit<ErrorLogRow, "fingerprint" | "source">>;
+        Update: Partial<ErrorLogRow>;
+        Relationships: [];
+      };
       focus_timer: {
         Row: FocusTimerRow;
         Insert: Pick<FocusTimerRow, "state"> & Partial<Pick<FocusTimerRow, "user_id" | "updated_at">>;
@@ -386,6 +409,20 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      log_error: {
+        Args: {
+          p_fingerprint: string;
+          p_source: string;
+          p_route: string;
+          p_method: string;
+          p_name: string;
+          p_message: string;
+          p_stack: string;
+          p_digest: string | null;
+          p_release: string;
+        };
+        Returns: undefined;
+      };
       search_semantic_v2: {
         Args: { query_embedding: string; match_count?: number };
         Returns: {

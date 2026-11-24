@@ -7,6 +7,7 @@ import { logout } from "@/app/actions";
 import { SearchBox } from "@/components/SearchBox";
 import { FocusBadge } from "@/components/focus/FocusBadge";
 import { FocusSync } from "@/components/focus/FocusSync";
+import { ErrorReporter } from "@/components/ErrorReporter";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { MotionSwitch } from "@/components/MotionSwitch";
 import { FocusFab } from "@/components/focus/FocusFab";
@@ -179,6 +180,7 @@ export function TopNav({ email }: { email: string | null }) {
         <div className="flex items-center justify-end gap-2">
           {email && <FocusBadge />}
           {email && <FocusSync />}
+          {email && <ErrorReporter />}
           {email && (
             // Suspense: SearchBox membaca ?q= di URL (useSearchParams).
             <Suspense fallback={null}>

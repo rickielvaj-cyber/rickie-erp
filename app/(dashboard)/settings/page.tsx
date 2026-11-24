@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTimeWIB } from "@/lib/date";
 import { hasEmbeddingKey } from "@/lib/search/gemini";
@@ -7,6 +8,7 @@ import { CalendarSourcesForm } from "@/components/CalendarSourcesForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { removeCalendarSource } from "./calendar-sources-actions";
 import { MAX_EXTRA_CALENDARS } from "@/lib/google/calendar-sources";
+import { getErrorSummary } from "@/lib/error-summary";
 
 export const metadata = { title: "Settings" };
 // Reindex memanggil layanan embedding untuk ratusan teks; beri waktu lebih dari default.
@@ -29,6 +31,7 @@ export default async function SettingsPage() {
   const keySet = hasEmbeddingKey();
   const { data: calendars } = await supabase.from("calendar_sources").select("id, calendar_id, label").order("created_at", { ascending: true });
   const extraCalendars = calendars ?? [];
+  const errors = await getErrorSummary();
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -68,6 +71,29 @@ export default async function SettingsPage() {
         <div className="mt-5">
           <CalendarSourcesForm full={extraCalendars.length >= MAX_EXTRA_CALENDARS} />
         </div>
+      </section>
+
+      <section aria-labelledby="errors-heading" className="mt-10 rounded-3xl border border-border bg-background p-6 shadow-card">
+        <h2 id="errors-heading" className="text-xl font-semibold tracking-tight">
+          Error log
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          The site records its own errors (server and browser) so you can see what went wrong after the fact, beyond the one hour Vercel keeps. Tokens, emails and
+          your data are never stored.
+        </p>
+        <p className="mt-3 text-sm">
+          {errors.available ? (
+            <>
+              {errors.total} recorded · <span className={errors.last24h > 0 ? "font-medium text-danger" : ""}>{errors.last24h} in the last 24 hours</span>
+              {errors.occurrences24h > errors.last24h ? ` (${errors.occurrences24h} occurrences)` : ""}
+            </>
+          ) : (
+            <span className="text-muted">Not set up yet (needs migration 0034).</span>
+          )}
+        </p>
+        <Link href="/settings/errors" className="mt-3 inline-block rounded-full border border-border-strong px-4 py-2 text-sm transition-colors hover:bg-surface">
+          Open error log
+        </Link>
       </section>
 
       <section aria-labelledby="search-heading" className="mt-10 rounded-3xl border border-border bg-background p-6 shadow-card">

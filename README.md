@@ -119,6 +119,10 @@ supabase db push
 - `0033_focus_timer.sql` — tabel `focus_timer` (satu baris per pengguna: `state` = objek JSON timer fokus/istirahat yang sedang BERJALAN, dibatasi objek <= 600 karakter,
   RLS pemilik) supaya timer dibagi antar perangkat. Hanya menambah tabel (tanpa DROP). Diterapkan per bagian; tabel aman diulang, policy dibuat sekali. Sebelum
   tabel ini ada aplikasi tetap jalan: timer hanya di browser seperti sebelumnya.
+- `0034_error_log.sql` — tabel `error_log` (satu baris per GALAT YANG SAMA: `fingerprint` unik, `occurrences`, `first_seen`/`last_seen`) dan fungsi `log_error` (upsert + pembersihan
+  otomatis: > 30 hari dan di atas 500 baris dibuang). RLS menyala TANPA policy (seperti `google_connections`): hanya server dengan service role yang bisa menulis dan membaca,
+  tidak ada akses dari browser. `log_error` hanya bisa dipanggil `service_role` (bukan `anon`/`authenticated`). Hanya menambah tabel dan fungsi (tanpa DROP). Diterapkan per
+  bagian; tabel dan fungsi aman diulang. Sebelum diterapkan aplikasi tetap jalan: pencatatan diam.
 - `0029_color_legend.sql` — tabel `color_legend` (satu baris per pengguna: `names` = objek JSON colorId Google "1".."11" -> nama pendek buatan
   pengguna untuk legenda warna blok kalender; RLS pemilik; `names` harus objek JSON dan maks. 1500 karakter). Hanya nama, tidak mengubah data lain.
   Policy dibuat tanpa DROP (jalankan sekali). **Aman bila kode live lebih dulu**: sebelum tabel ada, kalender tetap jalan dengan legenda lokal di
@@ -310,6 +314,17 @@ lewat masa tenggang 15 menit dibersihkan, bukan dihidupkan lagi. Mencatat sesi s
 bila dua perangkat sama-sama mencatat, constraint unik `(user_id, started_at)` membuatnya satu baris (diuji di Postgres). Selisih jam antar perangkat
 membuat hitung mundur bisa berbeda beberapa detik (waktu selesai disimpan sebagai jam perangkat yang memulai). Tabel belum ada atau server galat =
 sinkronisasi diam, timer tetap jalan di browser.
+
+**Log galat sendiri** (`instrumentation.ts`, `lib/error-log.ts`, `lib/error-report.ts`, `components/ErrorReporter.tsx`, `app/(dashboard)/settings/errors`): log runtime Vercel paket gratis hanya
+menyimpan 1 jam, jadi galat sulit ditelusuri belakangan (itu yang menghambat penyelidikan `/api/mcp`). Situs kini mencatat galatnya sendiri ke tabel `error_log` (migrasi `0034`): **server** lewat hook
+resmi Next.js `onRequestError` (render halaman, route handler, server action, proxy; dengan galat aslinya dan pola rute seperti `render /(dashboard)/todos`, bukan URL), dan **browser** lewat
+`ErrorReporter` (galat JavaScript yang tidak tertangani dan promise yang ditolak; maksimal 5 per menit per tab, pesan yang sama sekali per pemuatan halaman; hanya untuk pengguna yang login).
+Galat yang sama (sidik jari = sumber + rute + jenis + bentuk pesan tanpa UUID/angka/isi tanda kutip) digabung dan dihitung (`×N`), bukan ditumpuk. Yang disimpan: rute (tanpa query dan id),
+jenis dan pesan (**disamarkan**: JWT, Bearer, nilai `?key=`/`?token=`, seluruh query URL, email, dan deretan karakter panjang jadi penanda), jejak tumpukan (dipotong), digest, dan 7 huruf commit;
+**tidak pernah** isi request, header, cookie, atau data pengguna. Tidak dicatat (derau): pengalihan dan 404 internal Next.js, pembatalan permintaan, `ResizeObserver loop`, `Script error.`, ekstensi
+browser, dan kegagalan jaringan di browser. Pencatatan tidak pernah melempar galat dan tidak menahan respons lebih dari 3 detik (gagal = hanya `console`). Dilihat di **Settings → Error log**
+(`/settings/errors`: daftar, hapus satu, Clear all; ringkasan di Settings dan "Site errors in the last 24 hours" di Beranda). Server memakai `SUPABASE_SERVICE_ROLE_KEY` (sudah ada untuk Google/backup).
+Dari kode server yang menelan galat sendiri, panggil `reportError(error, "lokasi")` (`lib/error-report.ts`).
 
 **Kalender tambahan** (Settings → Other calendars; `lib/google/calendar-sources.ts`, `lib/google/extra-calendars.ts`): sampai 3 kalender
 Google lain (mis. kantor atau proyek) ikut tampil di grid minggu dan tampilan bulan, **hanya baca** dan bergaris putus-putus. Cara
@@ -531,6 +546,7 @@ app/(dashboard)/clients/  master klien dan partner
 app/(dashboard)/projects/ modul Projects: daftar per klien + detail (fase masing-masing dengan daftar to-do sendiri, partner, issue)
 docs/BACKUP.md            backup mingguan terenkripsi dan cara restore
 .github/workflows/        backup.yml (backup mingguan) dan ci.yml (tsc + lint + tes di setiap PR dan push ke main)
+instrumentation.ts        hook galat server Next.js (onRequestError) -> log galat; logika di lib/error-log.ts (murni), penulis di lib/error-report.ts, tampilan di app/(dashboard)/settings/errors
 lib/theme.ts              pilihan tema (System/Light/Dark) dan skrip awal di <head>; saklarnya di components/ThemeSwitch.tsx (menu avatar)
 lib/motion.ts             pilihan animasi (System/On/Off) dan skrip awal di <head>; saklarnya di components/MotionSwitch.tsx (menu avatar)
 app/(dashboard)/focus/    halaman Focus (Pomodoro); tombol melayang di components/focus/FocusFab.tsx, logika murni di lib/focus.ts, sinkronisasi timer di lib/focus-sync.ts + timer-actions.ts
