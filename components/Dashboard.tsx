@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addDaysISO, formatDate, formatLongDay, todayISO } from "@/lib/date";
 import { blockedLabel, blockedMinutes, buildToday, issueAttention, runningProjects, weekOf } from "@/lib/dashboard";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { getErrorSummary } from "@/lib/error-summary";
 import { TodayQuickAdd } from "@/components/TodayQuickAdd";
 
 // Beranda setelah login: apa yang perlu dikerjakan hari ini dan gambaran minggu ini. Semua dari database sendiri
@@ -75,7 +76,9 @@ export async function Dashboard() {
   const projects = runningProjects(projectsResult.data ?? [], phasesResult.data ?? [], clientNames, today);
   const attention = issueAttention(issuesResult.data ?? []);
   const blocked = blockedMinutes(blocksResult.data ?? []);
-  const needsAttention = attention.notInSheet + attention.canAddToKb;
+  const errors = await getErrorSummary();
+  const recentErrors = errors.available ? errors.last24h : 0;
+  const needsAttention = attention.notInSheet + attention.canAddToKb + recentErrors;
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
@@ -164,6 +167,7 @@ export async function Dashboard() {
               <div className="mt-2 divide-y divide-border">
                 {attention.notInSheet > 0 && <Stat label="Issues not marked in the sheet" value={attention.notInSheet} href="/issues" tone="warning" />}
                 {attention.canAddToKb > 0 && <Stat label="Issues you could add to the KB" value={attention.canAddToKb} href="/issues" tone="warning" />}
+                {recentErrors > 0 && <Stat label="Site errors in the last 24 hours" value={recentErrors} href="/settings/errors" tone="warning" />}
               </div>
             </section>
           )}
